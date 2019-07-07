@@ -1,0 +1,34 @@
+Version 300
+Charset "WindowsSimpChinese"
+Delimiter "	"
+CoordSys Earth Projection 1, 0
+Columns 12
+    guid char(64)
+    name char(254)
+    simplyname char(254)
+    catalog char(30)
+    rank char(32)
+    tracer char(8)
+    minlevel char(8)
+    maxlevel char(8)
+    update_flag char(8)
+    style_tag char(100)
+    line_id char(64)
+    test_field Char(64)
+Data
+Point 109.507230015 18.248310007
+
+Point 109.740460015 18.377240007
+
+Point 109.53264 18.29849
+
+Point 109.392380015 18.319860007
+
+Point 109.514500015 18.246650007
+
+Point 109.503790015 18.254190007
+
+Point 109.515990015 18.244880007
+
+Point 109.602910015 18.297320007
+
