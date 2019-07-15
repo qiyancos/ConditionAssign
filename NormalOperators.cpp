@@ -4,15 +4,6 @@ namespace condition_assign{
 
 namespace syntax {
 
-// 双目非逻辑运算符的检查过程
-#define BINARYOP_CHECK() { \
-    CHECK_ARGS(node->leftNode == nullptr && node->rightNode == nullptr, \
-            "Bad node-tree structure!"); \
-    CHECK_ARGS(node->op.isSupported(node->leftType) && \
-            node->op.isSupported(node->rightType) \
-            "Unsupported data type!"); \
-}
-
 int opNot::process(Node* node, const MifItem& item) {
     CHECK_ARGS(node->leftNode == nullptr && node->rightNode != nullptr, \
             "Bad node-tree structure!"); \

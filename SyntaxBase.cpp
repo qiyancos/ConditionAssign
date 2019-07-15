@@ -8,18 +8,27 @@ DataType getDataType(const std::string& data) {
     const int length = data.length();
     if (length == 0 || (data[0] == "\"" && data[length - 1] == "\"")) {
         return String;
-    } else {
-        std::stringstream streamTemp(data);
-        double floatTemp;
-        char charTemp;
-        if (!(streamTemp >> floatTemp)) {
-            return String;
-        } else if (!(streamTemp >> charTemp)) {
-            return String;
-        }
-        return Num;
+    } else if (!isType<double>(data)) {
+        return String;
+    }
+    return Num;
+}
+
+template<typename T>
+bool isType(const std::string& data) {
+    std::stringstream streamTemp(data);
+    T typeTemp;
+    char charTemp;
+    if (!(streamTemp >> typeTemp)) {
+        return String;
+    } else if (!(streamTemp >> charTemp)) {
+        return String;
     }
 }
+
+bool isType<int>(const std::string& data);
+bool isType<double>(const std::string& data);
+bool isType<std::string>(const std::string& data);
 
 std::string Operator::str() const {
     return str_;

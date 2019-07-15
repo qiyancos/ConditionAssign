@@ -30,6 +30,8 @@ public:
     static ExecutorPool* pool_;
 }
 
+ExecutorPool* Executor::pool_ = nullptr;
+
 // Executor工作项
 class ExecutorJob {
 public:

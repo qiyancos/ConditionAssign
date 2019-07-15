@@ -14,7 +14,7 @@ namespace syntax {
         op##Name() : Operator({__VA_ARGS__}, Score, String){}; \
         int process(Node* node, const MifItem& item); \
     }; \
-    OPREG(Name);
+    OPREG(Name); \
 }
 
 // 逻辑运算符的声明

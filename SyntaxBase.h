@@ -23,6 +23,15 @@ namespace syntax {
     } \
 }
 
+// 双目非逻辑运算符的检查过程
+#define BINARYOP_CHECK() { \
+    CHECK_ARGS(node->leftNode == nullptr && node->rightNode == nullptr, \
+            "Bad node-tree structure!"); \
+    CHECK_ARGS(node->op.isSupported(node->leftType) && \
+            node->op.isSupported(node->rightType) \
+            "Unsupported data type!"); \
+}
+
 // 用于运算符的注册宏
 #define OPREG(Name) { \
     int globalOpReg##Name = operatorListInit(op##Name()); \
@@ -32,6 +41,9 @@ namespace syntax {
 enum DataType {Num, String, Group, Expr};
 // 获取一个字符串的类型
 DataType getDataType(const std::string& data);
+// 判断一个数值是给定类型
+template<typename T>
+bool isType(const std::string& data);
 // 用于比较两个浮点数
 inline bool floatEqual(const double a, const double b) {
     return abs(a - b) < MAXERROR;
@@ -84,6 +96,8 @@ struct Node {
     std::string tagName;
     // 当前节点对应的Op，如果有的话
     Operator* op;
+    // 特殊运算符参数的索引
+    int opParamIndex;
     // 右值的数据类型
     DataType rightType;
     // 左值的数据类型

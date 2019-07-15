@@ -58,6 +58,8 @@ protected:
     static const Type inputType_;
 };
 
+Group::Type Group::inputType_ = Group::Item;
+
 class ItemGroup : public Group {
 public:
     ItemGroup();
