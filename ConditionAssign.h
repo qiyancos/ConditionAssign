@@ -25,7 +25,7 @@ namespace condition_asssign {
 
 #define CHECK_EXIT(expr, info) { \
     int errCode = expr; \
-    if (errCode) { \
+    if (errCode < 0) { \
         sys_log_println(_ERROR, "%s, err_code = %d\n", \
                 string(info).c_str(), errCode); \
         exit(status); \
@@ -34,10 +34,10 @@ namespace condition_asssign {
 
 #define CHECK_RET(expr, info) { \
     int errCode = expr; \
-    if (errCode) { \
+    if (errCode < 0) { \
         sys_log_println(_ERROR, "%s, err_code = %d\n", \
                 string(info).c_str(), errCode); \
-        exit(status); \
+        return status; \
     } \
 }
 

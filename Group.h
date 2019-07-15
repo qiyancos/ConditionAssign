@@ -8,12 +8,18 @@
 
 namespace condition_assign {
 
-// 组类型数据的缓存
-using GroupMap = std::map<std::string, Group*>; 
-
 // 组类型通用父类
 class Group {
 public:
+    struct GroupInfo {
+        std::vector<Node*> conditions;
+        std::vector<std::string> tagGroup;
+        std::string newTag;
+    };  
+    
+    // 未生成实体时存放的解析信息，处理结束后必须为NULL
+    GroupInfo* info_ = nullptr;
+
     // Group的类型
     enum Type {Item, Tag, Point, Link, Area};
     // 获取当前Group的类型
@@ -48,6 +54,7 @@ public:
 protected:
     // 当前Group的类型
     const Type groupType_;
+    // 当前输入层的地理抽象类型
     static const Type inputType_;
 };
 

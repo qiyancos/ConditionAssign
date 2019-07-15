@@ -1,11 +1,11 @@
-#ifndef EXECUTOR_H
-#define EXECUTOR_H
+#ifndef EXECUTORPOOL_H
+#define EXECUTORPOOL_H
 
 #include <string>
 #include <mutex>
 #include <function>
+#include "ResourcePool.h"
 #include "Config.h"
-#include "Layer.h"
 
 namespace condition_assign {
 
@@ -13,6 +13,10 @@ namespace condition_assign {
 #define MAX_CANDIDATE_SIZE 4
 // 单个Executor处理的WorkItem数量上限
 #define MAX_WORKITEM_CNT 1000
+
+#ifndef RESOURCEPOOL_H
+class ResourcePool;
+#endif
 
 // Executor类对应线程，只使用其中的函数
 class Executor {
@@ -23,6 +27,7 @@ public:
     static int mainRunner();
     // Executor进入等待状态的处理函数
     static int startWaiting();
+    static ExecutorPool* pool_;
 }
 
 // Executor工作项
@@ -45,7 +50,7 @@ public:
     };
     
     // 构造函数，参数是一个结构体
-    ExecutorJob(JobTypes type, void* params);
+    ExecutorJob(const JobTypes type, const int targetID, void* params);
     // 根据工作类型获取对应的执行函数
     std::function<int(void*)> getJobFunc(JobTypes);
 
@@ -93,6 +98,8 @@ private:
     const JobTypes type_;
     // 当前工作项的参数
     const void* params_;
+    // 目标层的通用ID
+    const int targetID_;
 };
 
 class ExecutorPool {
@@ -113,56 +120,20 @@ public:
         std::vector<std::string> configs;
     }
 
-/*
-    // 加载输入层和外挂数据
-    int loadInput();
-    // 打开或者创建输出层数据
-    int openOutput();
-    // 加载配置文件并进行处理
-    int loadConfig();
-*/
-    // 执行所有操作
+    // 执行初始化操作，然后交给executorController
     int execute();
-/*
-    // 保存输出层数据
-    int saveOutput();
-*/
-
     // 构造函数，需要给出对应参数
     ExecutorPool(const Params& params);
     // 析构函数
     ~ExecutorPool();
 
 public:
-    // 对配置文件解析完毕后的语法信息
-    ConfigGroup configGroup_;
-    // 缓存构建过的Group数据
-    GroupCache groupMap;
-
-    // 输入层数据
-    Layer inputLayer_;
-    // 外挂数据
-    std::vector<Layer> pluginLayers_;
-    // 输出层数据
-    std::vector<Layer> outputLayers_;
-    // 输出层写入操作的互斥锁
-    std::vector<std::mutex> outputLayersLock_;
-
-    // 实际的候选队列的数量
-    const int candidateQueueCnt_;
-    // 准备就绪的工作项队列
-    std::vector<ExecutorJob> readyQueue_;
-    // 准备就绪队列的写入操作互斥锁
-    std::mutex readyQueueLock_;
-    // 候选工作项的队列
-    std::vector<std::vector<ExecutorJob>> candidateQueue_;
-    // 候选工作项队列的写入互斥锁
-    std::vector<std::mutex> candidateQueueLock_;
-
     // Executor工作状态
     std::vector<Executor::Status> executorStatus;
     // Executor工作状态的互斥锁
     std::mutex executorStatusLock_;
+    // 运行资源的统一管控结构
+    ResourcePool resource_;
 
 private:
     // ExecutorPool的参数信息
