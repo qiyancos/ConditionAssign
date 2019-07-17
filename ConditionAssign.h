@@ -12,8 +12,6 @@ Create on: 2018/08/27
 
 *************************************************/
 
-#include "executor.h"
-#include "conf_helper.h"
 #include "htk/str_helpers.h"
 
 #include <locale>
@@ -26,8 +24,8 @@ namespace condition_asssign {
 #define CHECK_EXIT(expr, info) { \
     int errCode = expr; \
     if (errCode < 0) { \
-        sys_log_println(_ERROR, "%s, err_code = %d\n", \
-                string(info).c_str(), errCode); \
+        sys_log_println(_ERROR, "%s in [%s], err_code = %d\n", \
+                info, __func__, errCode); \
         exit(status); \
     } \
 }
@@ -35,9 +33,17 @@ namespace condition_asssign {
 #define CHECK_RET(expr, info) { \
     int errCode = expr; \
     if (errCode < 0) { \
-        sys_log_println(_ERROR, "%s, err_code = %d\n", \
-                string(info).c_str(), errCode); \
+        sys_log_println(_ERROR, "%s in [%s], err_code = %d\n", \
+                info, __func__, errCode); \
         return status; \
+    } \
+}
+
+#define CHECK_ARGS(expr, info) { \
+    if (!expr) { \
+        sys_log_println(_ERROR, "%s in [%s]", \
+                info, __func__); \
+        return -1; \
     } \
 }
 

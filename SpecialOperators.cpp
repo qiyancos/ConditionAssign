@@ -1,4 +1,5 @@
 #include "SpecialOperators.h"
+#include "ConditionAssign.h"
 
 namespace condition_assign {
 
@@ -6,18 +7,19 @@ namespace syntax {
 
 int opCondFunc::process(Node* node, const MifItem& item) {
     BINARYOP_CHECK();
-    funcNameListLock.lock();
-    std::string funcName = funcNameList[node->opParamsIndex];
-    funcNameListLock.unlock();
+    funcNameListLock_.lock();
+    std::string funcName = funcNameList_[node->opParamsIndex];
+    funcNameListLock_.unlock();
     CHECK_ARGS(opInternalFuncList.find(funcName) != opInternalFuncList.end(),
             std::string(std::string("Function \"") + funcName +
             "\" not defined").c_str());
-    paramListLock.lock();
-    void* funcParam = paramList[node->opParamIndex];
-    paramListLock.unlock();
+    paramListLock_.lock();
+    void* funcParam = paramList_[node->opParamIndex];
+    paramListLock_.unlock();
     std::function<int(Node*, const MifItem&, void*)>& executeFunc = 
             opInternalFuncList[funcName];
-    CHECK_RET(executeFunc(node, item, funcParam));
+    CHECK_RET(executeFunc(node, item, funcParam),
+            std::string("Failed to execute function [" + funcName + "]."));
     return 0;
 }
 
@@ -33,26 +35,27 @@ int opCondFunc::find(const std::string& content,
         return -1;
     }
     CHECK_ARGS(!length, "No function name is given in condition expression.");
-    paramListLock.lock();
-    paramList.push_back(content.substr(range->first, length));
-    paramListWriteLock.unlock();
+    paramListLock_.lock();
+    paramList_.push_back(content.substr(range->first, length));
+    paramListWriteLock_.unlock();
     return 0;
 }
 
 int opAssignFunc::process(Node* node, const MifItem& item) {
     BINARYOP_CHECK();
-    funcNameListLock.lock();
-    std::string funcName = funcNameList[node->opParamsIndex];
-    funcNameListLock.unlock();
+    funcNameListLock_.lock();
+    std::string funcName = funcNameList_[node->opParamsIndex];
+    funcNameListLock_.unlock();
     CHECK_ARGS(opInternalFuncList.find(funcName) != opInternalFuncList.end(),
             std::string(std::string("Function \"") + funcName +
             "\" not defined").c_str());
-    paramListLock.lock();
-    void* funcParam = paramList[node->opParamIndex];
-    paramListLock.unlock();
+    paramListLock_.lock();
+    void* funcParam = paramList_[node->opParamIndex];
+    paramListLock_.unlock();
     std::function<int(Node*, const MifItem&, void*)>& executeFunc = 
             opInternalFuncList[funcName];
-    CHECK_RET(executeFunc(node, item, funcParam));
+    CHECK_RET(executeFunc(node, item, funcParam),
+            std::string("Failed to execute function [" + funcName + "]."));
     return 0;
 }
 
@@ -68,20 +71,22 @@ int opAssignFunc::find(const std::string& content,
         return -1;
     }
     CHECK_ARGS(!length, "No function name is given in condition expression.");
-    paramListLock.lock();
-    paramList.push_back(content.substr(range->first, length));
-    paramListWriteLock.unlock();
+    paramListLock_.lock();
+    paramList_.push_back(content.substr(range->first, length));
+    paramListWriteLock_.unlock();
     return 0;
 }
 
 int opReplace::process(Node* node, const MifItem& item) {
     BINARYOP_CHECK();
     std::string leftVal;
-    item.getTagVal(node->tagName, &leftVal);
-    paramListLock.lock();
-    const std::pair<int, int>& funcParam = paramList[node->opParamIndex];
-    paramListLock.unlock();
-    CHECKARGS(funcParam.second < leftVal.size(),
+    CHECK_RET(item.getTagVal(node->tagName, &leftVal),
+            (std::string("Tag [") + node->tagName +
+            "] not found!").c_str());
+    paramListLock_.lock();
+    const std::pair<int, int>& funcParam = paramList_[node->opParamIndex];
+    paramListLock_.unlock();
+    CHECK_ARGS(funcParam.second < leftVal.size(),
             "Replace position out of range");
     leftVal.replace(funcParam.first, funcParam.second,
             node->value.stringValue);
@@ -108,9 +113,10 @@ int opReplace::find(const std::string& content,
             startPosLength);
     std::string length = content.substr(colonIndex + 1, lengthLength);
     CHECK_ARGS(isType<int>(startPos) && isType<int>(length));
-    paramListLock.lock();
-    paramList.push_back(std::pair<int, int>(atoi(startPos.c_str()),
+    paramListLock_.lock();
+    paramList_.push_back(std::pair<int, int>(atoi(startPos.c_str()),
             atoi(length.c_str())));
+    paramListLock_.unlock();
     return 0;
 }
 

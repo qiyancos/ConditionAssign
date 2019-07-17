@@ -15,14 +15,6 @@ namespace syntax {
 // 比较浮点数的最大误差
 #define MAXERROR 1e-8
 
-// 参数检查宏
-#define CHECK_ARGS(expr, info) { \
-    if ((!expr)) { \
-        sys_log_println(_ERROR, "%s in [%s]", info, __func__); \
-        return -1; \
-    } \
-}
-
 // 双目非逻辑运算符的检查过程
 #define BINARYOP_CHECK() { \
     CHECK_ARGS(node->leftNode == nullptr && node->rightNode == nullptr, \
@@ -38,12 +30,13 @@ namespace syntax {
 }
 
 // 数据类型
-enum DataType {Num, String, Group, Expr};
+enum DataType {Number, String, Group, Expr};
 // 获取一个字符串的类型
-DataType getDataType(const std::string& data);
+DataType getDataType(const std::string& data, std::string* stringVal,
+        double* numberVal);
 // 判断一个数值是给定类型
 template<typename T>
-bool isType(const std::string& data);
+bool isType(const std::string& data, T* result);
 // 用于比较两个浮点数
 inline bool floatEqual(const double a, const double b) {
     return abs(a - b) < MAXERROR;

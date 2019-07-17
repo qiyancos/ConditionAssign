@@ -1,4 +1,6 @@
-#include "condition_assign.h"
+#include "ConditionAssign.h"
+#include "Executor.h"
+#include "conf_helper.h"
 
 using namespace condition_asssign;
 
@@ -58,29 +60,10 @@ int main(int argc, char** argv) {
     
     ExecutorPool mainPool(poolParams);
     
-/*
-    sys_log_println(_INFORANK, "Loading input layer...\n");
-    CHECK_EXIT(mainPool.loadInput(),
-            "Error: errors occurred while openning input layer");
-
-    sys_log_println(_INFORANK, "Opening or creating output layer...\n");
-    CHECK_EXIT(mainPool.openOutput(),
-            "Error: errors occurred while openning output layer");
-
-    sys_log_println(_INFORANK, "Loading and parsing config files...\n");
-    CHECK_EXIT(mainPool.loadConfig(),
-            "Error: errors occurred while loading or parsing config files");
-*/
-
     sys_log_println(_INFORANK, "Processing...\n");
     CHECK_EXIT(mainPool.execute(),
             "Error: errors occurred while processing data");
 
-/*
-    sys_log_println(_INFORANK, "Loading and parsing config files...\n");
-    CHECK_EXIT(mainPool.saveOutput(),
-            "Error: errors occurred while loading or parsing config files");
-*/
     time(&end);
     sys_log_println(_INFORANK, "Process Finished. Cost time = %ds\n",
             (end - start));

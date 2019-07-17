@@ -21,51 +21,53 @@ int opInternalFuncListInit(const std::string& name,
 // 特殊的运算符的声明
 class opCondFunc : public Operator {
 public:
-    static std::mutex funcNameListLock;
-    static std::vector<std::string> funcNameList;
-    static std::mutex paramListLock;
-    static std::vector<std::string> paramList;
-    opCondFunc() : Operator({Num, String, Group}, Score, String){};
+    static std::mutex funcNameListLock_;
+    static std::vector<std::string> funcNameList_;
+    static std::mutex paramListLock_;
+    static std::vector<std::string> paramList_;
+    opCondFunc() : Operator({Number, String, Group}, Score, String){};
     int process(Node* node, const MifItem& item);
     int find(const std::string& content, std::pair<size_t, size_t>* range);
 };
 
-std::mutex opCondFunc::funcNameListLock = std::mutex();
-std::vector<std::string> opCondFunc::funcNameList = std::vector<std::string>();
-std::mutex opCondFunc::paramListLock = std::mutex;
-std::vector<std::string> opCondFunc::paramList = std::vector<std::string>();
+std::mutex opCondFunc::funcNameListLock_ = std::mutex();
+std::vector<std::string> opCondFunc::funcNameList_ =
+        std::vector<std::string>();
+std::mutex opCondFunc::paramListLock_ = std::mutex;
+std::vector<std::string> opCondFunc::paramList_ = std::vector<std::string>();
 
 OPREG(CondFunc);
 
 class opAssignFunc : public Operator {
 public:
-    static std::mutex funcNameListLock;
-    static std::vector<std::string> funcNameList;
-    static std::mutex paramListLock;
-    static std::vector<std::string> paramList;
-    opCondFunc() : Operator({Num, String, Group}, Score, String){};
+    static std::mutex funcNameListLock_;
+    static std::vector<std::string> funcNameList_;
+    static std::mutex paramListLock_;
+    static std::vector<std::string> paramList_;
+    opCondFunc() : Operator({Number, String, Group}, Score, String){};
     int process(Node* node, const MifItem& item);
     int find(const std::string& content, std::pair<size_t, size_t>* range);
 };
 
-std::mutex opAssignFunc::funcNameListLock = std::mutex();
-std::vector<std::string> opAssignFunc::funcNameList = std::vector<std::string>();
-std::mutex opAssignFunc::paramListLock = std::mutex;
-std::vector<std::string> opAssignFunc::paramList = std::vector<std::string>();
+std::mutex opAssignFunc::funcNameListLock_ = std::mutex();
+std::vector<std::string> opAssignFunc::funcNameList_ =
+        std::vector<std::string>();
+std::mutex opAssignFunc::paramListLock_ = std::mutex;
+std::vector<std::string> opAssignFunc::paramList_ = std::vector<std::string>();
 
 OPREG(AssignFunc);
 
 class opReplace : public Operator {
 public:
-    static std::mutex paramListLock;
-    static std::vector<std::pair<int, int>> paramList;
+    static std::mutex paramListLock_;
+    static std::vector<std::pair<int, int>> paramList_;
     opCondFunc() : Operator({String}, Score, String){};
     int process(Node* node, const MifItem& item);
     int find(const std::string& content, std::pair<size_t, size_t>* range);
 };
 
-std::mutex opRelace::paramListLock = std::mutex();
-std::vector<std::pair<int, int>> opReplace::paramList =
+std::mutex opRelace::paramListLock_ = std::mutex();
+std::vector<std::pair<int, int>> opReplace::paramList_ =
         std::vector<std::pair<int, int>>();
 
 OPREG(Replace);

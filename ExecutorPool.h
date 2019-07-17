@@ -52,23 +52,23 @@ public:
     };
     
     // 构造函数，参数是一个结构体
-    ExecutorJob(const JobTypes type, const int targetID, void* params);
+    ExecutorJob(const JobTypes type, const int targetID, void* param);
     // 根据工作类型获取对应的执行函数
     std::function<int(void*)> getJobFunc(JobTypes);
 
 public:
     // 加载目标Layer的函数
-    int loadLayer(void* params);
+    int loadLayer(void* param);
     // 关闭和保存Layer的函数
-    int saveLayer(void* params);
+    int saveLayer(void* param);
     // 对多行配置文件的内容进行语法解析的函数
-    int parseConfigLine(void* params);
+    int parseConfigLine(void* param);
     // 为一个配置文件生成工作项的函数
-    int parseConfigFile(void* params);
+    int parseConfigFile(void* param);
     // 建立给定类型的Group类型的函数
-    int buildGroup(void* params);
+    int buildGroup(void* param);
     // 对多个Mif元素执行条件赋值操作的函数
-    int mifItemProcess(void* params);
+    int mifItemProcess(void* param);
 
 public:
     // 加载目标Layer函数参数
@@ -99,7 +99,7 @@ private:
     // 当前工作项的类型
     const JobTypes type_;
     // 当前工作项的参数
-    const void* params_;
+    const void* param_;
     // 目标层的通用ID
     const int targetID_;
 };

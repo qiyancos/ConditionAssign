@@ -22,13 +22,13 @@ OPDEF(Not, 1, "!", Expr);
 OPDEF(Or, 1, "||", Expr);
 OPDEF(And, 1, "&&", Expr);
 // 比较运算符声明
-OPDEF(Equal, 1, "==", Num, String);
-OPDEF(NotEqual, 1, "!=", Num, String);
+OPDEF(Equal, 1, "==", Number, String);
+OPDEF(NotEqual, 1, "!=", Number, String);
 // 数字大小比较运算声明
-OPDEF(LessEqual, 1, "<=", Num);
-OPDEF(LessThan, 1, "<", Num);
-OPDEF(GreaterEqual, 1, ">=", Num);
-OPDEF(GreaterThan, 1, ">", Num);
+OPDEF(LessEqual, 1, "<=", Number);
+OPDEF(LessThan, 1, "<", Number);
+OPDEF(GreaterEqual, 1, ">=", Number);
+OPDEF(GreaterThan, 1, ">", Number);
 // 字符串运算比较运算声明
 OPDEF(Contain, 1, "%=%", String);
 OPDEF(IsPrefix, 1, "%=", String);
@@ -43,11 +43,13 @@ OPDEF(GeoContained, 1, "[<>]", Group);
 OPDEF(GeoContainedAll, 1, "&[<>]", Group);
 OPDEF(GeoIntersect, 1, "<[>]", Group);
 OPDEF(GeoIntersectAll, 1, "&<[>]", Group);
+OPDEF(GeoInContact, 1, "<[>]", Group);
+OPDEF(GeoInContactAll, 1, "&<[>]", Group);
 OPDEF(GeoDeparture, 1, "<>[]", Group);
 OPDEF(GeoDepartureAll, 1, "&<>[]", Group);
 // 赋值相关运算符的声明
-OPDEF(Assign, 1, "=", Num, String);
-OPDEF(SelfAdd, 1, "+=", Num, String);
+OPDEF(Assign, 1, "=", Number, String);
+OPDEF(SelfAdd, 1, "+=", Number, String);
 
 } // namepsace syntax
 
