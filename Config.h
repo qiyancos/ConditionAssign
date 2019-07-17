@@ -18,7 +18,9 @@ class ConfigItem {
 public:
     ConfigItem();
     // 添加一个节点到节点库中
-    int newNode(syntax::Node*);
+    int newNode(syntax::Node**);
+    // 添加一个新的运算符到运算符库中
+    int newOperator(syntax::Operator**);
     // 添加一个核心条件操作对应的节点指针
     int addCondition(syntax::Node*);
     // 添加一个核心赋值操作对应的节点指针
@@ -30,6 +32,8 @@ private:
     int score;
     // 所有的节点实体库
     std::vector<syntax::Node> nodes_;
+    // 所有的运算符实体库
+    std::vector<syntax::Operator*> nodes_;
     // 核心条件操作对应的主节点
     std::vector<syntax::Node*> conditions_;
     // 核心赋值操作对应的主节点

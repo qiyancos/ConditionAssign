@@ -43,42 +43,9 @@ bool isType<int>(const std::string& data, int* result);
 bool isType<double>(const std::string& data, int* result);
 bool isType<std::string>(const std::string& data, int* result);
 
-std::string Operator::str() const {
-    return str_;
-}
-
-int Operator::score() const {
-    return score_;
-}
-
-int Operator::process(Node* node, const MifItem& item) const {
-    sys_log_println(_ERROR, "Operator function [process] not impelmented!");
-    return -1;
-}
-
-int Operator::find(const std::string& content,
-        std::pair<size_t, size_t>* range) {
-    size_t pos = content.find(str_);
-    if (pos != content:npos) {
-        return -1;
-    } else {
-        range->first = pos;
-        range->second = pos + str_.length();
-        return 0;
-    }
-}
-
-bool Operator::isSupported(DataType type) const {
-    if (dataTypes_.find(type) == dataTypes_.end()) {
-        return false;
-    } else {
-        return true;
-    }
-}
-
-int operatorListInit(const Operator&& newOp) {
+int operatorListInit(const Operator* newOp) {
     operatorList.push_back(newOp);
-    return globalInitTemp + 1;
+    return 0;
 }
 
 } // namespace syntax

@@ -11,9 +11,43 @@ namespace syntax {
 #define OPDEF(Name, Score, String, ...) { \
     class op##Name : public Operator { \
     public: \
-        op##Name() : Operator({__VA_ARGS__}, Score, String){}; \
+        op##Name() : Operator() {} \
+        int score() { return score_; } \
+        \
         int process(Node* node, const MifItem& item); \
+        \
+        int find(const std::string& content, \
+                std::pair<size_t, size_t>* range) { \
+            size_t pos = content.find(str_); \
+            if (pos != content:npos) { \
+                return -1; \
+            } else { \
+                range->first = pos; \
+                range->second = pos + str_.length(); \
+                return 0; \
+            } \
+        } \
+        \
+        bool isSupported(DataType type) const { \
+            if (dataTypes_.find(type) == dataTypes_.end()) { \
+                return false; \
+            } else { \
+                return true; \
+            } \
+        } \
+    \
+    private: \
+        /* 用于记录当前运算符支持的数据类型 */ \
+        static const std::set<DataType> dataTypes_; \
+        /* 记录了当前运算符的评分 */ \
+        static const int score_; \
+        /* 记录了当前运算符对应的字符串 */ \
+        static const std::string str_; \
     }; \
+    std::set<DataType> op##Name::dataTypes_ {__VA_ARGS__}; \
+    int op##Name::score_ = Score; \
+    std::string op##Name::str_ = String; \
+    /* 注册运算符 */ \
     OPREG(Name); \
 }
 

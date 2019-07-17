@@ -26,7 +26,7 @@ namespace syntax {
 
 // 用于运算符的注册宏
 #define OPREG(Name) { \
-    int globalOpReg##Name = operatorListInit(op##Name()); \
+    int globalOpReg##Name = operatorListInit(new op##Name()); \
 }
 
 // 数据类型
@@ -55,27 +55,17 @@ struct Node;
 // 运算符类
 class Operator {
 public:
-    // 获取当前运算符对应的字符串
-    std::string str();
     // 获取当前运算符的运算评分
-    int score();
+    virtual int score() = 0;
     // 根据给定的节点数据，计算运算结果
-    virtual int process(Node* node, const MifItem& item);
+    virtual int process(Node* node, const MifItem& item) = 0;
     // 检查给定的数据类型是否支持
-    bool isSupported(DataType type);
+    virtual bool isSupported(DataType type) = 0;
     // 找到对应操作符的在当前行范围的函数, 范围是左闭右开的
     virtual int find(const std::string& content,
-            std::pair<size_t, size_t>* range);
+            std::pair<size_t, size_t>* range) = 0;
     // 虚析构函数
-    virtual ~Operator();
-
-private:
-    // 当前运算符支持的数据类型
-    const std::set<DataType> dataTypes_;
-    // 当前运算符的运算评分
-    const int score_;
-    // 当前运算符对应的字符串
-    const std::string str_;
+    virtual ~Operator() {}
 };
 
 // 配置文件语法分析节点
@@ -109,9 +99,9 @@ struct Node {
 };
 
 // 所有的运算符注册表
-std::vector<Operator> operatorList;
+std::vector<Operator*> operatorList;
 // 用于运算符注册的函数
-int operatorListInit(const Operator&& newOp);
+int operatorListInit(const Operator* newOp);
 
 } // namesapce syntax
 
