@@ -35,17 +35,17 @@ protected:
     virtual int getTagColID(const std::string& tagName, int* colID,
             AccessType accessType) = 0;
 
-private:
+protected:
     // 当前MifLayer的处理类型
     const AccessType type_;
-    // mif数据锁
-    std::mutex mifLock_;
     // Layer数据结构
     wgt::MIF mif_;
     // mif中的item的个数
     int mifSize_;
     // 对应文件的路径
     std::string layerPath_;
+    // 当前MifLayer是否打开
+    bool opened_ = false;
     // 缓存Tag名称到对应索引的映射关系锁
     std::mutex tagColCacheLock_;
     // 缓存Tag名称到对应索引的映射关系，快速查找
@@ -104,6 +104,10 @@ protected:
     // 对于写操作如果没有会新建，读取或者新建失败会返回-1
     int getTagColID(const std::string& tagName, int* colID,
             AccessType accessType) = 0;
+
+private:
+    // mif数据锁
+    std::mutex mifLock_;
 }
 
 class MifItem {

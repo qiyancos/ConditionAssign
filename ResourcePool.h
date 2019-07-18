@@ -17,67 +17,77 @@ class ExecutorJob;
 class ResourcePool {
 public:
     enum LayerType {Input, Output, Plugin};
-    enum AccessType {Read, Write};
     // 构造函数
     ResourcePool();
     // 初始化
-    init(const int targetCnt, const int candidateQueCnt);
+    int init(const int targetCnt, const int pluginCnt,
+            const int executorCnt, const int candidateQueueCnt);
     // 根据目标层ID获取对应的ConfigSubGroup
     int getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr);
     // 生成新的Group
-    int newGroup(Group** newGroupPtr);
+    int newGroup(Group** newGroupPtr, Group* newGroup);
     // 插入生成好的Group到映射中去
-    int insertGroup(const std::string& key, const Group* newGroupPtr);
+    int insertGroup(const std::string& key, Group* newGroup);
     // 根据group的key获取
     int findGroup(const std::string& key, Group** groupPtr);
     // 打开指定的Layer
     int openLayer(const std::string& layerPath, const LayerType layerType);
     // 根据路径名或者部分路径名查找对应Layer的索引
-    int findLayer(const std:;string& layerPath, int* targetID,
-            const LayerType layerType)
-    // 获取输入层数据
-    int getLayer(MifLayer** layerPtr, const LayerType layerType,
-            const AccessType accessType);
-    // 获取输出或者外挂层数据
-    int getLayer(MifLayer** layerPtr, const int targetID,
-            const LayerType layerType, const AccessType accessType);
+    int getLayerByName(MifLayer** layerPtr, const LayerType layerType,
+            const std::string& layerPath, int* targetID = nullptr);
+    // 获取某一个Layer的指针
+    int getLayerByIndex(MifLayer** layerPtr, const LayerType layerType,
+            const int targetID = -1);
     // 获取一个可以运行的工作项
-    int getReadyJob(ExecutorJob* jobConsumer);
+    int getReadyJob(const int threadID, ExecutorJob** jobConsumerPtr);
     // 获取一个备选工作项空位，插入新的工作
     int getCandidateJob(const int candidateIndex, ExecutorJob** jobProducer);
     // 从备选工作队列中选择准备好的工作项放到准备队列
     int selectReadyJob();
+    // 释放所有的资源
+    int releaseResource();
+
 private:
     // 当前工作的目标层数目
-    const int targetCnt_;
-    // 对配置文件解析完毕后的语法信息
-    std::vector<ConfigSubGroup> configGroup_;
-    // 缓存构建过的Group数据
-    std::vector<Group> groups_;
+    int targetCnt_;
+    // 当前工作的外挂表层数目
+    int pluginCnt_;
+    // 当前的执行器数量
+    int executorCnt_;
+    
+    // 对配置文件解析完毕后的语法信息, 使用指针避免加锁的需要
+    std::vector<ConfigSubGroup*> configGroup_;
+    
+    // 所有Group数据缓存的锁
+    std::mutex groupsLock_;
+    // 缓存构建过的Group指针
+    std::vector<Group*> groups_;
+    // 缓存Group映射的锁
+    std::mutex groupMapLock_;
     // 用于缓存Group查找的映射
     std::map<std::string, Group*> groupMap_;
 
     // 输入层数据
-    MifLayer inputLayer_;
-    // 外挂数据路径到索引的映射
-    std::map<std::string, int> pluginLayersMapping_;
-    // 外挂数据
-    std::vector<MifLayer> pluginLayers_;
+    MifLayer* inputLayer_;
+    // 外挂表锁
+    std::mutex pluginLayersLock_;
+    // 外挂表数据
+    std::map<std::string, MifLayer*> pluginLayersMap_;
+    // 输出层数据路径到索引的映射锁
+    std::mutex outputLayersLock_;
     // 输出层数据路径到索引的映射
-    std::map<std::string, int> outputLayersMapping_;
+    std::map<std::string, int> outputLayersMap_;
     // 输出层数据
-    std::vector<MifLayer> outputLayers_;
-    // 输出层写入操作的互斥锁
-    std::vector<std::mutex> outputLayersLock_;
+    std::vector<MifLayer*> outputLayers_;
 
     // 实际的候选队列的数量
-    const int candidateQueueCnt_;
+    int candidateQueueCnt_;
     // 准备就绪的工作项队列
-    std::queue<ExecutorJob> readyQueue_;
+    std::vector<std::queue<ExecutorJob*>> readyQueue_;
     // 准备就绪队列的写入操作互斥锁
     std::mutex readyQueueLock_;
     // 候选工作项的队列
-    std::vector<std::queue<ExecutorJob>> candidateQueue_;
+    std::vector<std::queue<ExecutorJob*>> candidateQueue_;
     // 候选工作项队列的写入互斥锁
     std::vector<std::mutex> candidateQueueLock_;
 };

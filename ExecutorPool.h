@@ -9,6 +9,8 @@
 
 namespace condition_assign {
 
+// 最大的MifLayer数目，防止爆内存
+#define MAX_MIFLAYERS 32
 // 候选工作队列的数量
 #define MAX_CANDIDATE_SIZE 4
 // 单个Executor处理的WorkItem数量上限
@@ -23,11 +25,18 @@ class Executor {
 public:
     // Executor的运行状态(空闲/繁忙)
     enum Status {Idle, Busy};
+    // 构造函数
+    Executor(const int id);
     // 每个线程分配的主函数
-    static int mainRunner();
+    static int mainRunner(const Executor& executor);
     // Executor进入等待状态的处理函数
     static int startWaiting();
+
+public:
+    // 所属执行器池的指针
     static ExecutorPool* pool_;
+    // 执行器唯一的标识ID
+    const int id_;
 }
 
 ExecutorPool* Executor::pool_ = nullptr;
@@ -52,7 +61,8 @@ public:
     };
     
     // 构造函数，参数是一个结构体
-    ExecutorJob(const JobTypes type, const int targetID, void* param);
+    ExecutorJob(const JobTypes type, const int targetID,
+            const int mifItemIndex, void* param);
     // 根据工作类型获取对应的执行函数
     std::function<int(void*)> getJobFunc(JobTypes);
 
@@ -102,6 +112,8 @@ private:
     const void* param_;
     // 目标层的通用ID
     const int targetID_;
+    // 处理的MifItem对应的Index，没有则为-1
+    const int mifItemIndex_;
 };
 
 class ExecutorPool {
