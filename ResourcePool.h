@@ -10,6 +10,9 @@
 
 namespace condition_assign {
 
+// 准备好工作项的队列的最大长s
+#define MAX_READY_QUEUE_SIZE 2
+
 #ifndef EXECUTORPOOL_H
 class ExecutorJob;
 #endif
@@ -21,7 +24,8 @@ public:
     ResourcePool();
     // 初始化
     int init(const int targetCnt, const int pluginCnt,
-            const int executorCnt, const int candidateQueueCnt);
+            const int executorCnt, const int candidateQueueCnt,
+            const JobSelectAlgo jobSelectAlgo);
     // 根据目标层ID获取对应的ConfigSubGroup
     int getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr);
     // 生成新的Group
@@ -54,6 +58,10 @@ private:
     int pluginCnt_;
     // 当前的执行器数量
     int executorCnt_;
+    // 实际的候选队列的数量
+    int candidateQueueCnt_;
+    // 当前任务选择的算法类型
+    JobSelectAlgo jobSelectAlgo_;
     
     // 对配置文件解析完毕后的语法信息, 使用指针避免加锁的需要
     std::vector<ConfigSubGroup*> configGroup_;
@@ -80,16 +88,14 @@ private:
     // 输出层数据
     std::vector<MifLayer*> outputLayers_;
 
-    // 实际的候选队列的数量
-    int candidateQueueCnt_;
-    // 准备就绪的工作项队列
-    std::vector<std::queue<ExecutorJob*>> readyQueue_;
     // 准备就绪队列的写入操作互斥锁
     std::mutex readyQueueLock_;
+    // 准备就绪的工作项队列
+    std::vector<std::queue<ExecutorJob*>> readyQueue_;
+    // 候选工作项队列的写入互斥锁
+    std::mutex candidateQueueLock_;
     // 候选工作项的队列
     std::vector<std::queue<ExecutorJob*>> candidateQueue_;
-    // 候选工作项队列的写入互斥锁
-    std::vector<std::mutex> candidateQueueLock_;
 };
 
 } // namespace condition_assign

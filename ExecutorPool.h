@@ -65,6 +65,8 @@ public:
             const int mifItemIndex, void* param);
     // 根据工作类型获取对应的执行函数
     std::function<int(void*)> getJobFunc(JobTypes);
+    // 该函数用于工作项干扰计算
+    bool operator < (ExecutorJob* b);
 
 public:
     // 加载目标Layer的函数

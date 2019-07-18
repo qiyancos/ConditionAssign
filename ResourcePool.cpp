@@ -5,8 +5,10 @@ namespace condition_assign {
 ResourcePool() {}
 
 int ResourcePool::init(const int targetCnt, const int pluginCnt,
-        const int executorCnt, const int candidateQueueCnt) {
+        const int executorCnt, const int candidateQueueCnt,
+        const JobSelectAlgo jobSelectAlgo) {
     pluginCnt_ = pluginCnt;
+    jobSelectAlgo_ = jobSelectAlgo;
     executorCnt_ = executorCnt;
     readyQueue_.resize(executorCnt, std::queue<ExecutorJob*>());
     targetCnt_ = targetCnt;
@@ -165,6 +167,34 @@ int ResourcePool::getReadyJob(const int threadID,
 }
 
 int ResourcePool::selectReadyJob() {
+    std::vector<ExecutorJob**> jobVacacies;
+    for (auto que : readyQueue) {
+        while(que.size() < MAX_READY_QUEUE_SIZE) {
+            que.push(nullptr);
+            jobVacacies.push_back(&(que.back()));
+        }
+    }
+    candidateQueueLock_.lock();
+    int selected = 0, index = 0, emptyCnt = 0;
+    while (selected < jobVacacies.size()) {
+        if (!candidateQueue_[index].empty()) {
+            *(jobVacacies[selected]) = candidateQueue_[index].front();
+            candidateQueue_[index].pop();
+        } else {
+            emptyCnt++;
+        }
+        if (index = candidateQueueCnt_ - 1) {
+            if (emptyCnt == candidateQueueCnt_) {
+                break;
+            } else {
+                emptyCnt = index = 0;
+            }
+        } else {
+            index++;
+        }
+    }
+    candidateQueueLock_.unlock();
+    return 0;
 }
 
 } // namespace condition_assign
