@@ -5,12 +5,12 @@ namespace condition_assign {
 
 namespace syntax {
 
-int opCondFunc::process(Node* node, const MifItem& item) {
+int opCondFunc::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     CHECK_ARGS(opInternalFuncList.find(funcName_) != opInternalFuncList.end(),
             std::string(std::string("Function \"") + funcName_ +
             "\" not defined").c_str());
-    std::function<int(Node*, const MifItem&)>& executeFunc = 
+    std::function<int(Node*, MifItem*)>& executeFunc = 
             opInternalFuncList[funcName_];
     CHECK_RET(executeFunc(node, item),
             std::string("Failed to execute function [" + funcName_ + "]."));
@@ -31,12 +31,12 @@ int opCondFunc::find(const std::string& content,
     return 0;
 }
 
-int opAssignFunc::process(Node* node, const MifItem& item) {
+int opAssignFunc::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     CHECK_ARGS(opInternalFuncList.find(funcName_) != opInternalFuncList.end(),
             std::string(std::string("Function \"") + funcName_ +
             "\" not defined").c_str());
-    std::function<int(Node*, const MifItem&)>& executeFunc = 
+    std::function<int(Node*, MifItem*)>& executeFunc = 
             opInternalFuncList[funcName_];
     CHECK_RET(executeFunc(node, item),
             std::string("Failed to execute function [" + funcName_ + "]."));
@@ -57,16 +57,17 @@ int opAssignFunc::find(const std::string& content,
     return 0;
 }
 
-int opReplace::process(Node* node, const MifItem& item) {
+int opReplace::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
-    CHECK_RET(item.getTagVal(node->tagName, &leftVal),
+    CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             (std::string("Tag [") + node->tagName +
             "] not found!").c_str());
     CHECK_ARGS(startIdx + length < leftVal.size(),
             "Replace position out of range");
     leftVal.replace(startIdx, length, node->value.stringValue);
-    item.assignWithTag(node->tagName, leftVal);
+    CHECK_RET(item->assignWithTag(node->tagName, leftVal),
+            "Failed to assign new tag value.");
     return 0;
 }
 

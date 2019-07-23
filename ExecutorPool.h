@@ -19,27 +19,60 @@ namespace condition_assign {
 #ifndef RESOURCEPOOL_H
 class ResourcePool;
 #endif
+class ExecutorPool;
+
+// 用于进行线程调度的信号量
+class Semaphore {
+public:
+    enum Type {Normal, OnceForAll};
+    // 构造函数
+    Semaphore(const int count = 1, const Type type = Normall);
+    // 等待信号的到来
+    void wait();
+    // 发出信号，开启等待的线程
+    void signal();
+    // 发出信号，开启等待的线程
+    void signalAll();
+
+private:
+    // 当前信号量的类型
+    Type type_;
+    // 等待线程计数
+    int count_;
+    // 唤醒状态
+    int wakeupCnt_;
+    // 互斥锁
+    std::mutex lock_;
+    // 信号量用于通知
+    std::condition_variable condition_;
+}
 
 // Executor类对应线程，只使用其中的函数
 class Executor {
 public:
-    // Executor的运行状态(空闲/繁忙)
-    enum Status {Idle, Busy};
+    // Executor的运行状态(空闲/繁忙/出错)
+    enum Status {Idle, Busy, Error};
     // 构造函数
-    Executor(const int id);
+    Executor(const int id, ExecutorPool* pool);
     // 每个线程分配的主函数
     static int mainRunner(const Executor& executor);
     // Executor进入等待状态的处理函数
-    static int startWaiting();
+    int startWaiting();
 
 public:
-    // 所属执行器池的指针
-    static ExecutorPool* pool_;
+    // 当前执行对应status状态指针
+    Status* status_;
+    // 用于通知执行器池需要分配新的工作项
+    Semaphore* needReadyJob_;
+    // 执行器会通过该信号量通知本线程有新的工作项
+    Semaphore* haveReadyJob_;
+    // 当前执行器对应线程的指针
+    std::thread* thread_;
+    // 所属的执行器池指针
+    ExecutorPool* pool_;
     // 执行器唯一的标识ID
     const int id_;
 }
-
-ExecutorPool* Executor::pool_ = nullptr;
 
 // Executor工作项
 class ExecutorJob {
@@ -64,62 +97,26 @@ public:
     ExecutorJob(const JobTypes type, const int targetID,
             const int mifItemIndex, void* param);
     // 根据工作类型获取对应的执行函数
-    std::function<int(void*)> getJobFunc(JobTypes);
-    // 该函数用于工作项干扰计算
-    bool operator < (ExecutorJob* b);
+    std::function<int(void*)> getJobFunc();
+    // 析构函数
+    ~ExecutorJob();
 
 public:
-    // 加载目标Layer的函数
-    int loadLayer(void* param);
-    // 关闭和保存Layer的函数
-    int saveLayer(void* param);
-    // 对多行配置文件的内容进行语法解析的函数
-    int parseConfigLine(void* param);
-    // 为一个配置文件生成工作项的函数
-    int parseConfigFile(void* param);
-    // 建立给定类型的Group类型的函数
-    int buildGroup(void* param);
-    // 对多个Mif元素执行条件赋值操作的函数
-    int mifItemProcess(void* param);
-
-public:
-    // 加载目标Layer函数参数
-    struct LoadLayerParams {
-    };
-    
-    // 关闭保存目标Layer函数参数
-    struct SaveLayerParams {
-    };
-    
-    // 配置文件语法解析函数参数
-    struct ConfigLineParseParams {
-    };
-
-    // 配置文件工作项生成函数参数
-    struct ConfigFileParseParams {
-    };
-
-    // 建立数据组函数参数
-    struct BuildGroupParams {
-    };
-
-    // 对Mif进行条件赋值的参数
-    struct MifItemProcess {
-    };
-
-private:
-    // 当前工作项的类型
-    const JobTypes type_;
     // 当前工作项的参数
     const void* param_;
     // 目标层的通用ID
     const int targetID_;
     // 处理的MifItem对应的Index，没有则为-1
     const int mifItemIndex_;
+
+private:
+    // 当前工作项的类型
+    const JobType type_;
 };
 
 class ExecutorPool {
 public:
+    enum Status {Running, Idle, Finished, Error};
     // ExecutorPool的参数结构体
     struct Params {
         // ExecutorPool中Executor的数目上限
@@ -138,24 +135,49 @@ public:
 
     // 执行初始化操作，然后交给executorController
     int execute();
+    // 获取当前执行器池的状态
+    Status getStatus();
+    // 初始化函数
+    int init();
     // 构造函数，需要给出对应参数
     ExecutorPool(const Params& params);
     // 析构函数
     ~ExecutorPool();
 
 public:
+    // 执行器队列
+    std::vector<Executor> executors_;
     // Executor工作状态
-    std::vector<Executor::Status> executorStatus;
-    // Executor工作状态的互斥锁
-    std::mutex executorStatusLock_;
+    std::vector<Executor::Status> executorStatus_;
+    // 当前所有Executor正在执行的工作
+    std::vector<ExecutorJob*> workingJob_;
+    // 当前所有Executor和执行器池交互的信号量
+    std::vector<Semaphore> executorWakeup_(0, Semaphore::WithCount);
+    // 判断当前是否有执行器需要获取新的工作
+    Semaphore needReadyJob_(1);
+    // 确定是否需要进行状态检查
+    Semaphore needStatusCheck_(0);
+    // 状态检查结束
+    Semaphore statusCheckOver_(0);
     // 运行资源的统一管控结构
-    ResourcePool resource_;
+    ResourcePool resourcePool_;
 
 private:
+    // 执行池状态锁
+    std::mutex statusLock_;
+    // 当前执行器池的主状态
+    Status status_;
+
+    // 状态管理线程
+    std::thread* executorConsole_;
+    // 资源管理线程
+    std::thread* resourceConsole_;
     // ExecutorPool的参数信息
     const Params params_;
-    // 工作项和Executor管理函数
+    // Executor状态管理函数
     int executorController();
+    // 工作项和资源管理函数
+    int resourceController();
 };
 
 } // namespace condition_assign

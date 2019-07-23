@@ -3,25 +3,43 @@
 
 namespace condition_assign {
 
-MifLayer(AccessType type) : type_(type) {}
+MifLayer::MifLayer(AccessType type) : type_(type) {}
 
-MifLayerReadWrite() : MifLayer(MifLayer::Write) {}
+MifLayerReadWrite::MifLayerReadWrite() : MifLayer(MifLayer::Write) {}
 
-int MifLayerReadWrite::open(const syd::string& layerPath) {
+int MifLayerReadWrite::open(const std::string& layerPath,
+        MifLayer* input = nullptr) {
     CHECK_ARGS(layerPath.empty(), "Can not open with empty layer path.");
-    CHECK_ARGS(!opened_, "Trying to reopen mif layer.");
+    CHECK_ARGS(!layerPath_.empty(), "Trying to reopen mif layer.");
+    if (access(layerPath.c_str(), W_OK) < 0) {
+        CHECK_ARGS(access(layerPath.c_str(), 0) < 0,
+                (std::string("File \"") + layerPath +
+                "\" exists but not writable.").c_str());
+        CHECK_ARGS(input != nullptr,
+                "Can not find input layer for header copy");
+        layerPath_ = layerPath;
+        input->opened_.wait();
+        mifLock_.lock();
+        // TODO makesure this logic is good
+        mif_.header = input->mif_.header;
+        mif_.header.corrdsys = input->mif_.header.COORDSYS_LL;
+        opened_.signalAll();
+        mifLock_.unlock();
+        newLayer_ = true;
+        return 0;
+    }
     layerPath_ = layerPath;
-    opened_ = true;
     mifLock_.lock();
     CHECK_RET(wgt::mif_to_wsbl(layerPath, mif_),
             "Error occurred while running [wgt::mif_to_wsbl].");
     mifSize_ = mif_.mid.size();
+    opened_.signalAll();
     mifLock_.unlock();
     return 0;
 }
 
 int MifLayerReadWrite::save() {
-    CHECK_ARGS(opened, "Can not save unopened mif layer.")
+    CHECK_ARGS(!layerPath_.empty(), "Can not save unopened mif layer.")
     mifLock_.lock();
     CHECK_RET(wgt::wsbl_to_mif(mif_, layerPath_),
             "Error occurred while running [wgt::wsbl_to_mif].");
@@ -29,9 +47,25 @@ int MifLayerReadWrite::save() {
     return 0;
 }
 
+int MifLayerReadWrite::newItemWithTag(MifLayer* input, const int index,
+        const std::string& tagName, const std::string val) {
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not operate with unopened mif layer.")
+    mifLock_->lock();
+    mif_.mid.push_back(input->mif_.mid[index]);
+    mif_.data.geo_vec.push_back(input->mif_.data.geo_vec[index] == NULL ?
+            NULL : input->mif_.data.geo_vec[index]->clone());
+    mifSize_++;
+    mifLock_->unlock();
+    CHECK_RET(assignWithTag(tagName, mifSize_ - 1, val),
+            "Failed to assign tag value.");
+    return 0;
+}
+
 int MifLayerReadWrite::assignWithTag(const std::string& tagName,
         const int index, const std::string& val) {
-    CHECK_ARGS(opened, "Can not operate with unopened mif layer.")
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not operate with unopened mif layer.")
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index."); 
@@ -44,7 +78,8 @@ int MifLayerReadWrite::assignWithTag(const std::string& tagName,
 
 int MifLayerReadWrite::getTagVal(const std::string& tagName,
         const int index, std::string* val) {
-    CHECK_ARGS(opened, "Can not operate with unopened mif layer.")
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not operate with unopened mif layer.")
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index."); 
@@ -56,7 +91,8 @@ int MifLayerReadWrite::getTagVal(const std::string& tagName,
 }
 
 int MifLayerReadWrite::getGeometry(wsl::Geometry** val, const int index) {
-    CHECK_ARGS(opened, "Can not operate with unopened mif layer.")
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not operate with unopened mif layer.")
     CHECK_ARGS((index < mifSize_ && index >= 0), "Index out of bound.");
     mifLock_.lock();
     val = mif_.data.geo_vec[index];
@@ -66,7 +102,8 @@ int MifLayerReadWrite::getGeometry(wsl::Geometry** val, const int index) {
 
 int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
         AccessType accessType) {
-    CHECK_ARGS(opened, "Can not operate with unopened mif layer.")
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not operate with unopened mif layer.")
     tagColCacheLock_.lock();
     auto colCacheIterator = tagColCache_.find(tagName);
     if (colCacheIterator != tagColCache_.end()) {
@@ -104,19 +141,29 @@ int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
     }
 }
 
+MifLayerReadOnly::MifLayerReadOnly() : MifLayer(MifLayer::Read) {}
 
-int MifLayerReadOnly::open(const syd::string& layerPath) {
+int MifLayerReadOnly::open(const syd::string& layerPath,
+        MifLayer* input = nullptr) {
     CHECK_ARGS(layerPath.empty(), "Can not open with empty layer path.");
-    CHECK_ARGS(!opened, "Trying to reopen mif layer.");
+    CHECK_ARGS(!layerPath_.empty(), "Trying to reopen mif layer.");
+    CHECK_RET(access(layerPath.c_str(), R_OK),
+            (std::string("File \"") + layerPath + "\" not exist or" +
+            " not readable.").c_str());
     layerPath = layerPath;
-    opened = true;
     CHECK_RET(wgt::mif_to_wsbl(layerPath, mif_),
             "Error occurred while running [wgt::mif_to_wsbl].");
+    opened_.signalAll();
     return 0;
 }
 
 int MifLayerReadOnly::save() {
     CHECK_RET(-1, "Read-only layer do not need to be saved.");
+}
+
+int MifLayerReadOnly::newItemWithTag(MifLayer* input, const int index,
+        const std::string& tagName, const std::string val) {
+    CHECK_RET(-1, "Read-only layer do not support adding new item.");
 }
 
 int MifLayerReadOnly::assignWithTag(const std::string& tagName,
@@ -125,8 +172,9 @@ int MifLayerReadOnly::assignWithTag(const std::string& tagName,
 }
 
 int MifLayerReadOnly::getTagVal(const std::string& tagName,
-    CHECK_ARGS(opened, "Can not operate with unopened mif layer.")
         const int index, std::string* val) {
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not operate with unopened mif layer.")
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index."); 
@@ -136,7 +184,8 @@ int MifLayerReadOnly::getTagVal(const std::string& tagName,
 }
 
 int MifLayerReadOnly::getGeometry(wsl::Geometry** val, const int index) {
-    CHECK_ARGS(opened, "Can not operate with unopened mif layer.")
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not operate with unopened mif layer.")
     CHECK_ARGS((index < mifSize_ && index >= 0), "Index out of bound.");
     val = mif_.data.geo_vec[index];
     return 0;
@@ -144,7 +193,8 @@ int MifLayerReadOnly::getGeometry(wsl::Geometry** val, const int index) {
 
 int MifLayerReadOnly::getTagColID(const std::string& tagName, int* colID,
         AccessType accessType) {
-    CHECK_ARGS(opened, "Can not operate with unopened mif layer.")
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not operate with unopened mif layer.")
     tagColCacheLock_.lock();
     auto colCacheIterator = tagColCache_.find(tagName);
     if (colCacheIterator != tagColCache_.end()) {
@@ -166,16 +216,26 @@ int MifLayerReadOnly::getTagColID(const std::string& tagName, int* colID,
     }
 }
 
-MifItem(const MifLater& layer, const int index) : layer_(layer),
-        index_(index) {}
+MifItem::MifItem(MifLayer* srcLayer, MifLayer* targetLayer,
+        const int index) : srcLayer_(srcLayer),
+        targetLayer_(targetLayer), index_(index),
+        sameLayer_(srcLayer == targetLayer) {}
 
 int MifItem::assignWithTag(const std::string& tagName,
         const std::string& val) {
-    CHECK_RET(layer_.assignWithTag(tagName, index_, val),
-            "Failed to assign value to mif layer.");
+    if (!sameLayer_) {
+        CHECK_RET(targetLayer_.newItemWithTag(srcLayer_, index_, tagName, val),
+                "Failed to assign value to mif layer in a new mif item.");
+    } else {
+        CHECK_RET(targetLayer_.assignWithTag(tagName, index_, val),
+                "Failed to assign value to mif layer.");
+    }
+    // 我们不跟踪的新的Tag，因为并行的机制决定了并不能使用他们
+    /*
     tagStringCacheLock_.lock();
     tagStringCache_[tagName] = val;
     tagStringCacheLock_.unlock();
+    */
     return 0;
 }
 
@@ -187,7 +247,7 @@ int MifItem::getTagVal(const std::string& tagName, std::string* val) {
         *val = cacheIterator->second;
         return 0;
     } else {
-        CHECK_RET(layer_.getTagVal(tagName, index_, val),
+        CHECK_RET(srcLayer_->getTagVal(tagName, index_, val),
                 "Failed to get tag value from mif layer.");
         tagStringCache_[tagName] = *val;
         tagStringCacheLock_.unlock();
@@ -204,8 +264,8 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
         return 0;
     } else {
         std::string tagVal;
-        CHECK_RET(getTagVal(tagName, &tagVal),
-                "Failed to get tag value as string.");
+        CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
+                "Failed to get tag value from mif layer.");
         CHECK_ARGS(syntax::isType(tagVal, val),
                 "Trying to get tag value as a number");
         tagNumberCache_[tagName] = *val;
@@ -223,8 +283,8 @@ int MifItem::getTagType(const std::string& tagName, syntax::DataType* type) {
         return 0;
     } else {
         std::string tagStringVal;
-        CHECK_RET(getTagVal(tagName, &tagStringVal),
-                "Failed to get tag value as string");
+        CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagStringVal),
+                "Failed to get tag value from mif layer.");
         double tagNumberVal;
         if (isType(tagVal, &tagNumberVal)) {
             tagNumberCacheLock_.lock();
@@ -254,7 +314,7 @@ int MifItem::getGeometry(wsl::Geometry** val) {
         *val = geometry_;
         return 0;
     } else {
-        CHECK_RET(layer_.getGeometry(val, index_),
+        CHECK_RET(srcLayer_->getGeometry(val, index_),
                 "Failed to get geometry from mif layer.");
         geometry_ = *val;
         return 0;

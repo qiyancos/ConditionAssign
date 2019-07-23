@@ -40,7 +40,14 @@ private:
     std::vector<syntax::Node*> assigns_;
 };
 
-using ConfigSubGroup = std::stack<ConfigItem>;
+struct ConfigSubGroup {
+    // 当前子组完成解析的ConfigItem数量锁
+    std::mutex readyCntLock;
+    // 当前子组完成解析的ConfigItem数量
+    int readyCnt;
+    // 多有ConfigItem的组
+    std::vector<ConfigItem> group;
+}
 
 // 解析单行配置文件内容并生成对应的ConfigItem
 int parseConfigLine(const std::string& line, ConfigSubGroup& subGroup);

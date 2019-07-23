@@ -24,8 +24,7 @@ public:
     ResourcePool();
     // 初始化
     int init(const int targetCnt, const int pluginCnt,
-            const int executorCnt, const int candidateQueueCnt,
-            const JobSelectAlgo jobSelectAlgo);
+            const int executorCnt, const int candidateQueueCnt);
     // 根据目标层ID获取对应的ConfigSubGroup
     int getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr);
     // 生成新的Group
@@ -35,7 +34,8 @@ public:
     // 根据group的key获取
     int findGroup(const std::string& key, Group** groupPtr);
     // 打开指定的Layer
-    int openLayer(const std::string& layerPath, const LayerType layerType);
+    int openLayer(const std::string& layerPath, const LayerType layerType,
+            const int layerID = -1);
     // 根据路径名或者部分路径名查找对应Layer的索引
     int getLayerByName(MifLayer** layerPtr, const LayerType layerType,
             const std::string& layerPath, int* targetID = nullptr);
@@ -47,7 +47,7 @@ public:
     // 获取一个备选工作项空位，插入新的工作
     int getCandidateJob(const int candidateIndex, ExecutorJob** jobProducer);
     // 从备选工作队列中选择准备好的工作项放到准备队列
-    int selectReadyJob();
+    int selectReadyJob(std::set<int>* wakeupExecutorID);
     // 释放所有的资源
     int releaseResource();
 
@@ -58,10 +58,6 @@ private:
     int pluginCnt_;
     // 当前的执行器数量
     int executorCnt_;
-    // 实际的候选队列的数量
-    int candidateQueueCnt_;
-    // 当前任务选择的算法类型
-    JobSelectAlgo jobSelectAlgo_;
     
     // 对配置文件解析完毕后的语法信息, 使用指针避免加锁的需要
     std::vector<ConfigSubGroup*> configGroup_;
@@ -88,12 +84,22 @@ private:
     // 输出层数据
     std::vector<MifLayer*> outputLayers_;
 
-    // 准备就绪队列的写入操作互斥锁
-    std::mutex readyQueueLock_;
+public:
+    // 预备队列的写入操作互斥锁
+    std::vector<std::mutex> readyQueueLock_;
+    // 当前预备队列中任务的数目
+    int readyJobCnt_ = 0;
     // 准备就绪的工作项队列
     std::vector<std::queue<ExecutorJob*>> readyQueue_;
+
+    // 实际的候选队列的数量
+    int candidateQueueCnt_;
+    // 该信号量用于确定是否有新的备选工作项
+    Semaphore newCandidateJob(0);
     // 候选工作项队列的写入互斥锁
     std::mutex candidateQueueLock_;
+    // 当前备选队列中任务的数目
+    int candidateJobCnt_ = 0;
     // 候选工作项的队列
     std::vector<std::queue<ExecutorJob*>> candidateQueue_;
 };

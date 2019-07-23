@@ -58,7 +58,7 @@ public:
     // 获取当前运算符的运算评分
     virtual int score() = 0;
     // 根据给定的节点数据，计算运算结果
-    virtual int process(Node* node, const MifItem& item) = 0;
+    virtual int process(Node* node, MifItem* item) = 0;
     // 检查给定的数据类型是否支持
     virtual bool isSupported(DataType type) = 0;
     // 找到对应操作符的在当前行范围的函数, 范围是左闭右开的

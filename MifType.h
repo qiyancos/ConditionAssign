@@ -12,9 +12,13 @@ class MifLayer {
 public:
     enum AccessType {Read, Write};
     // 依据给定的路径打开Layer
-    virtual int open(const std::string& layerPath) = 0;
+    virtual int open(const std::string& layerPath,
+            MifLayer* input = nullptr) = 0;
     // 保存对应的Layer的数据
     virtual int save() = 0;
+    // 依据字段名进行赋值操作
+    virtual int newItemWithTag(MifLayer* input, const int index,
+            const std::string& tagName, const std::string& val) = 0;
     // 依据字段名进行赋值操作
     virtual int assignWithTag(const std::string& tagName,
             const int index, const std::string& val) = 0;
@@ -23,7 +27,13 @@ public:
             std::string* val) = 0;
     // 获取当前MifItem地理坐标信息
     virtual int getGeometry(wsl::Geometry** val, const int index) = 0;
-    
+    // 判断当前的MifLayer是不是新打开的
+    virtual bool isNew() {return false;}
+    // 判等
+    bool operator == (const MifLayer& b) {
+        return layerPath_ == b.layerPath_;
+    }
+
     // 构造函数
     MifLayer(AccessType type);
     // 虚析构函数
@@ -35,17 +45,19 @@ protected:
     virtual int getTagColID(const std::string& tagName, int* colID,
             AccessType accessType) = 0;
 
+public:
+    // Layer数据结构
+    wgt::MIF mif_;
+    // 当前MifLayer是否打开
+    Semaphore opened_(0, Semaphore::OnceForAll);
+
 protected:
     // 当前MifLayer的处理类型
     const AccessType type_;
-    // Layer数据结构
-    wgt::MIF mif_;
     // mif中的item的个数
     int mifSize_;
     // 对应文件的路径
     std::string layerPath_;
-    // 当前MifLayer是否打开
-    bool opened_ = false;
     // 缓存Tag名称到对应索引的映射关系锁
     std::mutex tagColCacheLock_;
     // 缓存Tag名称到对应索引的映射关系，快速查找
@@ -55,9 +67,12 @@ protected:
 class MifLayerReadOnly : public MifLayer {
 public:
     // 依据给定的路径打开Layer
-    int open(const std::string& layerPath);
+    int open(const std::string& layerPath, MifLayer* input = nullptr);
     // 保存对应的Layer的数据
     int save();
+    // 依据字段名进行赋值操作
+    int newItemWithTag(MifLayer* input, const int index,
+            const std::string& tagName, const std::string& val);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
@@ -82,9 +97,12 @@ protected:
 class MifLayerReadWrite : public MifLayer {
 public:
     // 依据给定的路径打开Layer
-    int open(const std::string& layerPath);
+    int open(const std::string& layerPath, MifLayer* input = nullptr);
     // 保存对应的Layer的数据
     int save();
+    // 依据字段名进行赋值操作
+    int newItemWithTag(MifLayer* input, const int index,
+            const std::string& tagName, const std::string& val);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
@@ -93,6 +111,8 @@ public:
             std::string* val);
     // 获取当前MifItem地理坐标信息
     int getGeometry(wsl::Geometry** val, const int index);
+    // 判断当前的MifLayer是不是新打开的
+    virtual bool isNew() {return newLayer_;}
     
     // 构造函数
     MifLayerReadWrite();
@@ -108,12 +128,14 @@ protected:
 private:
     // mif数据锁
     std::mutex mifLock_;
+    // 当前MifLayer是否是一个新增图层
+    bool newLayer_ = false;
 }
 
 class MifItem {
 public:
     // 构造函数
-    MifItem(const MifLayer& layer, const int index);
+    MifItem(MifLayer* srcLayer, MifLayer* targetLayer, const int index);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const std::string& val);
     // 获取当前MifItem的某个字段的内容
@@ -125,12 +147,17 @@ public:
     // 获取当前MifItem地理坐标信息
     int getGeometry(wsl::Geometry** val);
 
-private:
+public:
     // 当前MifItem所属的MifLayer
-    const MifLayer& layer_;
+    MifLayer* srcLayer_;
     // 当前MifItem在MifLayer中的索引
     const int inedx_;
-    
+    // 当前MifItem所属的MifLayer
+    MifLayer* targetLayer_;
+    // 判断当前输入与输出是否同一层
+    bool sameLayer = false;
+
+private:
     // Tag字符串映射缓存的锁
     std::mutex tagStringCacheLock_
     // 缓存的Tag数值(字符串)映射

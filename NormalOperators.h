@@ -14,7 +14,7 @@ namespace syntax {
         op##Name() : Operator() {} \
         int score() { return score_; } \
         \
-        int process(Node* node, const MifItem& item); \
+        int process(Node* node, MifItem* item); \
         \
         int find(const std::string& content, \
                 std::pair<size_t, size_t>* range) { \

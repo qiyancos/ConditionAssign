@@ -3,7 +3,7 @@
 
 namespace condition_assign {
 
-Group(Type type) : type_(type) {}
+Group::Group(Type type) : type_(type) {}
 
 Type Group::getGroupType() {
     return groupType_;
@@ -30,14 +30,14 @@ virtual int addElement(const wsl::Geometry* newElement) {
     CHECK_RET(-1, "Add geometry-type element is not supported.");
 }
 
-ItemGroup(const MifLayer& layer0) : Group(Item), layer_(layer) {}
+ItemGroup::ItemGroup(MifLayer* layer) : Group(Item), layer_(layer) {}
 
 int ItemGroup::addElement(const int newElement) {
     group_.push_back(newElement);
     return 0;
 }
 
-TagGroup() : Group(Tag) {}
+TagGroup::TagGroup() : Group(Tag) {}
 
 TagGroup(const Group& itemGroup, const std::string& tagName) : Group(Tag) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
@@ -45,7 +45,7 @@ TagGroup(const Group& itemGroup, const std::string& tagName) : Group(Tag) {
     const ItemGroup& group = dynamic_cast<const ItemGroup&>(itemGroup);
     for (int index : group.group_) {
         std::string tagVal;
-        CHECK_RET(group.layer_.getTagVal(tagName, index, &tagVal),
+        CHECK_RET(group.layer_->getTagVal(tagName, index, &tagVal),
             "Failed to get tag value from mif layer.");
         group_.insert(tagVal);
     }
@@ -70,7 +70,7 @@ int TagGroup::checkAllContain(const std::string& src, bool* result) {
     return 0;
 }
 
-PointGroup() : Group(Point) {}
+PointGroup::PointGroup() : Group(Point) {}
 
 PointGroup(const Group& itemGroup) : Group(Point) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
@@ -78,7 +78,7 @@ PointGroup(const Group& itemGroup) : Group(Point) {
     const ItemGroup& group = dynamic_cast<const ItemGroup&>(itemGroup);
     for (int index : group.group_) {
         wsl::Geometry* geoVal;
-        CHECK_RET(group.layer_.getGeometry(index, &geoVal),
+        CHECK_RET(group.layer_->getGeometry(index, &geoVal),
             "Failed to get geometry from mif layer.");
         group_.insert(reinterpret_cast<wsl::Feature<wsl::Point>*>(geoVal));
     }
@@ -213,7 +213,7 @@ int PointGroup::checkAllContained(const wsl::Geometry* src, bool* result) {
     }
 }
 
-LineGroup() : Group(Line) {}
+LineGroup::LineGroup() : Group(Line) {}
 
 LineGroup(const Group& itemGroup) : Group(Line) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
@@ -221,7 +221,7 @@ LineGroup(const Group& itemGroup) : Group(Line) {
     const ItemGroup& group = dynamic_cast<const ItemGroup&>(itemGroup);
     for (int index : group.group_) {
         wsl::Geometry* geoVal;
-        CHECK_RET(group.layer_.getGeometry(index, &geoVal),
+        CHECK_RET(group.layer_->getGeometry(index, &geoVal),
             "Failed to get geometry from mif layer.");
         group_.insert(reinterpret_cast<wsl::Feature<wsl::Line>*>(geoVal));
     }
@@ -586,7 +586,7 @@ int LineGroup::checkAllDeparture(const wsl::Geometry* src, bool* result) {
     }
 }
 
-AreaGroup() : Group(Area) {}
+AreaGroup::AreaGroup() : Group(Area) {}
 
 AreaGroup(const Group& itemGroup) : Group(Area) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
@@ -594,7 +594,7 @@ AreaGroup(const Group& itemGroup) : Group(Area) {
     const ItemGroup& group = dynamic_cast<const ItemGroup&>(itemGroup);
     for (int index : group.group_) {
         wsl::Geometry* geoVal;
-        CHECK_RET(group.layer_.getGeometry(index, &geoVal),
+        CHECK_RET(group.layer_->getGeometry(index, &geoVal),
             "Failed to get geometry from mif layer.");
         group_.insert(reinterpret_cast<wsl::Feature<wsl::Polygon>*>(geoVal));
     }

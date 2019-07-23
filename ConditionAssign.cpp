@@ -59,7 +59,8 @@ int main(int argc, char** argv) {
     poolParams.configs = confFiles;
     
     ExecutorPool mainPool(poolParams);
-    
+    CHECK_RET(mainPool.init(), "ExecutorPool failed to init.");
+
     sys_log_println(_INFORANK, "Processing...\n");
     CHECK_EXIT(mainPool.execute(),
             "Error: errors occurred while processing data");

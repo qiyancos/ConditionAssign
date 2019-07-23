@@ -5,10 +5,8 @@ namespace condition_assign {
 ResourcePool() {}
 
 int ResourcePool::init(const int targetCnt, const int pluginCnt,
-        const int executorCnt, const int candidateQueueCnt,
-        const JobSelectAlgo jobSelectAlgo) {
+        const int executorCnt, const int candidateQueueCnt) {
     pluginCnt_ = pluginCnt;
-    jobSelectAlgo_ = jobSelectAlgo;
     executorCnt_ = executorCnt;
     readyQueue_.resize(executorCnt, std::queue<ExecutorJob*>());
     targetCnt_ = targetCnt;
@@ -57,7 +55,7 @@ int ResourcePool::findGroup(const std::string& key, Group** groupPtr){
 }
 
 int ResourcePool::openLayer(const std::string& layerPath,
-        const LayerType layerType) {
+        const LayerType layerType, const int layerID = -1) {
     if (layerType = Input) {
         CHECK_RET(inputLayer_->open(layerPath),
                 (std::string("Failed to open input layer \"") +
@@ -69,10 +67,9 @@ int ResourcePool::openLayer(const std::string& layerPath,
                 outputLayerMap_.end(),
                 (std::string("Trying to reopen output layer \"") +
                 layerPath + "\".").c_str());
-        int newIndex = outputLayerMap_.size();
-        CHECK_ARGS(newIndex < targetCnt_, "Too much open output layers.");
-        outputLayerMap_[layerPath] = newIndex;
-        CHECK_RET(outputLayers_[newIndex]->open(layerPath),
+        CHECK_ARGS(layerID < targetCnt_, "Too much open output layers.");
+        outputLayerMap_[layerPath] = layerID;
+        CHECK_RET(outputLayers_[layerID]->open(layerPath, inputLayer_),
                 (std::string("Failed to open output layer \"") +
                 layerPath + "\".").c_str());
         outputLayersLock_.unlock();
@@ -155,46 +152,84 @@ int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
     }
 }
 
-int ResourcePool::getReadyJob(const int threadID,
+int ResourcePool::getReadyJob(const int executorID,
         ExecutorJob** jobConsumerPtr) {
     std::stringstream tempStream;
-    CHECK_ARGS(!readyQueue_[threadID].empty(),
-            (tempStream << "No ready job found for thread[" <<
-            threadID << "].").str().c_str());
-    *jobConsumerPtr = readyQueue_[threadID].front();
-    readyQueue_.pop();
+    CHECK_ARGS(!readyQueue_[executorID].empty(),
+            (tempStream << "No ready job found for executor[" <<
+            executorID << "].").str().c_str());
+    readyQueueLock_[executorID].lock();
+    *jobConsumerPtr = readyQueue_[executorID].front();
+    CHECK_ARGS(*jobConsumerPtr != nullptr,
+            "Error occourred while get ready job.");
+    readyJobCnt_--;
+    readyQueue_[executorID].pop();
+    readyQueueLock_[executorID].unlock();
     return 0;
 }
 
-int ResourcePool::selectReadyJob() {
-    std::vector<ExecutorJob**> jobVacacies;
-    for (auto que : readyQueue) {
+int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
+    using vacacy = std::pair<ExecutorJob**, int>;
+    std::vector<vacacy> jobVacacies;
+    for (auto lock : readyQueueLock_) {
+        lock.lock();
+    }
+    for (int index; index < executorCnt_; index++) {
+        std::queue<ExecutorJob*>& que = readyQueue_[index];
         while(que.size() < MAX_READY_QUEUE_SIZE) {
             que.push(nullptr);
-            jobVacacies.push_back(&(que.back()));
+            jobVacacies.push_back(vacacy(&(que.back()), index));
         }
     }
     candidateQueueLock_.lock();
-    int selected = 0, index = 0, emptyCnt = 0;
+    int selected = 0, index = 0;
     while (selected < jobVacacies.size()) {
         if (!candidateQueue_[index].empty()) {
-            *(jobVacacies[selected]) = candidateQueue_[index].front();
+            *(jobVacacies[selected].first) = candidateQueue_[index].front();
+            signalExecutorIndexes->insert(jobVacacies[selected++].second);
+            readyJobCnt_++;
+            candidateJobCnt_--;
             candidateQueue_[index].pop();
-        } else {
-            emptyCnt++;
         }
-        if (index = candidateQueueCnt_ - 1) {
-            if (emptyCnt == candidateQueueCnt_) {
+        if (++index == candidateQueueCnt_) {
+            if (candidateJobCnt_ == 0) {
                 break;
             } else {
-                emptyCnt = index = 0;
+                index = 0;
             }
-        } else {
-            index++;
         }
     }
     candidateQueueLock_.unlock();
+    for (auto lock : readyQueueLock_) {
+        lock.unlock();
+    }
     return 0;
+}
+
+int ResourcePool::releaseResource() {
+    for (auto configSubGroupPtr : configGroup_) {
+        delete configSubGroupPtr;
+    }
+    for (auto groupPtr : groups_) {
+        delete groupPtr;
+    }
+    delete inputLayer_;
+    for (auto mapIterator : pluginLayerMap_) {
+        delete mapIterator->second;
+    }
+    for (auto layerPtr : outputLayers_) {
+        delete layerPtr;
+    }
+    for (auto que : readyQueue_) {
+        for (auto jobPtr : que) {
+            delete jobPtr;
+        }
+    }
+    for (auto que : candidateQueue_) {
+        for (auto jobPtr : que) {
+            delete jobPtr;
+        }
+    }
 }
 
 } // namespace condition_assign

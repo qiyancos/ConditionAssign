@@ -73,11 +73,11 @@ Group::Type Group::inputType_ = Group::Item;
 
 class ItemGroup : public Group {
 public:
-    ItemGroup(const MifLayer& layer);
+    ItemGroup(MifLayer* layer);
     // 添加元素
     int addElement(const int newElement);
     // 元素所在层
-    const MifLayer& layer_;
+    MifLayer* layer_;
     // 元素组的索引
     std::vector<int> group_;
 };

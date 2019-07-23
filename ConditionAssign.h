@@ -1,5 +1,5 @@
-#ifndef CONDITION_ASSIGN_H
-#define CONDITION_ASSIGN_H
+#ifndef CONDITIONASSIGN_H
+#define CONDITIONASSIGN_H
 /*************************************************
 == ConditionAssign ==
 Update on: 2019/07/10
@@ -48,3 +48,5 @@ namespace condition_asssign {
 }
 
 } // namespace condition_asssign
+
+#endif // CONDITIONASSIGN_H

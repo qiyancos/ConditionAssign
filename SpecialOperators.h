@@ -9,10 +9,10 @@ namespace syntax {
 
 // 自由配置运算符内置函数的函数名与函数的映射
 std::map<std::string, std::function<int(Node*,
-        const MifItem&)>> opInternalFuncList;
+        MifItem*)>> opInternalFuncList;
 // 用于运算符内置函数注册的函数
 int opInternalFuncListInit(const std::string& name,
-        const std::function<int(Node*, const MifItem& item)>& func);
+        const std::function<int(Node*, MifItem* item)>& func);
 // 用于运算符内置函数注册的宏
 #define OPFUNC_REG(Name, Func) {\
     int globalInit##Name = opInternalFuncListInit(Name, Func); \
@@ -38,7 +38,7 @@ private:
     static const int score_;
 
 public:
-    int process(Node* node, const MifItem& item);
+    int process(Node* node, MifItem* item);
     int find(const std::string& content, std::pair<size_t, size_t>* range);
 
 private:
@@ -70,7 +70,7 @@ private:
     static const int score_;
 
 public:
-    int process(Node* node, const MifItem& item);
+    int process(Node* node, MifItem* item);
     int find(const std::string& content, std::pair<size_t, size_t>* range);
 
 private:
@@ -102,7 +102,7 @@ private:
     static const int score_;
 
 public:
-    int process(Node* node, const MifItem& item);
+    int process(Node* node, MifItem* item);
     int find(const std::string& content, std::pair<size_t, size_t>* range);
 
 private:
