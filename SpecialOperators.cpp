@@ -5,6 +5,13 @@ namespace condition_assign {
 
 namespace syntax {
 
+std::string opCondFunc::str() {
+    std::string symbol("<");
+    symbol += funcName_;
+    symbol += ">";
+    return symbol;
+}
+
 int opCondFunc::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     CHECK_ARGS(opInternalFuncList.find(funcName_) != opInternalFuncList.end(),
@@ -28,6 +35,13 @@ int opCondFunc::find(const std::string& content,
     CHECK_ARGS(!length, "No function name is given in condition expression.");
     funcName_ = content.substr(range->first, length);
     return 0;
+}
+
+std::string opAssignFunc::str() {
+    std::string symbol("<");
+    symbol += funcName_;
+    symbol += ">";
+    return symbol;
 }
 
 int opAssignFunc::process(Node* node, MifItem* item) {
@@ -55,15 +69,22 @@ int opAssignFunc::find(const std::string& content,
     return 0;
 }
 
+std::string opReplace::str() {
+    std::stringstream symbol;
+    symbol << "[" << startIndex_ << ":";
+    symbol << length_ << "]=";
+    return symbol.str();
+}
+
 int opReplace::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Tag [%s] not found!", node->tagName.c_str());
-    CHECK_ARGS(startIdx + length <= leftVal.size(),
+    CHECK_ARGS(startIndex_ + length_ <= leftVal.size(),
             "Replace position[%d-%d] out of range.",
-            startIdx, startIdx + length - 1);
-    leftVal.replace(startIdx, length, node->value.stringValue);
+            startIndex_, startIndex_ + length_ - 1);
+    leftVal.replace(startIndex_, length_, node->value.stringValue);
     CHECK_RET(item->assignWithTag(node->tagName, leftVal),
             "Failed to assign new tag value to tag \"%s\".",
             node->tagName.c_str());
@@ -85,15 +106,15 @@ int opReplace::find(const std::string& content,
             "Can not find start position or end position.");
     range->first = leftBracketIndex;
     range->second = rightBracketIndex;
-    std::string startIdxStr = content.substr(leftBracketIndex + 1,
+    std::string startIndex_Str = content.substr(leftBracketIndex + 1,
             startPosLength);
     std::string lengthStr = content.substr(colonIndex + 1, lengthLength);
-    CHECK_ARGS(isType(startIdxStr, &startIdx),
+    CHECK_ARGS(isType(startIndex_Str, &startIndex_),
             "Start postion \"%s\" can not be converted to number.",
-            startIdxStr);
-    CHECK_ARGS(isType(lengthStr, &length),
+            startIndex_Str);
+    CHECK_ARGS(isType(lengthStr, &length_),
             "Length \"%s\" can not be converted to number.",
-            startIdxStr);
+            startIndex_Str);
     return 0;
 }
 

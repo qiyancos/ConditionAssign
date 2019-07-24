@@ -66,6 +66,8 @@ public:
     // 找到对应操作符的在当前行范围的函数, 范围是左闭右开的
     virtual int find(const std::string& content,
             std::pair<size_t, size_t>* range) = 0;
+    // 获取当前运算符的字符串形式
+    virtual std::string str() = 0;
     // 虚析构函数
     virtual ~Operator() {}
 };
@@ -78,11 +80,11 @@ struct Node {
     Node* leftNode = nullptr;
     Node* rightNode = nullptr;
     // 当前节点左侧的Tag名，如果存在的话
-    std::string tagName;
+    std::string tagName = "";
     // 当前节点对应的Op，如果有的话
-    Operator* op;
+    Operator* op = nullptr;
     // 特殊运算符参数的索引
-    int opParamIndex;
+    int opParamIndex = -1;
     // 右值的数据类型
     DataType rightType;
     // 左值的数据类型
@@ -90,13 +92,13 @@ struct Node {
     // 右值数据
     struct {
         // 指向对应的组的对象
-        Group* groupPtr;
+        Group* groupPtr = nullptr;
         // 数值
-        double numberValue;
+        double numberValue = 0.0f;
         // 字符串
-        std::string stringValue;
+        std::string stringValue = "";
         // 逻辑表达式结果
-        bool exprResult;
+        bool exprResult = false;
     } value;
 };
 

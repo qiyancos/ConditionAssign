@@ -10,7 +10,7 @@ std::string getTypeString(const DataType type) {
     case Number: return "Number";
     case String: return "String";
     case Group: return "Group";
-    case Expr: return "Expr";
+    case Expr: return "Expression";
     }
 }
 
@@ -49,8 +49,8 @@ bool isType(const std::string& data, T* result) {
 }
 
 bool isType<int>(const std::string& data, int* result);
-bool isType<double>(const std::string& data, int* result);
-bool isType<std::string>(const std::string& data, int* result);
+bool isType<double>(const std::string& data, double* result);
+bool isType<std::string>(const std::string& data, std::string* result);
 
 int operatorListInit(const Operator* newOp) {
     operatorList.push_back(newOp);
@@ -58,9 +58,43 @@ int operatorListInit(const Operator* newOp) {
 }
 
 int calculateScore(const std::vector<Node*> nodeVec) {
+    int scoreSum = 0;
+    for (Node* node : nodeVec) {
+        CHECK_ARGS(node->op != nullptr, "Found node without operator.");
+        if (node->value.groupPtr != nullptr) {
+            score += (node->op->score() * node->value.groupPtr->size());
+        } else {
+            score += node->op->score();
+        }
+    }
+    return score;
 }
 
-bool satisfyConditions(const std::vector<Node*>& conditions, MifItem* item) {
+int satisfyConditions(const std::vector<Node*>& conditions, MifItem* item) {
+    if (conditions.size() == 0) {
+        return true;
+    }
+    Node* mainNode = conditions[conditions.size() - 1]; 
+    CHECK_ARGS(mainNode->nodeType == Expr,
+            "Found main node with type \"%s\" but not \"Expression\".",
+            getTypeString(mainNode->nodeType).c_str());
+    for (Node* node : conditions.size()) {
+        CHECK_ARGS(node->op != nullptr, "Found node without operator.");
+        CHECK_RET(node->op->process(node, item),
+            "Operator process failed in \"%s%s%s\".",
+            node->tagName.c_str(), node->op->str().c_str());
+    }
+    return mainNode->value.exprResult;
+}
+
+int applyAssigns(const std::vector<Node*>& assigns, MifItem* item) {
+    for (Node* node : assigns.size()) {
+        CHECK_ARGS(node->op != nullptr, "Found node without operator.");
+        CHECK_RET(node->op->process(node, item),
+            "Operator process failed in \"%s%s%s\".",
+            node->tagName.c_str(), node->op->str().c_str());
+    }
+    return 0;
 }
 
 } // namespace syntax

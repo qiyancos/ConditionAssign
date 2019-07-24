@@ -22,6 +22,7 @@ int opInternalFuncListInit(const std::string& name,
 class opCondFunc : public Operator {
 public:
     opCondFunc() : Operator() {};
+    std::string str();
     int score() { return score_ };
     bool isSupported(DataType type) const {
         if (dataTypes_.find(type) == dataTypes_.end()) {
@@ -54,6 +55,7 @@ OPREG(CondFunc);
 class opAssignFunc : public Operator {
 public:
     opAssignFunc() : Operator() {};
+    std::string str();
     int score() { return score_ };
     bool isSupported(DataType type) const {
         if (dataTypes_.find(type) == dataTypes_.end()) {
@@ -86,6 +88,7 @@ OPREG(AssignFunc);
 class opReplace : public Operator {
 public:
     opReplace() : Operator() {};
+    std::string str();
     int score() { return score_ };
     bool isSupported(DataType type) const {
         if (dataTypes_.find(type) == dataTypes_.end()) {
@@ -107,7 +110,7 @@ public:
 
 private:
     // 记录了进行替换的两个关键变量
-    int startIdx, length;
+    int startIndex_, length_;
 };
 
 std::set<DataType> opReplace::dataTypes_ {Number, String, Group};

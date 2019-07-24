@@ -26,13 +26,14 @@ virtual int addElement(const std::string& newElement) {
     CHECK_RET(-1, "Add string-type element is not supported.");
 }
 
-virtual int addElement(const wsl::Geometry* newElement) {
+virtual int addElement(wsl::Geometry* newElement) {
     CHECK_RET(-1, "Add geometry-type element is not supported.");
 }
 
 ItemGroup::ItemGroup(MifLayer* layer) : Group(Item), layer_(layer) {}
 
 int ItemGroup::addElement(const int newElement) {
+    size_++;
     group_.push_back(newElement);
     return 0;
 }
@@ -51,11 +52,13 @@ int TagGroup::init(const Group& itemGroup, const std::string& tagName) {
             tagName.c_str());
         group_.insert(tagVal);
     }
+    size_ = group_.size();
     return 0;
 }
 
 int TagGroup::addElement(const std::string& newElement) {
-    CHECK_RET(newElement.length() == 0, "Trying to add an empty tag.");
+    CHECK_ARGS(newElement.length() == 0, "Trying to add an empty tag.");
+    size_++;
     group_.insert(newElement);
     return 0;
 }
@@ -83,12 +86,20 @@ int PointGroup::init(const Group& itemGroup, const std::string& tagName) {
         wsl::Geometry* geoVal;
         CHECK_RET(group.layer_->getGeometry(index, &geoVal),
             "Failed to get geometry from mif layer in item[%d].", index);
-        group_.insert(reinterpret_cast<wsl::Feature<wsl::Point>*>(geoVal));
+        group_.push_back(reinterpret_cast<wsl::Feature<wsl::Point>*>(geoVal));
     }
+    size_ = group_.size();
     return 0;
 }
 
-int PointGroup::checkOneContain(const wsl::Geometry* src, bool* result) {
+int PointGroup::addElement(wsl::Geometry* newElement) {
+    CHECK_ARGS(newElement != nullptr, "Trying to add an empty point.");
+    size_++;
+    group_.push_back(reinterpret_cast<wsl::Feature<wsl::Point>*>(newElement));
+    return 0;
+}
+
+int PointGroup::checkOneContain(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -131,7 +142,7 @@ int PointGroup::checkOneContain(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int PointGroup::checkAllContain(const wsl::Geometry* src, bool* result) {
+int PointGroup::checkAllContain(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -174,7 +185,7 @@ int PointGroup::checkAllContain(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int PointGroup::checkOneContained(const wsl::Geometry* src, bool* result) {
+int PointGroup::checkOneContained(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -195,7 +206,7 @@ int PointGroup::checkOneContained(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int PointGroup::checkAllContained(const wsl::Geometry* src, bool* result) {
+int PointGroup::checkAllContained(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -229,10 +240,19 @@ int LineGroup::init(const Group& itemGroup, const std::string& tagName) {
             "Failed to get geometry from mif layer in item[%d].", index);
         group_.insert(reinterpret_cast<wsl::Feature<wsl::Line>*>(geoVal));
     }
+    size_ = group_.size()
     return 0;
 }
 
-int LineGroup::checkOneContain(const wsl::Geometry* src, bool* result) {
+int LineGroup::addElement(wsl::Geometry* newElement) {
+    CHECK_ARGS(newElement != nullptr, "Trying to add an empty line.");
+    size_++;
+    group_.push_back(reinterpret_cast<wsl::Feature<wsl::Line>*>(newElement));
+    return 0;
+}
+
+
+int LineGroup::checkOneContain(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -266,7 +286,7 @@ int LineGroup::checkOneContain(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllContain(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllContain(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -300,7 +320,7 @@ int LineGroup::checkAllContain(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkOneContained(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneContained(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -334,7 +354,7 @@ int LineGroup::checkOneContained(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllContained(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllContained(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -368,7 +388,7 @@ int LineGroup::checkAllContained(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkOneIntersect(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneIntersect(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -400,7 +420,7 @@ int LineGroup::checkOneIntersect(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllIntersect(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllIntersect(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -432,7 +452,7 @@ int LineGroup::checkAllIntersect(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkOneInContact(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneInContact(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -468,7 +488,7 @@ int LineGroup::checkOneInContact(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllContact(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllContact(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -504,7 +524,7 @@ int LineGroup::checkAllContact(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkOneDeparture(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -547,7 +567,7 @@ int LineGroup::checkOneDeparture(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllDeparture(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllDeparture(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -606,7 +626,15 @@ int AreaGroup::init(const Group& itemGroup, const std::string& tagName) {
     return 0;
 }
 
-int AreaGroup::checkOneContain(const wsl::Geometry* src, bool* result) {
+int AreaGroup::addElement(wsl::Geometry* newElement) {
+    CHECK_ARGS(newElement != nullptr, "Trying to add an empty area.");
+    size_++;
+    group_.push_back(reinterpret_cast<wsl::Feature<wsl::Polygon>*>(
+            newElement));
+    return 0;
+}
+
+int AreaGroup::checkOneContain(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -627,7 +655,7 @@ int AreaGroup::checkOneContain(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllContain(const wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllContain(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -648,7 +676,7 @@ int AreaGroup::checkAllContain(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkOneContained(const wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneContained(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -691,7 +719,7 @@ int AreaGroup::checkOneContained(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllContained(const wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllContained(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -734,7 +762,7 @@ int AreaGroup::checkAllContained(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkOneIntersect(const wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneIntersect(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -766,7 +794,7 @@ int AreaGroup::checkOneIntersect(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllIntersect(const wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllIntersect(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -798,7 +826,7 @@ int AreaGroup::checkAllIntersect(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkOneInContact(const wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneInContact(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -832,7 +860,7 @@ int AreaGroup::checkOneInContact(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllInContact(const wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllInContact(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -867,7 +895,7 @@ int AreaGroup::checkAllInContact(const wsl::Geometry* src, bool* result) {
 }
 
 
-int AreaGroup::checkOneDeparture(const wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
@@ -910,7 +938,7 @@ int AreaGroup::checkOneDeparture(const wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllDeparture(const wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllDeparture(wsl::Geometry* src, bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;

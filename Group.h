@@ -38,38 +38,42 @@ public:
     static Type getInputType();
     // 设置当前的输入类型
     static int setInputType(const Type type);
-    
+    // 获取当前Group的元素个数
+    int size() {return size_;}
+
     // 基于一个ItemGroup生成类型Group
     virtual int init(const Group& itemGroup, const std::string& tagName) = 0;
     
     // 向Group中添加元素的虚函数
     virtual int addElement(const int newElement);
     virtual int addElement(const std::string& newElement);
-    virtual int addElement(const wsl::Geometry* newElement);
+    virtual int addElement(wsl::Geometry* newElement);
 
     // 包含关系的判断
     virtual int checkOneContain(const std::string& src, bool* result) = 0;
     virtual int checkAllContain(const std::string& src, bool* result) = 0;
     // 地理位置包含的判断
-    virtual int checkOneContain(const wsl::Geometry* src, bool* result)= 0;
-    virtual int checkAllContain(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneContain(wsl::Geometry* src, bool* result)= 0;
+    virtual int checkAllContain(wsl::Geometry* src, bool* result) = 0;
     // 地理位置被包含的判断
-    virtual int checkOneContained(const wsl::Geometry* src, bool* result) = 0;
-    virtual int checkAllContained(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneContained(wsl::Geometry* src, bool* result) = 0;
+    virtual int checkAllContained(wsl::Geometry* src, bool* result) = 0;
     // 地理位置交叉的判断
-    virtual int checkOneIntersect(const wsl::Geometry* src, bool* result) = 0;
-    virtual int checkAllIntersect(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneIntersect(wsl::Geometry* src, bool* result) = 0;
+    virtual int checkAllIntersect(wsl::Geometry* src, bool* result) = 0;
     // 地理位置接触的判断
-    virtual int checkOneInContact(const wsl::Geometry* src, bool* result) = 0;
-    virtual int checkAllInContact(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneInContact(wsl::Geometry* src, bool* result) = 0;
+    virtual int checkAllInContact(wsl::Geometry* src, bool* result) = 0;
     // 地理位置相离的判断
-    virtual int checkOneDeparture(const wsl::Geometry* src, bool* result) = 0;
-    virtual int checkAllDeparture(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneDeparture(wsl::Geometry* src, bool* result) = 0;
+    virtual int checkAllDeparture(wsl::Geometry* src, bool* result) = 0;
 
     Group(Type type);
     virtual ~Group();
 
 protected:
+    // 当前Group的元素个数
+    int size_ = 0;
     // 当前Group的类型
     const Type groupType_;
     // 当前输入层的地理抽象类型
@@ -109,14 +113,14 @@ public:
     // 基于一个ItemGroup生成PointGroup 
     int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
-    int addElement(const wsl::Geometry* newElement);
+    int addElement(wsl::Geometry* newElement);
 
     // 地理位置包含的判断
-    int checkOneContain(const wsl::Geometry* src, bool* result);
-    int checkAllContain(const wsl::Geometry* src, bool* result);
+    int checkOneContain(wsl::Geometry* src, bool* result);
+    int checkAllContain(wsl::Geometry* src, bool* result);
     // 地理位置被包含的判断
-    int checkOneContained(const wsl::Geometry* src, bool* result);
-    int checkAllContained(const wsl::Geometry* src, bool* result);
+    int checkOneContained(wsl::Geometry* src, bool* result);
+    int checkAllContained(wsl::Geometry* src, bool* result);
 private:
     std::vector<wsl::Feature<wsl::Point>*> group_;
 };
@@ -127,23 +131,23 @@ public:
     // 基于一个ItemGroup生成LineGroup
     int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
-    int addElement(const wsl::Geometry*);
+    int addElement(wsl::Geometry*);
 
     // 地理位置包含的判断
-    int checkOneContain(const wsl::Geometry* src, bool* result);
-    int checkAllContain(const wsl::Geometry* src, bool* result);
+    int checkOneContain(wsl::Geometry* src, bool* result);
+    int checkAllContain(wsl::Geometry* src, bool* result);
     // 地理位置被包含的判断
-    int checkOneContained(const wsl::Geometry* src, bool* result);
-    int checkAllContained(const wsl::Geometry* src, bool* result);
+    int checkOneContained(wsl::Geometry* src, bool* result);
+    int checkAllContained(wsl::Geometry* src, bool* result);
     // 地理位置交叉的判断
-    int checkOneIntersect(const wsl::Geometry* src, bool* result);
-    int checkAllIntersect(const wsl::Geometry* src, bool* result);
+    int checkOneIntersect(wsl::Geometry* src, bool* result);
+    int checkAllIntersect(wsl::Geometry* src, bool* result);
     // 地理位置接触的判断
-    int checkOneInContact(const wsl::Geometry* src, bool* result);
-    int checkAllInContact(const wsl::Geometry* src, bool* result);
+    int checkOneInContact(wsl::Geometry* src, bool* result);
+    int checkAllInContact(wsl::Geometry* src, bool* result);
     // 地理位置相离的判断
-    int checkOneDeparture(const wsl::Geometry* src, bool* result);
-    int checkAllDeparture(const wsl::Geometry* src, bool* result);
+    int checkOneDeparture(wsl::Geometry* src, bool* result);
+    int checkAllDeparture(wsl::Geometry* src, bool* result);
 private:
     std::vector<wsl::Feature<wsl::Line>*> group_;
 };
@@ -154,23 +158,23 @@ public:
     // 基于ItemGroup构造AreaGroup
     int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
-    int addElement(const wsl::Geometry*);
+    int addElement(wsl::Geometry*);
 
     // 地理位置包含的判断
-    int checkOneContain(const wsl::Geometry* src, bool* result);
-    int checkAllContain(const wsl::Geometry* src, bool* result);
+    int checkOneContain(wsl::Geometry* src, bool* result);
+    int checkAllContain(wsl::Geometry* src, bool* result);
     // 地理位置被包含的判断
-    int checkOneContained(const wsl::Geometry* src, bool* result);
-    int checkAllContained(const wsl::Geometry* src, bool* result);
+    int checkOneContained(wsl::Geometry* src, bool* result);
+    int checkAllContained(wsl::Geometry* src, bool* result);
     // 地理位置交叉的判断
-    int checkOneIntersect(const wsl::Geometry* src, bool* result);
-    int checkAllIntersect(const wsl::Geometry* src, bool* result);
+    int checkOneIntersect(wsl::Geometry* src, bool* result);
+    int checkAllIntersect(wsl::Geometry* src, bool* result);
     // 地理位置接触的判断
-    int checkOneInContact(const wsl::Geometry* src, bool* result);
-    int checkAllInContact(const wsl::Geometry* src, bool* result);
+    int checkOneInContact(wsl::Geometry* src, bool* result);
+    int checkAllInContact(wsl::Geometry* src, bool* result);
     // 地理位置相离的判断
-    int checkOneDeparture(const wsl::Geometry* src, bool* result);
-    int checkAllDeparture(const wsl::Geometry* src, bool* result);
+    int checkOneDeparture(wsl::Geometry* src, bool* result);
+    int checkAllDeparture(wsl::Geometry* src, bool* result);
 private:
     std::vector<wsl::Feature<wsl::Polygon>*> group_;
 };
