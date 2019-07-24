@@ -103,6 +103,13 @@ std::vector<Operator*> operatorList;
 // 用于运算符注册的函数
 int operatorListInit(const Operator* newOp);
 
+// 计算一个节点向量的分数
+int calculateScore(const std::vector<Node*>& nodeVec);
+// 判断一个给定MifItem是否满足条件
+int satisfyConditions(const std::vector<Node*>& conditions, MifItem* item);
+// 对MifItem执行赋值操作
+int applyAssigns(const std::vector<Node*>& assigns, MifItem* item);
+
 } // namesapce syntax
 
 } // namespace condition_assign

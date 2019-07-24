@@ -11,11 +11,13 @@ namespace condition_assign {
 class MifLayer {
 public:
     enum AccessType {Read, Write};
+    // 获取当前layer的大小
+    int size() {return mifSize_;}
     // 依据给定的路径打开Layer
     virtual int open(const std::string& layerPath,
             MifLayer* input = nullptr) = 0;
     // 保存对应的Layer的数据
-    virtual int save() = 0;
+    virtual int save(std::string layerPath = "") = 0;
     // 依据字段名进行赋值操作
     virtual int newItemWithTag(MifLayer* input, const int index,
             const std::string& tagName, const std::string& val) = 0;
@@ -29,6 +31,8 @@ public:
     virtual int getGeometry(wsl::Geometry** val, const int index) = 0;
     // 判断当前的MifLayer是不是新打开的
     virtual bool isNew() {return false;}
+    // 获取当前Layer给定索引的mifitem
+    int newMifItem(const int index, MifItem** newItem, MifLayer* targetLayer);
     // 判等
     bool operator == (const MifLayer& b) {
         return layerPath_ == b.layerPath_;
@@ -37,7 +41,7 @@ public:
     // 构造函数
     MifLayer(AccessType type);
     // 虚析构函数
-    virtual ~MifLayer() = 0;
+    virtual ~MifLayer();
 
 protected:
     // 获取对应Layer中Tag的Col索引，对于读操作如果没有会返回-1
@@ -62,6 +66,10 @@ protected:
     std::mutex tagColCacheLock_;
     // 缓存Tag名称到对应索引的映射关系，快速查找
     std::map<std::string, int> tagColCache_;
+    // MifItem缓存锁
+    std::mutex itemCacheLock_;
+    // MifItem对应的缓存
+    std::map<int, MifItem*> itemCache_;
 }
 
 class MifLayerReadOnly : public MifLayer {
@@ -69,7 +77,7 @@ public:
     // 依据给定的路径打开Layer
     int open(const std::string& layerPath, MifLayer* input = nullptr);
     // 保存对应的Layer的数据
-    int save();
+    int save(std::string layerPath = "");
     // 依据字段名进行赋值操作
     int newItemWithTag(MifLayer* input, const int index,
             const std::string& tagName, const std::string& val);
@@ -99,7 +107,7 @@ public:
     // 依据给定的路径打开Layer
     int open(const std::string& layerPath, MifLayer* input = nullptr);
     // 保存对应的Layer的数据
-    int save();
+    int save(std::string layerPath = "");
     // 依据字段名进行赋值操作
     int newItemWithTag(MifLayer* input, const int index,
             const std::string& tagName, const std::string& val);
@@ -135,7 +143,7 @@ private:
 class MifItem {
 public:
     // 构造函数
-    MifItem(MifLayer* srcLayer, MifLayer* targetLayer, const int index);
+    MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const std::string& val);
     // 获取当前MifItem的某个字段的内容

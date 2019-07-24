@@ -160,7 +160,7 @@ int opRegularExpr::process(Node* node, MifItem* item) {
 int opTagContain::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() == Group::Tag,
             "Group type not supported");
     std::string leftVal;
@@ -175,7 +175,7 @@ int opTagContain::process(Node* node, MifItem* item) {
 int opGeoContain::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -190,7 +190,7 @@ int opGeoContain::process(Node* node, MifItem* item) {
 int opGeoContainAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -205,7 +205,7 @@ int opGeoContainAll::process(Node* node, MifItem* item) {
 int opGeoContained::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -220,7 +220,7 @@ int opGeoContained::process(Node* node, MifItem* item) {
 int opGeoContainedAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -235,7 +235,7 @@ int opGeoContainedAll::process(Node* node, MifItem* item) {
 int opGeoIntersect::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -252,7 +252,7 @@ int opGeoIntersect::process(Node* node, MifItem* item) {
 int opGeoIntersectAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -269,7 +269,7 @@ int opGeoIntersectAll::process(Node* node, MifItem* item) {
 int opGeoInContact::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -286,7 +286,7 @@ int opGeoInContact::process(Node* node, MifItem* item) {
 int opGeoInContactAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -303,7 +303,7 @@ int opGeoInContactAll::process(Node* node, MifItem* item) {
 int opGeoDeparture::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");
@@ -320,7 +320,7 @@ int opGeoDeparture::process(Node* node, MifItem* item) {
 int opGeoDepartureAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    CHECK_ARGS(groupPtr->info_ == nullptr, "Group data not ready");
+    groupPtr->ready_.wait();
     CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
             groupPtr->getGroupType() != Group::Item,
             "Group type not supported");

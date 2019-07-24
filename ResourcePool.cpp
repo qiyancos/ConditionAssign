@@ -5,14 +5,12 @@ namespace condition_assign {
 ResourcePool() {}
 
 int ResourcePool::init(const int targetCnt, const int pluginCnt,
-        const int executorCnt, const int candidateQueueCnt) {
+        const int executorCnt) {
     pluginCnt_ = pluginCnt;
     executorCnt_ = executorCnt;
     readyQueue_.resize(executorCnt, std::queue<ExecutorJob*>());
     targetCnt_ = targetCnt;
     configGroup_.resize(targetCnt, new ConfigSubGroup());
-    candidateQueueCnt_ = candidateCnt;
-    candidateQueue_.resize(candidateCnt, std::queue<ExecutorJob*>());
     inputLayer_ = new MifLayerReadOnly();
     outputLayers_.resize(targetCnt, new MifLayerReadWrite());
     return 0;
@@ -25,31 +23,25 @@ int ResourcePool::getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr) 
 }
 
 int ResourcePool::newGroup(Group** newGroupPtr, Group* newGroup) {
-    groupsLock_.lock();
-    groups_.push_back(newGroup);
-    groupsLock_.unlock();
     *newGroupPtr = newGroup;
     return 0;
 }
 
-int ResourcePool::insertGroup(const std::string& key, Group* newGroup) {
-    groupMapLock_.lock();
+int ResourcePool::insertGroup(const int key, Group* newGroup) {
+    std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     CHECK_ARGS(groupMap_.find(key) == groupMap_.end(),
             "Trying to insert the same group again.");
     groupMap_[key] = newGroup;
-    groupMapLock_.unlock();
     return 0;
 }
 
 int ResourcePool::findGroup(const std::string& key, Group** groupPtr){
-    groupMapLock_.lock();
+    std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     auto mapIterator = groupMap_.find(key);
     if (mapIterator == groupMap_.end()) {
-        groupMapLock_.unlock();
         return -1;
     } else {
         *groupPtr = mapIterator->second;
-        groupMapLock_.unlock();
         return 0;
     }
 }
@@ -181,25 +173,14 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
             jobVacacies.push_back(vacacy(&(que.back()), index));
         }
     }
-    candidateQueueLock_.lock();
+    std::lock_guard<std::mutex> candidateGuard(candidateQueueLock_);
     int selected = 0, index = 0;
-    while (selected < jobVacacies.size()) {
-        if (!candidateQueue_[index].empty()) {
-            *(jobVacacies[selected].first) = candidateQueue_[index].front();
-            signalExecutorIndexes->insert(jobVacacies[selected++].second);
-            readyJobCnt_++;
-            candidateJobCnt_--;
-            candidateQueue_[index].pop();
-        }
-        if (++index == candidateQueueCnt_) {
-            if (candidateJobCnt_ == 0) {
-                break;
-            } else {
-                index = 0;
-            }
-        }
+    while (selected < jobVacacies.size() && !candidateQueue_.empty()) {
+        *(jobVacacies[selected].first) = candidateQueue_.front();
+        signalExecutorIndexes->insert(jobVacacies[selected++].second);
+        readyJobCnt_++;
+        candidateQueue_.pop();
     }
-    candidateQueueLock_.unlock();
     for (auto lock : readyQueueLock_) {
         lock.unlock();
     }
@@ -210,8 +191,8 @@ int ResourcePool::releaseResource() {
     for (auto configSubGroupPtr : configGroup_) {
         delete configSubGroupPtr;
     }
-    for (auto groupPtr : groups_) {
-        delete groupPtr;
+    for (auto groupMapIterator : groupMap_) {
+        delete groupMapIterator->second;
     }
     delete inputLayer_;
     for (auto mapIterator : pluginLayerMap_) {
@@ -225,10 +206,8 @@ int ResourcePool::releaseResource() {
             delete jobPtr;
         }
     }
-    for (auto que : candidateQueue_) {
-        for (auto jobPtr : que) {
-            delete jobPtr;
-        }
+    for (auto job : candidateQueue_) {
+        delete job;
     }
 }
 

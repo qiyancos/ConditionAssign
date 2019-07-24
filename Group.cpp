@@ -39,9 +39,10 @@ int ItemGroup::addElement(const int newElement) {
 
 TagGroup::TagGroup() : Group(Tag) {}
 
-TagGroup(const Group& itemGroup, const std::string& tagName) : Group(Tag) {
+int TagGroup::init(const Group& itemGroup, const std::string& tagName) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
             "Cannot expand from group with no item-type.");
+    itemGroup.ready_.wait();
     const ItemGroup& group = dynamic_cast<const ItemGroup&>(itemGroup);
     for (int index : group.group_) {
         std::string tagVal;
@@ -72,9 +73,10 @@ int TagGroup::checkAllContain(const std::string& src, bool* result) {
 
 PointGroup::PointGroup() : Group(Point) {}
 
-PointGroup(const Group& itemGroup) : Group(Point) {
+int PointGroup::init(const Group& itemGroup, const std::string& tagName) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
             "Cannot expand from group with no item-type.");
+    itemGroup.ready_.wait();
     const ItemGroup& group = dynamic_cast<const ItemGroup&>(itemGroup);
     for (int index : group.group_) {
         wsl::Geometry* geoVal;
@@ -215,9 +217,10 @@ int PointGroup::checkAllContained(const wsl::Geometry* src, bool* result) {
 
 LineGroup::LineGroup() : Group(Line) {}
 
-LineGroup(const Group& itemGroup) : Group(Line) {
+int LineGroup::init(const Group& itemGroup, const std::string& tagName) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
             "Cannot expand from group with no item-type.");
+    itemGroup.ready_.wait();
     const ItemGroup& group = dynamic_cast<const ItemGroup&>(itemGroup);
     for (int index : group.group_) {
         wsl::Geometry* geoVal;
@@ -588,9 +591,10 @@ int LineGroup::checkAllDeparture(const wsl::Geometry* src, bool* result) {
 
 AreaGroup::AreaGroup() : Group(Area) {}
 
-AreaGroup(const Group& itemGroup) : Group(Area) {
+int AreaGroup::init(const Group& itemGroup, const std::string& tagName) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
             "Cannot expand from group with no item-type.");
+    itemGroup.ready_.wait();
     const ItemGroup& group = dynamic_cast<const ItemGroup&>(itemGroup);
     for (int index : group.group_) {
         wsl::Geometry* geoVal;

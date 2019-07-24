@@ -13,8 +13,6 @@ namespace condition_assign {
 #define MAX_MIFLAYERS 32
 // 候选工作队列的数量
 #define MAX_CANDIDATE_SIZE 4
-// 单个Executor处理的WorkItem数量上限
-#define MAX_WORKITEM_CNT 1000
 
 #ifndef RESOURCEPOOL_H
 class ResourcePool;
@@ -87,6 +85,8 @@ public:
         ConfigLineParse,
         // 为一个配置文件生成工作项
         ConfigFileParse,
+        // 解析给定类型的Group
+        ParseGroup,
         // 建立给定类型的Group类型
         BuildGroup,
         // 对多个Mif元素执行条件赋值操作

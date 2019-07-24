@@ -63,6 +63,9 @@ static int Executor::mainRunner(const Executor& executor) {
                 executor.status_ = Executor::Error;
                 executor.needStatusCheck_->signal();
                 return -1;
+            } else {
+                delete (*workingJobPtr);
+                *workingJobPtr = nullptr;
             }
         } else {
             CHECK_RET(executor.startWaiting());
@@ -88,14 +91,17 @@ std::function<int(void*)> ExecutorJob::getJobFunc(){
     case LoadLayer: return std::function<int(void*)>(job_func::loadLayer);
     case SaveLayer: return std::function<int(void*)>(job_func::saveLayer);
     case ConfigLineParse:
-        return std::function<int(void*)>(job_func::parseConfigLine);
+        return std::function<int(void*)>(job_func::parseConfigLines);
     case ConfigFileParse:
         return std::function<int(void*)>(job_func::parseConfigFile);
+    case ParseGroup: return std::function<int(void*)>(job_func::parseGroup);
     case BuildGroup: return std::function<int(void*)>(job_func::buildGroup);
     case MifItemProcess:
         return std::function<int(void*)>(job_func::processMifItem);
     }
 }
+
+ExecutorJob::~ExecutorJob() {delete param_;}
 
 ExecutorPool::ExecutorPool(const Params& params) : params_(params) {}
 
@@ -125,31 +131,29 @@ int ExecutorPool::init() {
 int ExecutorPool::execute() {
     // 初始化工作内容
     std::vector<ExecutoJob*> initJobs;
-    initJobs.push_back(new ExecutorJob(LoadLayer,
+    initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
             new job_func::LoadLayerParams {ReourcePool::Input,
             &(params_.input), &resourcePool_}));
     for (int i = 0; i < params_.outputs.size(); i++) {
-        initJobs.push_back(new ExecutorJob(LoadLayer,
+        initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
                 new job_func::LoadLayerParams {ReourcePool::Output,
                 &(params_.outputs[i]), &resourcePool_}));
     }
     for (int i = 0; i < params_.plugins.size(); i++) {
-        initJobs.push_back(new ExecutorJob(LoadLayer,
+        initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
                 new job_func::LoadLayerParams {ReourcePool::Plugin,
                 &(params_.plugins[i]), &resourcePool_}));
     }
     for (int i = 0; i < params_.configs.size(); i++) {
-        initJobs.push_back(new ExecutorJob(parseConfigFile,
+        initJobs.push_back(new ExecutorJob(ExecutorJob::parseConfigFile,
                 new job_func::ParseConfigFileParams {
                 &(params_.configs[i]), i, &resourcePool_}));
     }
     resourcePool_.candidateQueueLock_.lock();
     for (int i = 0; i < initJobs.size(); i++) {
-        resourcePool_.candidateQueue_[i %
-                resourcePool_.candidateQueueCnt_].push(initJobs[i]);
+        resourcePool_.candidateQueue_.push(initJobs[i]);
     }
     // 插入初始化的工作内容
-    resourcePool_.candidateJobCnt_ = initJobs.size();
     resourcePool_.candidateQueueLock_.unlock();
     resourceConsole_ = new std::thread(resourceController);
     for (int id = 0; id < params_.executorNum; id++) {
@@ -213,7 +217,7 @@ int ExecutorPool::executorController() {
                     resourcePool_.candidateQueueLock_);
             std::lock_guard<std::mutex> readyLockGuard(
                     resourcePool_.readyQueueLock_);
-            if (resourcePool_.candidateJobCnt_ == 0 &&
+            if (resourcePool_.candidateQueue_.empty() &&
                     resourcePool_.readyJobCnt_ == 0) {
                 bool noWorkingJob = true;
                 for (auto job : workingJob_) {

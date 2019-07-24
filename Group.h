@@ -11,21 +11,36 @@ namespace condition_assign {
 // 组类型通用父类
 class Group {
 public:
-    struct GroupInfo {
-        std::vector<Node*> conditions;
-        std::vector<std::string> tagGroup;
-        std::string tagName;
-    };  
-    
-    // 未生成实体时存放的解析信息，处理结束后必须为NULL
-    GroupInfo* info_ = nullptr;
-
     // Group的类型
     enum Type {Item, Tag, Point, Line, Area};
+    // 解析完毕后的group结构信息
+    struct GroupInfo {
+        // 所在layer的名称
+        std::string layerName;
+        // 筛选条件
+        std::vector<Node*> conditions;
+        // 原始的tag集合
+        std::set<std::string> tagGroup;
+        // 新的tag名称集合
+        std::string tagName;
+        // 二次索引的信息
+        std::string groupTagName;
+    }; 
+    
+    // 未生成实体时存放的解析信息
+    GroupInfo* info_ = nullptr;
+    // Group数据是否准备完毕
+    Semaphore ready_(0, OnceForAll);
+
     // 获取当前Group的类型
     Type getGroupType();
+    // 获取当前输入的地理类型
     static Type getInputType();
+    // 设置当前的输入类型
     static int setInputType(const Type type);
+    
+    // 基于一个ItemGroup生成类型Group
+    virtual int init(const Group& itemGroup, const std::string& tagName) = 0;
     
     // 向Group中添加元素的虚函数
     virtual int addElement(const int newElement);
@@ -39,25 +54,17 @@ public:
     virtual int checkOneContain(const wsl::Geometry* src, bool* result)= 0;
     virtual int checkAllContain(const wsl::Geometry* src, bool* result) = 0;
     // 地理位置被包含的判断
-    virtual int checkOneContained(const wsl::Geometry* src,
-            bool* result) = 0;
-    virtual int checkAllContained(const wsl::Geometry* src,
-            bool* result) = 0;
+    virtual int checkOneContained(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkAllContained(const wsl::Geometry* src, bool* result) = 0;
     // 地理位置交叉的判断
-    virtual int checkOneIntersect(const wsl::Geometry* src,
-            bool* result) = 0;
-    virtual int checkAllIntersect(const wsl::Geometry* src,
-            bool* result) = 0;
+    virtual int checkOneIntersect(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkAllIntersect(const wsl::Geometry* src, bool* result) = 0;
     // 地理位置接触的判断
-    virtual int checkOneInContact(const wsl::Geometry* src,
-            bool* result) = 0;
-    virtual int checkAllInContact(const wsl::Geometry* src,
-            bool* result) = 0;
+    virtual int checkOneInContact(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkAllInContact(const wsl::Geometry* src, bool* result) = 0;
     // 地理位置相离的判断
-    virtual int checkOneDeparture(const wsl::Geometry* src,
-            bool* result) = 0;
-    virtual int checkAllDeparture(const wsl::Geometry* src,
-            bool* result) = 0;
+    virtual int checkOneDeparture(const wsl::Geometry* src, bool* result) = 0;
+    virtual int checkAllDeparture(const wsl::Geometry* src, bool* result) = 0;
 
     Group(Type type);
     virtual ~Group();
@@ -86,7 +93,7 @@ class TagGroup : public Group {
 public:
     TagGroup();
     // 基于ItemGroup生成一个TagGroup
-    TagGroup(const Group& itemGroup, const std::string& tagName);
+    int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
     int addElement(const std::string& newElement);
     // 检测是否存在于当前的Tag组里面
@@ -100,7 +107,7 @@ class PointGroup : public Group {
 public:
     PointGroup();
     // 基于一个ItemGroup生成PointGroup 
-    PointGroup(const Group& itemGroup);
+    int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
     int addElement(const wsl::Geometry* newElement);
 
@@ -118,7 +125,7 @@ class LineGroup : public Group {
 public:
     LineGroup();
     // 基于一个ItemGroup生成LineGroup
-    LineGroup(const Group& itemGroup);
+    int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
     int addElement(const wsl::Geometry*);
 
@@ -145,7 +152,7 @@ class AreaGroup : public Group {
 public:
     AreaGroup();
     // 基于ItemGroup构造AreaGroup
-    AreaGroup(const Group& itemGroup);
+    int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
     int addElement(const wsl::Geometry*);
 

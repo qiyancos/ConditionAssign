@@ -5,6 +5,22 @@ namespace condition_assign {
 
 MifLayer::MifLayer(AccessType type) : type_(type) {}
 
+int MifLayer::newMifItem(const int index, MifItem** newItem,
+        MifLayer* targetLayer) {
+    CHECK_ARGS(!layerPath_.empty(),
+            "Can not create new mif item from unopened mif layer.");
+    CHECK_ARGS(index > -1 && index < mifSize_, "Mif item index out of bound.");
+    std::lock_guard<std::mutex> cacheGuard(itemCacheLock_);
+    auto itemIterator = itemCache_.find(index);
+    if (itemIterator == itemCache_.end()){
+        *newItem = new MifItem(this, targetLayer, indexi);
+        itemCache_[index] = *newItem;
+    } else {
+        *newItem = itemIterator->second;
+    }
+    return 0;
+}
+
 MifLayerReadWrite::MifLayerReadWrite() : MifLayer(MifLayer::Write) {}
 
 int MifLayerReadWrite::open(const std::string& layerPath,
@@ -20,7 +36,6 @@ int MifLayerReadWrite::open(const std::string& layerPath,
         layerPath_ = layerPath;
         input->opened_.wait();
         mifLock_.lock();
-        // TODO makesure this logic is good
         mif_.header = input->mif_.header;
         mif_.header.corrdsys = input->mif_.header.COORDSYS_LL;
         opened_.signalAll();
@@ -38,10 +53,16 @@ int MifLayerReadWrite::open(const std::string& layerPath,
     return 0;
 }
 
-int MifLayerReadWrite::save() {
-    CHECK_ARGS(!layerPath_.empty(), "Can not save unopened mif layer.")
+int MifLayerReadWrite::save(std::string layerPath = "") {
+    std::string* savePath;
+    if (layerPath.empty()) {
+        CHECK_ARGS(!layerPath_.empty(), "Can not save unopened mif layer.")
+        savePath = &layerPath_;
+    } else {
+        savePath = &layerPath_;
+    }
     mifLock_.lock();
-    CHECK_RET(wgt::wsbl_to_mif(mif_, layerPath_),
+    CHECK_RET(wgt::wsbl_to_mif(mif_, *savePath),
             "Error occurred while running [wgt::wsbl_to_mif].");
     mifLock_.unlock();
     return 0;
@@ -157,7 +178,7 @@ int MifLayerReadOnly::open(const syd::string& layerPath,
     return 0;
 }
 
-int MifLayerReadOnly::save() {
+int MifLayerReadOnly::save(std::string layerPath = "") {
     CHECK_RET(-1, "Read-only layer do not need to be saved.");
 }
 
@@ -216,10 +237,9 @@ int MifLayerReadOnly::getTagColID(const std::string& tagName, int* colID,
     }
 }
 
-MifItem::MifItem(MifLayer* srcLayer, MifLayer* targetLayer,
-        const int index) : srcLayer_(srcLayer),
-        targetLayer_(targetLayer), index_(index),
-        sameLayer_(srcLayer == targetLayer) {}
+MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer) :
+        srcLayer_(srcLayer), targetLayer_(targetLayer), index_(index),
+        sameLayer_(targetLayer != nullptr && *srcLayer == *targetLayer) {}
 
 int MifItem::assignWithTag(const std::string& tagName,
         const std::string& val) {

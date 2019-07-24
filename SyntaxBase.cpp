@@ -48,6 +48,12 @@ int operatorListInit(const Operator* newOp) {
     return 0;
 }
 
+int calculateScore(const std::vector<Node*> nodeVec) {
+}
+
+bool satisfyConditions(const std::vector<Node*>& conditions, MifItem* item) {
+}
+
 } // namespace syntax
 
 } // namespace condition_assign
