@@ -9,8 +9,7 @@ int loadLayer(void* param) {
     LoadLayerParams* paramPtr = reinterpret_cast<LoadLayerParams*>(param);
     CHECK_RET(paramPtr->resourcePool->openLayer(*(paramPtr->layerPath),
             paramPtr->layerType, paramPtr->layerID),
-            (std::string("Failed to open layer \"") +
-            paramPtr->layerPath + "\".").c_str());
+            "Failed to open layer \"%s\".", paramPtr->layerPath->c_str());
     return 0;
 }
 
@@ -19,10 +18,10 @@ int saveLayer(void* param) {
     MifLayer* layer;
     CHECK_RET(paramPtr->resourcePool->getLayer(&layer, ResourcePool::Output,
             *(paramPtr->layerPath)),
-            (std::string("Failed to get layer with layer path \"") +
-            paramPtr->layerPath + "\".").c_str());
-    CHECK_RET(layer->save(), (std::string("Failed to save layer \"") +
-            paramPtr->layerPath + "\"."),c_str());
+            "Can not find layer with layer path \"%s\".",
+            paramPtr->layerPath->c_str());
+    CHECK_RET(layer->save(), "Failed to save layer \"%s\".",
+            paramPtr->layerPath->c_str());
     return 0;
 }
 
@@ -35,9 +34,11 @@ int parseConfigLines(void* param) {
             paramPtr->resourcePool->configGroup_[paramPtr->layerID];
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
-        CHECK_RET(parseConfigLine((*(paramPtr->fullContent))[index++],
+        CHECK_RET(parseConfigLine((*(paramPtr->fullContent))[index],
                 subGroup, paramPtr->resourcePool, &newGroups),
-                "Failed to parse single line in config file.");
+                "Failed to parse single line in config file. [%s]",
+                (*(paramPtr->fullContent))[index].c_str());
+        index++;
     }
     std::vector<ExecutorJob*> newJobs;
     for (std::pair<std::string, Group**>* groupInfo : newGroups) {
@@ -71,7 +72,7 @@ int parseConfigLines(void* param) {
             ResourcePool::Input), "Failed to get input mif layer.");
     CHECK_RET(paramPtr->resourcePool->getLayerByIndex(&targetLayer,
             ResourcePool::Output, paramPtr->layerID),
-            "Failed to get output mif layer.");
+            "Failed to get output mif_layer-%d.", paramPtr->layerID);
     int itemCount = targetLayer->size();
     for (std::pair<int, int> range : rangesInJob) {
         for (int index = 0; index < itemCount; index++) {
@@ -92,7 +93,8 @@ int parseConfigFile(void* param) {
     ParseConfigFileParam* paramPtr =
             reinterpret_cast<ParseConfigFileParam*>(param);
     std::ifstream configFileStream(paramPtr->filePath);
-    CHECK_ARGS(configFileStream, "Config file failed to be opened.");
+    CHECK_ARGS(configFileStream, "Failed to open config file \"%s\".",
+            paramPtr->filePath.c_str());
     std::string content;
     std::vector<std::string>* fullContent = new std::vector<std::string>();
     while (getline(configFileStream, content)) {
@@ -129,7 +131,8 @@ int parseGroup(void* param) {
     ParseGroupParam* paramPtr = reinterpret_cast<ParseGroupParam*>(param);
     GroupPair itemGroup, typeGroup;
     CHECK_RET(parseGroupInfo(paramPtr->groupInfo.first, paramPtr->resourcePool,
-            &itemGroup, &typeGroup), "Failed to parse group infomation.");
+            &itemGroup, &typeGroup), "Failed to parse group infomation [%s]",
+            paramPtr->groupInfo.first);
     paramPtr->resourcePool->insertGroup(itemGroup.first, itemGroup.second);
     paramPtr->resourcePool->insertGroup(typeGroup.first, typeGroup.second);
     *(paramPtr->groupInfo.second) = typeGroup.second;
@@ -140,8 +143,8 @@ int parseGroup(void* param) {
         MifLayer* pluginLayer;
         CHECK_RET(paramPtr->resourcePool->getLayerByName(&pluginLayer,
                 ResourcePool::Plugin, itemGroup.second->info_->layerName),
-                (std::string("Failed to found plugin layer \"") +
-                itemGroup.second->info_->layerName + "\".").c_str());
+                "Failed to found plugin layer \"%s\"",
+                itemGroup.second->info_->layerName.c_str());
         
         int itemCount = syntax::calculateScore(
                 itemGroup.second->info_->conditions);

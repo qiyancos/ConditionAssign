@@ -68,7 +68,7 @@ static int Executor::mainRunner(const Executor& executor) {
                 *workingJobPtr = nullptr;
             }
         } else {
-            CHECK_RET(executor.startWaiting());
+            CHECK_RET(executor.startWaiting(), "Failed to start wait mode.");
         }
     }
 }
@@ -107,9 +107,14 @@ ExecutorPool::ExecutorPool(const Params& params) : params_(params) {}
 
 int ExecutorPool::init() {
     CHECK_ARGS(params_.outputs.size() == params_.configs.size(),
-            "Config-file's count does not match the count of output layers.");
-    CHECK_ARGS((params_.outputs.size() + params_.plugins.size() + 1 <=
-            MAX_MIFLAYERS), "Too many mif layers to be opened.")
+            "Config-file's count[%d] %s [%d]."
+            params_.outputs.size(),
+            "does not match the count of output layers",
+            params_.configs.size());
+    int totalMifLayerCount = params_.outputs.size() +
+            params_.plugins.size() + 1;
+    CHECK_ARGS(totalMifLayerCount <= MAX_MIFLAYERS,
+            "Too many mif layers[%d] to be opened.", totalMifLayerCount);
     int executorCnt = params_.executorNum;
     if (executorNum > thread::hardware_concurrency()) {
         std::cerr << "Warning: thread number is greater than the";

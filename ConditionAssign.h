@@ -21,28 +21,28 @@ Create on: 2018/08/27
 
 namespace condition_asssign {
 
-#define CHECK_EXIT(expr, info) { \
+#define CHECK_EXIT(expr, info, ...) { \
     int errCode = expr; \
     if (errCode < 0) { \
-        sys_log_println(_ERROR, "%s in [%s], err_code = %d\n", \
-                info, __func__, errCode); \
+        sys_log_println(_ERROR, (std::string(info) + " in [%s]." + \
+                "Error code = %d\n").c_str(), __VA_ARGS__, __func__, errCode); \
         exit(status); \
     } \
 }
 
-#define CHECK_RET(expr, info) { \
-    int errCode = expr; \
-    if (errCode < 0) { \
-        sys_log_println(_ERROR, "%s in [%s], err_code = %d\n", \
-                info, __func__, errCode); \
-        return status; \
+#define CHECK_RET(expr, info, ...) { \
+    int retCode = expr; \
+    if (retCode < 0) { \
+        sys_log_println(_ERROR, (std::string(info) + " in [%s]." + \
+                "Return %d\n").c_str(), __VA_ARGS__, __func__, retCode); \
+        return retCode; \
     } \
 }
 
-#define CHECK_ARGS(expr, info) { \
+#define CHECK_ARGS(expr, info, ...) { \
     if (!expr) { \
-        sys_log_println(_ERROR, "%s in [%s]", \
-                info, __func__); \
+        sys_log_println(_ERROR, (std::string(info) + " in [%s].").c_str(), \
+                __VA_ARGS__, __func__); \
         return -1; \
     } \
 }

@@ -16,8 +16,9 @@ int ResourcePool::init(const int targetCnt, const int pluginCnt,
     return 0;
 }
 
-int ResourcePool::getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr) {
-    CHECK_ARGS(targetID < targetCnt, "Invalid target ID.");
+int ResourcePool::getConfigSubGroup(int targetID,
+        ConfigSubGroup** subGroupPtr) {
+    CHECK_ARGS(targetID < targetCnt, "Invalid target ID [%d].", targetID);
     *subGroupPtr = configGroup_[targetID];
     return 0;
 }
@@ -30,7 +31,7 @@ int ResourcePool::newGroup(Group** newGroupPtr, Group* newGroup) {
 int ResourcePool::insertGroup(const int key, Group* newGroup) {
     std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     CHECK_ARGS(groupMap_.find(key) == groupMap_.end(),
-            "Trying to insert the same group again.");
+            "Trying to insert a group with the same key[%d] again.", key);
     groupMap_[key] = newGroup;
     return 0;
 }
@@ -50,33 +51,26 @@ int ResourcePool::openLayer(const std::string& layerPath,
         const LayerType layerType, const int layerID = -1) {
     if (layerType = Input) {
         CHECK_RET(inputLayer_->open(layerPath),
-                (std::string("Failed to open input layer \"") +
-                layerPath + "\".").c_str());
+                "Failed to open input layer \"%s\".", layerPath.c_str());
         return 0;
     } else if (layerType = Output) {
         outputLayersLock_.lock();
-        CHECK_ARGS(outputLayerMap_.find(layerPath) ==
-                outputLayerMap_.end(),
-                (std::string("Trying to reopen output layer \"") +
-                layerPath + "\".").c_str());
+        CHECK_ARGS(outputLayerMap_.find(layerPath) == outputLayerMap_.end(),
+                "Trying to reopen output layer \"%s\".", layerPath.c_str());
         CHECK_ARGS(layerID < targetCnt_, "Too much open output layers.");
         outputLayerMap_[layerPath] = layerID;
         CHECK_RET(outputLayers_[layerID]->open(layerPath, inputLayer_),
-                (std::string("Failed to open output layer \"") +
-                layerPath + "\".").c_str());
+                "Failed to open output layer \"%s\".", layerPath.c_str());
         outputLayersLock_.unlock();
         return 0;
     } else {
         pluginLayersLock_.lock();
-        CHECK_ARGS(pluginLayerMap_.find(layerPath) ==
-                pluginLayerMap_.end(),
-                (std::string("Trying to reopen plugin layer \"") +
-                layerPath + "\".").c_str());
+        CHECK_ARGS(pluginLayerMap_.find(layerPath) == pluginLayerMap_.end(),
+                "Trying to reopen plugin layer \"%s\".", layerPath.c_str());
         MifLayer* newLayer = new MifLayerReadOnly();
         pluginLayers_[layerPath] = newLayer;
         CHECK_RET(newLayer->open(layerPath),
-                (std::string("Failed to open output layer \"") +
-                layerPath + "\".").c_str());
+                "Failed to open plugin layer \"%s\".", layerPath.c_str());
         pluginLayersLock_.unlock();
         return 0;
     }
@@ -87,15 +81,16 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
         int* targetID = nullptr) {
     if (layerType == Input) {
         // 我们建议使用getLayerByIndex而不是该函数获取输入层指针
-        CHECK_ARGS(targetIDPtr == nullptr, "No target ID for input layer.");
+        CHECK_ARGS(targetIDPtr == nullptr,
+                "Can not get target ID for input layer.");
         *layerPtr = inputLayer_;
     } else if (layerType = Output) {
         bool needLock = outputLayerMap_.size() < targetCnt_;
         if (needLock) outputLayersLock_.lock();
         auto mapIterator = outputLayerMap_.find(layerPath);
         CHECK_ARGS(mapIterator != outputLayerMap_.end(),
-                (std::string("Can not find output layer named as \"") +
-                layerPath + "\".").c_str());
+                "Can not find output layer named as \"%s\".",
+                layerPath.c_str());
         *targetID = mapIterator->second;
         *layerPtr = outputLayers_[mapIterator->second];
         if (needLock) outputLayersLock_.unlock();
@@ -113,8 +108,8 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
                 }
             }
             CHECK_ARGS(!completeLayerPath.empty(),
-                (std::string("Can not find plugin layer named as \"") +
-                layerPath + "\".").c_str());
+                "Can not find plugin layer named as \"%s\".",
+                layerPath.c_str());
             *layerPtr = pluginLayers_[completeLayerPath];
         } else {
             *layerPtr = pluginLayers_[mapIterator->second];
@@ -128,32 +123,30 @@ int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
         const LayerType layerType, const int targetID = -1) {
     if (layerType = Input) {
         CHECK_ARGS(targetID == -1,
-                "Can not find input layer with target id.");
+                "Can not find input layer with target ID [%d].", targetID);
         *layerPtr = inputLayer_;
         return 0;
     } else if (layerType = Output) {
         CHECK_ARGS(targetID > -1 && targetID < targetCnt,
-                "Invalid targetID.");
+                "Invalid targetID [%d].", targetID);
         bool needLock = outputLayerMap_.size() < targetCnt_;
         if (needLock) outputLayersLock_.lock();
         *layerPtr = outputLayers_[targetID];
         if (needLock) outputLayersLock_.unlock();
         return 0;
     } else {
-        CHECK_ARGS(false, "Plugin layer cannot be found with index.");
+        CHECK_ARGS(false, "Plugin layer cannot be found with layer ID.");
     }
 }
 
 int ResourcePool::getReadyJob(const int executorID,
         ExecutorJob** jobConsumerPtr) {
-    std::stringstream tempStream;
     CHECK_ARGS(!readyQueue_[executorID].empty(),
-            (tempStream << "No ready job found for executor[" <<
-            executorID << "].").str().c_str());
+            "No ready job found for executor[%d].", executorID);
     readyQueueLock_[executorID].lock();
     *jobConsumerPtr = readyQueue_[executorID].front();
     CHECK_ARGS(*jobConsumerPtr != nullptr,
-            "Error occourred while get ready job.");
+            "No job consumer pointer is provided.");
     readyJobCnt_--;
     readyQueue_[executorID].pop();
     readyQueueLock_[executorID].unlock();

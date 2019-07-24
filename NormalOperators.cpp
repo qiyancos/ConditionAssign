@@ -9,7 +9,7 @@ int opNot::process(Node* node, MifItem* item) {
     CHECK_ARGS(node->leftNode == nullptr && node->rightNode != nullptr, \
             "Bad node-tree structure!"); \
     CHECK_ARGS(node->op.isSupported(node->leftType), \
-            "Unsupported data type!"); \
+            "Unsupported data type."); \
     node->value.exprResult = ! node->rightNode->value.exprResult;
     return 0;
 }
@@ -41,14 +41,12 @@ int opEqual::process(Node* node, MifItem* item) {
     if (node->leftType == node->rightType && node->leftType == Number) {
         double leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                (std::string("Tag [") + node->tagName +
-                "] not found!").c_str());
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
         node->value.exprResult = floatEqual(leftVal, node->value.numberValue);
     } else {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                (std::string("Tag [") + node->tagName +
-                "] not found!").c_str());
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
         node->value.exprResult = (leftVal == node->value.stringValue);
     }
     return 0;
@@ -59,15 +57,13 @@ int opNotEqual::process(Node* node, MifItem* item) {
     if (node->leftType == node->rightType && node->leftType == Number) {
         double leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                (std::string("Tag [") + node->tagName +
-                "] not found!").c_str());
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
         node->value.exprResult = ! floatEqual(leftVal,
                 node->value.numberValue);
     } else {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                (std::string("Tag [") + node->tagName +
-                "] not found!").c_str());
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
         node->value.exprResult = (leftVal != node->value.stringValue);
     }
     return 0;
@@ -77,8 +73,7 @@ int opLessEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     node->value.exprResult = floatLessEqual(leftVal, node->value.numberValue);
     return 0;
 }
@@ -87,8 +82,7 @@ int opLessThan::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     node->value.exprResult = (leftVal < node->value.numberValue);
     return 0;
 }
@@ -97,8 +91,7 @@ int opGreaterEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     node->value.exprResult = floatGreaterEqual(leftVal,
             node->value.numberValue);
     return 0;
@@ -108,8 +101,7 @@ int opGreaterThan::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal,
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     node->value.exprResult = (leftVal > node->value.numberValue);
     return 0;
 }
@@ -118,8 +110,7 @@ int opContain::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     node->value.exprResult = (node->value.stringValue.find(leftVal) !=
             node->value.stringValue::npos);
     return 0;
@@ -129,8 +120,7 @@ int opIsPrefix::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     node->value.exprResult = htk::startswith(leftVal,
             node->value.stringValue);
     return 0;
@@ -140,8 +130,7 @@ int opIsSuffix::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     node->value.exprResult = htk::endswith(leftVal, node->value.stringValue);
     return 0;
 }
@@ -150,8 +139,7 @@ int opRegularExpr::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     node->value.exprResult = htk::RegexSearch(leftVal,
             node->value.stringValue);
     return 0;
@@ -165,8 +153,7 @@ int opTagContain::process(Node* node, MifItem* item) {
             "Group type not supported");
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            (std::string("Tag [") + node->tagName +
-            "] not found!").c_str());
+            "Can not get value of tag \"%s\".", node->tagName.c_str());
     CHECK_RET(groupPtr->checkOneContain(leftVal, &(node->vale.exprResult)),
             "Failed to running group-check function.");
     return 0;
@@ -337,7 +324,7 @@ int opGeoDepartureAll::process(Node* node, MifItem* item) {
 int opAssign::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     CHECK_RET(item->assignWithTag(node->tagName, node->value.stringValue),
-            "Failed to assign value.");
+            "Failed to assign value to tag \"%s\".", node->tagName.c_str());
     return 0;
 }
 
@@ -347,8 +334,7 @@ int opSelfAdd::process(Node* node, MifItem* item) {
     if (node->leftType == node->rightType && node->leftType == Number) {
         double leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                (std::string("Tag [") + node->tagName +
-                "] not found!").c_str());
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
         int intLeftVal = static_cast<int>(leftVal + node->value.numberValue);
         if (abs(leftVal - intLeftVal) < 1e-8) {
             tempStream << intLeftVal;
@@ -358,13 +344,12 @@ int opSelfAdd::process(Node* node, MifItem* item) {
     } else {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                (std::string("Tag [") + node->tagName +
-                "] not found!").c_str());
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
         leftVal += node->value.stringValue;
         tempStream << leftVal;
     }
     CHECK_RET(item->assignWithTag(node->tagName, tempStream.str()),
-            "Failed to assign value.");
+            "Failed to assign value to tag \"%s\".", node->tagName.c_str());
     return 0;
 }
 

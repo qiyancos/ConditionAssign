@@ -31,12 +31,14 @@ namespace syntax {
 
 // 数据类型
 enum DataType {Number, String, Group, Expr};
+// debug使用获取数据类型对应的字符串
+std::string getTypeString(const DataType type);
 // 获取一个字符串的类型
 DataType getDataType(const std::string& data, std::string* stringVal,
         double* numberVal);
 // 判断一个数值是给定类型
-template<typename T>
-bool isType(const std::string& data, T* result);
+template<typename T> bool isType(const std::string& data, T* result);
+
 // 用于比较两个浮点数
 inline bool floatEqual(const double a, const double b) {
     return abs(a - b) < MAXERROR;

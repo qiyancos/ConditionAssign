@@ -5,6 +5,15 @@ namespace condition_assign{
 
 namespace syntax {
 
+std::string getTypeString(const DataType type) {
+    switch(type) {
+    case Number: return "Number";
+    case String: return "String";
+    case Group: return "Group";
+    case Expr: return "Expr";
+    }
+}
+
 DataType getDataType(const std::string& data, std::string* stringVal,
         double* numberVal) {
     const int length = data.length();

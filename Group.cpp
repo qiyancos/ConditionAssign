@@ -47,7 +47,8 @@ int TagGroup::init(const Group& itemGroup, const std::string& tagName) {
     for (int index : group.group_) {
         std::string tagVal;
         CHECK_RET(group.layer_->getTagVal(tagName, index, &tagVal),
-            "Failed to get tag value from mif layer.");
+            "Failed to get value of tag \"%s\" from mif layer.", 
+            tagName.c_str());
         group_.insert(tagVal);
     }
     return 0;
@@ -81,7 +82,7 @@ int PointGroup::init(const Group& itemGroup, const std::string& tagName) {
     for (int index : group.group_) {
         wsl::Geometry* geoVal;
         CHECK_RET(group.layer_->getGeometry(index, &geoVal),
-            "Failed to get geometry from mif layer.");
+            "Failed to get geometry from mif layer in item[%d].", index);
         group_.insert(reinterpret_cast<wsl::Feature<wsl::Point>*>(geoVal));
     }
     return 0;
@@ -225,7 +226,7 @@ int LineGroup::init(const Group& itemGroup, const std::string& tagName) {
     for (int index : group.group_) {
         wsl::Geometry* geoVal;
         CHECK_RET(group.layer_->getGeometry(index, &geoVal),
-            "Failed to get geometry from mif layer.");
+            "Failed to get geometry from mif layer in item[%d].", index);
         group_.insert(reinterpret_cast<wsl::Feature<wsl::Line>*>(geoVal));
     }
     return 0;
@@ -599,7 +600,7 @@ int AreaGroup::init(const Group& itemGroup, const std::string& tagName) {
     for (int index : group.group_) {
         wsl::Geometry* geoVal;
         CHECK_RET(group.layer_->getGeometry(index, &geoVal),
-            "Failed to get geometry from mif layer.");
+            "Failed to get geometry from mif layer in item[%d].", index);
         group_.insert(reinterpret_cast<wsl::Feature<wsl::Polygon>*>(geoVal));
     }
     return 0;
