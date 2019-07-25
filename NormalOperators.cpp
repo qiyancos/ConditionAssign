@@ -128,8 +128,7 @@ int opContain::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    return (node->value.stringValue.find(leftVal) !=
-            node->value.stringValue::npos);
+    return (node->value.stringValue.find(leftVal) != std::string::npos);
 }
 
 int opIsPrefix::process(Node* node, MifItem* item) {
@@ -151,6 +150,10 @@ int opIsSuffix::process(Node* node, MifItem* item) {
 int opRegularExpr::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
+    CHECK_ARGS(node->value.stringValue.substr(0, 2) == "^(",
+            "Regular expression format not good.");
+    CHECK_ARGS(htk::endswith(node->value.stringValue, ")$"),
+            "Regular expression format not good.");
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
     return htk::RegexSearch(leftVal, node->value.stringValue);

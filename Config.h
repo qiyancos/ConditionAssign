@@ -47,9 +47,20 @@ struct ConfigSubGroup {
     std::mutex readyCntLock;
     // 当前子组完成解析的ConfigItem数量
     int readyCnt;
+    // 子组的锁
+    std::mutex groupLock;
     // 多有ConfigItem的组
-    std::vector<ConfigItem> group;
+    std::vector<ConfigItem*> group;
 }
+
+namespace parser {
+
+// 双目逻辑运算符类型
+enum DelimType {Null, Not, And, Or, Semicolon, LeftBracket, RightBracket};
+// 双目逻辑运算符类型和位置信息
+using Delimeter = std::pair<int, DelimType>;
+// 代解析的简单表达式形式
+using Expression = std::pair<std::string, Node*>;
 
 // 解析单行配置文件内容并生成对应的ConfigItem
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
@@ -59,6 +70,8 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
 // 解析当前组的基本信息
 int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         std::pair<int, Group*>* itemGroup, std::pair<int, Group*>* typeGroup);
+
+} // namespace parser
 
 } // namespace condition_assign
 

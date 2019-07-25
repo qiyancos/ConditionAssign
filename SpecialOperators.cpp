@@ -29,8 +29,9 @@ int opCondFunc::find(const std::string& content,
     range->first = content.find("<");
     range->second = content.find(">");
     int length = range->second - range->first - 1;
-    if (range->first == content::npos || range->second == content::npos ||
-            length < 0 || content.find("[") != content::npos) {
+    if (range->first == std::string::npos ||
+            range->second == std::string::npos ||
+            length < 0 || content.find("[") != std::string::npos) {
         return -1;
     }
     CHECK_ARGS(!length, "No function name is given in condition expression.");
@@ -61,8 +62,9 @@ int opAssignFunc::find(const std::string& content,
     range->first = content.find("<");
     range->second = content.find(">");
     int length = range->second - range->first - 1;
-    if (range->first == content::npos || range->second == content::npos ||
-            length < 0 || content.find("[") != content::npos) {
+    if (range->first == std::string::npos ||
+            range->second == std::string::npos ||
+            length < 0 || content.find("[") != std::string::npos) {
         return -1;
     }
     CHECK_ARGS(!length, "No function name is given in condition expression.");
@@ -97,8 +99,9 @@ int opReplace::find(const std::string& content,
     size_t leftBracketIndex = content.find("[");
     size_t colonIndex = content.find(":");
     size_t rightBracketIndex = content.find("]=");
-    if (leftBracketIndex == content::npos || colonIndex == content::npos ||
-            rightBracketIndex == content::npos) {
+    if (leftBracketIndex == std::string::npos ||
+            colonIndex == std::string::npos ||
+            rightBracketIndex == std::string::npos) {
         return -1;
     }
     int startPosLength = colonIndex - leftBracketIndex - 1;

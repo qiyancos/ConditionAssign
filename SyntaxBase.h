@@ -29,6 +29,10 @@ namespace syntax {
     int globalOpReg##Name = operatorListInit(new op##Name()); \
 }
 
+#define OPREG_PRIOR(iName) { \
+    int globalOpReg##Name = operatorListInit(new op##Name(), true); \
+}
+
 // 数据类型
 enum DataType {Number, String, Group, Expr};
 // debug使用获取数据类型对应的字符串
@@ -74,8 +78,8 @@ public:
 
 // 配置文件语法分析节点
 struct Node {
-    // 当前节点所生成的数据类型
-    DataType nodeType;
+    // 归约深度，用于解析
+    int reduceDepth;
     // 当前节点左右子节点
     Node* leftNode = nullptr;
     Node* rightNode = nullptr;
@@ -83,8 +87,6 @@ struct Node {
     std::string tagName = "";
     // 当前节点对应的Op，如果有的话
     Operator* op = nullptr;
-    // 特殊运算符参数的索引
-    int opParamIndex = -1;
     // 右值的数据类型
     DataType rightType;
     // 左值的数据类型
@@ -101,9 +103,9 @@ struct Node {
 };
 
 // 所有的运算符注册表
-std::vector<Operator*> operatorList;
+std::list<Operator*> operatorList;
 // 用于运算符注册的函数
-int operatorListInit(const Operator* newOp);
+int operatorListInit(const Operator* newOp, const bool front = false);
 
 // 计算一个节点向量的分数
 int calculateScore(const std::vector<Node*>& nodeVec);

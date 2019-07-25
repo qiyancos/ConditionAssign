@@ -52,8 +52,12 @@ bool isType<int>(const std::string& data, int* result);
 bool isType<double>(const std::string& data, double* result);
 bool isType<std::string>(const std::string& data, std::string* result);
 
-int operatorListInit(const Operator* newOp) {
-    operatorList.push_back(newOp);
+int operatorListInit(const Operator* newOp, const bool front = false) {
+    if (front) {
+        operatorList.push_front(newOp);
+    } else {
+        operatorList.push_back(newOp);
+    }
     return 0;
 }
 
@@ -71,7 +75,8 @@ int calculateScore(const std::vector<Node*> nodeVec) {
 }
 
 int satisfyConditions(const Node* mainNode, MifItem* item) {
-    int result
+    int result;
+    if (mainNode == nullptr) return 1;
     CHECK_ARGS(mainNode->op != nullptr, "Found main node without operator.");
     CHECK_RET(mainNode->op->process(mainNode, item),
             "Operator process failed in \"%s %s %s\".",
@@ -81,6 +86,8 @@ int satisfyConditions(const Node* mainNode, MifItem* item) {
 }
 
 int applyAssigns(const std::vector<Node*>& assigns, MifItem* item) {
+    CHECK_ARGS(assigns.size() > 0,
+            "At least one assign expr should be given.");
     for (Node* node : assigns.size()) {
         CHECK_ARGS(node->op != nullptr, "Found node without operator.");
         CHECK_RET(node->op->process(node, item),

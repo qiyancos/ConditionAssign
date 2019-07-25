@@ -34,7 +34,7 @@ int parseConfigLines(void* param) {
             paramPtr->resourcePool->configGroup_[paramPtr->layerID];
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
-        CHECK_RET(parseConfigLine((*(paramPtr->fullContent))[index],
+        CHECK_RET(parser::parseConfigLine((*(paramPtr->fullContent))[index],
                 subGroup, paramPtr->resourcePool, &newGroups),
                 "Failed to parse single line in config file. [%s]",
                 (*(paramPtr->fullContent))[index].c_str());
@@ -133,8 +133,9 @@ int parseGroup(void* param) {
     using GroupPair = std::pair<int, Group*>;
     ParseGroupParam* paramPtr = reinterpret_cast<ParseGroupParam*>(param);
     GroupPair itemGroup, typeGroup;
-    CHECK_RET(parseGroupInfo(paramPtr->groupInfo.first, paramPtr->resourcePool,
-            &itemGroup, &typeGroup), "Failed to parse group infomation [%s]",
+    CHECK_RET(parser::parseGroupInfo(paramPtr->groupInfo.first,
+            paramPtr->resourcePool, &itemGroup, &typeGroup),
+            "Failed to parse group infomation [%s]",
             paramPtr->groupInfo.first);
     paramPtr->resourcePool->insertGroup(itemGroup.first, itemGroup.second);
     paramPtr->resourcePool->insertGroup(typeGroup.first, typeGroup.second);
@@ -206,7 +207,7 @@ int buildGroup(void* param) {
             CHECK_RET(paramPtr->pluginLayer->newMifItem(index,
                     &workingItem, nullptr),
                     "Failed to create new mif item while building group.");
-            result = syntax::statisfyConditions(groupInfo->conditions,
+            result = syntax::satisfyConditions(groupInfo->conditions.back(),
                     workingItem);
             CHECK_RET(result, "Failed to check conditions in mif item.");
             if (result) {
@@ -243,11 +244,11 @@ int processMifItem(void* param) {
     int result = 0;
     while (paramPtr->itemCount--) {
         ConfigItem& configItem = subGroup[configIndex++];
-        result = syntax::statisfyConditions(
-                    configItem.conditions_, workingItem);
+        result = syntax::satisfyConditions(
+                    configItem.conditions_.back(), workingItem);
         CHECK_RET(result, "Failed to check conditions in mif item.");
         if (result) {
-            CHECK_RET(syntax::applyAssigns(configItem.conditions_,
+            CHECK_RET(syntax::applyAssigns(configItem.assigns_,
                     workingItem), "Failed apply assign expr to mif item.");
         }
     }

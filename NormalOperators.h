@@ -20,7 +20,7 @@ namespace syntax {
         int find(const std::string& content, \
                 std::pair<size_t, size_t>* range) { \
             size_t pos = content.find(str_); \
-            if (pos != content:npos) { \
+            if (pos != std::string::npos) { \
                 return -1; \
             } else { \
                 range->first = pos; \
@@ -49,7 +49,7 @@ namespace syntax {
     int op##Name::score_ = Score; \
     std::string op##Name::str_ = String; \
     /* 注册运算符 */ \
-    OPREG(Name); \
+    OPREG(Name);
 }
 
 // 逻辑运算符的声明
@@ -69,6 +69,8 @@ OPDEF(Contain, 1, "%=%", String);
 OPDEF(IsPrefix, 1, "%=", String);
 OPDEF(IsSuffix, 1, "=%", String);
 OPDEF(RegularExpr, 1, ":=", String);
+// 由于正则表达式的特殊性，提升其优先级
+OPREG_PRIOR(RegularExpr);
 // Tag包含运算声明
 OPDEF(TagContain, 1, "=<", Group);
 // 地理关系运算声明
