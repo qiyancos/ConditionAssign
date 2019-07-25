@@ -13,14 +13,15 @@ std::string opCondFunc::str() {
 }
 
 int opCondFunc::process(Node* node, MifItem* item) {
+    int result;
     BINARYOP_CHECK();
     CHECK_ARGS(opInternalFuncList.find(funcName_) != opInternalFuncList.end(),
             "Function \"%s\" not defined", funcName_.c_str());
     std::function<int(Node*, MifItem*)>& executeFunc = 
             opInternalFuncList[funcName_];
-    CHECK_RET(executeFunc(node, item),
+    CHECK_RET(result = executeFunc(node, item),
             "Failed to execute function [%d].", funcName_.c_str());
-    return 0;
+    return result;
 }
 
 int opCondFunc::find(const std::string& content,

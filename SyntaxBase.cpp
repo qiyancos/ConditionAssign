@@ -70,21 +70,14 @@ int calculateScore(const std::vector<Node*> nodeVec) {
     return score;
 }
 
-int satisfyConditions(const std::vector<Node*>& conditions, MifItem* item) {
-    if (conditions.size() == 0) {
-        return true;
-    }
-    Node* mainNode = conditions[conditions.size() - 1]; 
-    CHECK_ARGS(mainNode->nodeType == Expr,
-            "Found main node with type \"%s\" but not \"Expression\".",
-            getTypeString(mainNode->nodeType).c_str());
-    for (Node* node : conditions.size()) {
-        CHECK_ARGS(node->op != nullptr, "Found node without operator.");
-        CHECK_RET(node->op->process(node, item),
-            "Operator process failed in \"%s%s%s\".",
-            node->tagName.c_str(), node->op->str().c_str());
-    }
-    return mainNode->value.exprResult;
+int satisfyConditions(const Node* mainNode, MifItem* item) {
+    int result
+    CHECK_ARGS(mainNode->op != nullptr, "Found main node without operator.");
+    CHECK_RET(mainNode->op->process(mainNode, item),
+            "Operator process failed in \"%s %s %s\".",
+            node->tagName.c_str(), node->op->str().c_str(),
+            node->value.stringValue.c_str());
+    return result;
 }
 
 int applyAssigns(const std::vector<Node*>& assigns, MifItem* item) {

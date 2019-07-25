@@ -6,34 +6,59 @@ namespace condition_assign{
 namespace syntax {
 
 int opNot::process(Node* node, MifItem* item) {
+    int result;
     CHECK_ARGS(node->leftNode == nullptr && node->rightNode != nullptr, \
             "Bad node-tree structure!"); \
     CHECK_ARGS(node->op.isSupported(node->leftType), \
             "Unsupported data type."); \
-    node->value.exprResult = ! node->rightNode->value.exprResult;
-    return 0;
+    CHECK_RET(result = node->rightNode->op->process(node->rightNode, item),
+            "Operator process failed in \"%s %s %s\".",                         
+            node->rightNode->tagName.c_str(),
+            node->rightNode->op->str().c_str(),
+            node->rightNode->value.stringValue.c_str());
+    return ! result;
 }
 
 int opOr::process(Node* node, MifItem* item) {
+    int result;
     CHECK_ARGS(node->leftNode != nullptr && node->rightNode != nullptr,
             "Bad node-tree structure!");
     CHECK_ARGS(node->op.isSupported(node->leftType) &&
             node->op.isSupported(node->rightType),
             "Unsupported data type!");
-    node->value.exprResult = node->leftNode->value.exprResult ||
-            node->rightNode->value.exprResult;
-    return 0;
+    CHECK_RET(result = node->leftNode->op->process(node->leftNode, item),
+            "Operator process failed in \"%s %s %s\".",                         
+            node->leftNode->tagName.c_str(),
+            node->leftNode->op->str().c_str(),
+            node->leftNode->value.stringValue.c_str());
+    if (result == 1) return 1;
+    CHECK_RET(result = node->rightNode->op->process(node->rightNode, item),
+            "Operator process failed in \"%s %s %s\".",                         
+            node->rightNode->tagName.c_str(),
+            node->rightNode->op->str().c_str(),
+            node->rightNode->value.stringValue.c_str());
+    return rightResult;
 }
 
 int opAnd::process(Node* node, MifItem* item) {
+    int result;
     CHECK_ARGS(node->leftNode != nullptr && node->rightNode != nullptr,
             "Bad node-tree structure!");
     CHECK_ARGS(node->op.isSupported(node->leftType) &&
             node->op.isSupported(node->rightType),
             "Unsupported data type!");
-    node->value.exprResult = node->leftNode->value.exprResult &&
-            node->rightNode->value.exprResult;
-    return 0;
+    CHECK_RET(result = node->leftNode->op->process(node->leftNode, item),
+            "Operator process failed in \"%s %s %s\".",                         
+            node->leftNode->tagName.c_str(),
+            node->leftNode->op->str().c_str(),
+            node->leftNode->value.stringValue.c_str());
+    if (result == 0) return 0;
+    CHECK_RET(result = node->rightNode->op->process(node->rightNode, item),
+            "Operator process failed in \"%s %s %s\".",                         
+            node->rightNode->tagName.c_str(),
+            node->rightNode->op->str().c_str(),
+            node->rightNode->value.stringValue.c_str());
+    return rightResult;
 }
 
 int opEqual::process(Node* node, MifItem* item) {
@@ -42,14 +67,13 @@ int opEqual::process(Node* node, MifItem* item) {
         double leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
-        node->value.exprResult = floatEqual(leftVal, node->value.numberValue);
+        return floatEqual(leftVal, node->value.numberValue);
     } else {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
-        node->value.exprResult = (leftVal == node->value.stringValue);
+        return (leftVal == node->value.stringValue);
     }
-    return 0;
 }
 
 int opNotEqual::process(Node* node, MifItem* item) {
@@ -58,15 +82,13 @@ int opNotEqual::process(Node* node, MifItem* item) {
         double leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
-        node->value.exprResult = ! floatEqual(leftVal,
-                node->value.numberValue);
+        return ! floatEqual(leftVal, node->value.numberValue);
     } else {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
-        node->value.exprResult = (leftVal != node->value.stringValue);
+        return (leftVal != node->value.stringValue);
     }
-    return 0;
 }
 
 int opLessEqual::process(Node* node, MifItem* item) {
@@ -74,8 +96,7 @@ int opLessEqual::process(Node* node, MifItem* item) {
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    node->value.exprResult = floatLessEqual(leftVal, node->value.numberValue);
-    return 0;
+    return floatLessEqual(leftVal, node->value.numberValue);
 }
 
 int opLessThan::process(Node* node, MifItem* item) {
@@ -83,8 +104,7 @@ int opLessThan::process(Node* node, MifItem* item) {
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    node->value.exprResult = (leftVal < node->value.numberValue);
-    return 0;
+    return (leftVal < node->value.numberValue);
 }
 
 int opGreaterEqual::process(Node* node, MifItem* item) {
@@ -92,9 +112,7 @@ int opGreaterEqual::process(Node* node, MifItem* item) {
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    node->value.exprResult = floatGreaterEqual(leftVal,
-            node->value.numberValue);
-    return 0;
+    return floatGreaterEqual(leftVal, node->value.numberValue);
 }
 
 int opGreaterThan::process(Node* node, MifItem* item) {
@@ -102,8 +120,7 @@ int opGreaterThan::process(Node* node, MifItem* item) {
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal,
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    node->value.exprResult = (leftVal > node->value.numberValue);
-    return 0;
+    return (leftVal > node->value.numberValue);
 }
 
 int opContain::process(Node* node, MifItem* item) {
@@ -111,9 +128,8 @@ int opContain::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    node->value.exprResult = (node->value.stringValue.find(leftVal) !=
+    return (node->value.stringValue.find(leftVal) !=
             node->value.stringValue::npos);
-    return 0;
 }
 
 int opIsPrefix::process(Node* node, MifItem* item) {
@@ -121,9 +137,7 @@ int opIsPrefix::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    node->value.exprResult = htk::startswith(leftVal,
-            node->value.stringValue);
-    return 0;
+    return htk::startswith(leftVal, node->value.stringValue);
 }
 
 int opIsSuffix::process(Node* node, MifItem* item) {
@@ -131,8 +145,7 @@ int opIsSuffix::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    node->value.exprResult = htk::endswith(leftVal, node->value.stringValue);
-    return 0;
+    return htk::endswith(leftVal, node->value.stringValue);
 }
 
 int opRegularExpr::process(Node* node, MifItem* item) {
@@ -140,12 +153,11 @@ int opRegularExpr::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    node->value.exprResult = htk::RegexSearch(leftVal,
-            node->value.stringValue);
-    return 0;
+    return htk::RegexSearch(leftVal, node->value.stringValue);
 }
 
 int opTagContain::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -154,12 +166,13 @@ int opTagContain::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    CHECK_RET(groupPtr->checkOneContain(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkOneContain(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoContain::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -169,12 +182,13 @@ int opGeoContain::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneContain(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkOneContain(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoContainAll::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -184,12 +198,13 @@ int opGeoContainAll::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllContain(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkAllContain(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoContained::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -199,12 +214,13 @@ int opGeoContained::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneContained(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkOneContained(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoContainedAll::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -214,12 +230,13 @@ int opGeoContainedAll::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllContained(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkAllContained(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoIntersect::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -231,12 +248,13 @@ int opGeoIntersect::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneIntersect(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkOneIntersect(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoIntersectAll::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -248,12 +266,13 @@ int opGeoIntersectAll::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllIntersect(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkAllIntersect(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoInContact::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -265,12 +284,13 @@ int opGeoInContact::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneInContact(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkOneInContact(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoInContactAll::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -282,12 +302,13 @@ int opGeoInContactAll::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllInContact(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkAllInContact(leftVal, &result)),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoDeparture::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -299,12 +320,13 @@ int opGeoDeparture::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneDeparture(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkOneDeparture(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opGeoDepartureAll::process(Node* node, MifItem* item) {
+    bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
@@ -316,9 +338,9 @@ int opGeoDepartureAll::process(Node* node, MifItem* item) {
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllDeparture(leftVal, &(node->vale.exprResult)),
+    CHECK_RET(groupPtr->checkAllDeparture(leftVal, &result),
             "Failed to running group-check function.");
-    return 0;
+    return result;
 }
 
 int opAssign::process(Node* node, MifItem* item) {

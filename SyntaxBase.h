@@ -97,8 +97,6 @@ struct Node {
         double numberValue = 0.0f;
         // 字符串
         std::string stringValue = "";
-        // 逻辑表达式结果
-        bool exprResult = false;
     } value;
 };
 

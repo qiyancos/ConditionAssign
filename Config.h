@@ -18,17 +18,16 @@ class ConfigItem {
 public:
     ConfigItem();
     // 获取当前ConfigItem的分数
-    int score() {return score_;}
-    // 添加一个节点到节点库中
-    int newNode(syntax::Node**);
+    int score();
     // 添加一个新的运算符到运算符库中
-    int newOperator(syntax::Operator**);
+    int addOperator(syntax::Operator* newOperator);
     // 添加一个核心条件操作对应的节点指针
-    int addCondition(syntax::Node*);
+    int addCondition(syntax::Node* newCondition);
     // 添加一个核心赋值操作对应的节点指针
-    int addAssign(syntax::Node*);
-    // 根据当前的内容对制定的MifItem进行操作
-    int matchMifItem(const Layer& srclayer, const int index, Layer& targetLayer);
+    int addAssign(syntax::Node* newAssign);
+
+    // 析构函数
+    ~ConfigItem();
 
 public:
     // 核心条件操作对应的主节点
@@ -38,9 +37,7 @@ public:
 
 private:
     // 当前ConfigItem的运算评分
-    int score_;
-    // 所有的节点实体库
-    std::vector<syntax::Node*> nodes_;
+    int score_ = -1;
     // 所有的运算符实体库
     std::vector<syntax::Operator*> operators_;
 };

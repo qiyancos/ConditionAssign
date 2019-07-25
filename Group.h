@@ -15,6 +15,10 @@ public:
     enum Type {Item, Tag, Point, Line, Area};
     // 解析完毕后的group结构信息
     struct GroupInfo {
+        // 搭建Group的锁
+        std::mutex buildLock;
+        // 已经检查过的元素个数
+        int checkedCnt = 0;
         // 所在layer的名称
         std::string layerName;
         // 筛选条件

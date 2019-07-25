@@ -52,7 +52,10 @@ int parseConfigLines(void* param) {
         // 当前配置文件的所有内容均已经解析完毕
         int scoreSum = 0, startIndex = 0, index = 0;
         for (ConfigItem configItem : subGroup->group) {
-            scoreSum += configItem.score();
+            int itemScore = 0;
+            CHECK_RET(itemScore = configItem.score(),
+                    "Failed to get config item's score.");
+            scoreSum += itemScore;
             if (scoreSum > MAX_SCORE_SUM_PER_JOB) {
                 rangesInJob.push_back(std::pair<int, int>(startIndex,
                         ++index));
@@ -189,21 +192,40 @@ int buildGroup(void* param) {
     BuildGroupParam* paramPtr = reinterpret_cast<BuildGroupParam*>(param);
     if (paramPtr->startIndex == -1) {
         typeGroup.second->init(*itemGroup, typeGroup->info_->tagName);
+        CHECK_ARGS(paramPtr->typeGroup->info_ == nullptr,
+                "Type group should not have group info while building.");
+        paramPtr->typeGroup->ready_.signalAll();
     } else {
+        CHECK_ARGS(Group::GroupInfo* groupInfo = paramPtr->itemGroup->info_ !=
+                nullptr, "Group info should be available for building.");
+        std::vector<int> passedIndex;
         int index = paramPtr->startIndex;
-        int result = 0;
+        int result = 0, totalCount = paramPtr->itemCount;
         MifItem* workingItem;
-        while (paramPtr->itemCount--) {
+        while (totalCount--) {
             CHECK_RET(paramPtr->pluginLayer->newMifItem(index,
                     &workingItem, nullptr),
                     "Failed to create new mif item while building group.");
-            result = syntax::statisfyConditions(
-                    paramPtr->itemGroup->info_->conditions, workingItem);
+            result = syntax::statisfyConditions(groupInfo->conditions,
+                    workingItem);
             CHECK_RET(result, "Failed to check conditions in mif item.");
             if (result) {
-                paramPtr->itemGroup->addElement(index);
+                passedIndex.push_back(index);
             }
             index++;
+        }
+        std::lock_guard(groupInfo_->buildLock) buildGuard;
+        for (int newIndex : passedIndex) {
+            paramPtr->itemGroup->addElement(newIndex);
+        }
+        groupInfo->checkedCnt += totalCount;
+        if (groupInfo->checkedCnt == pluginLayer->size()) {
+            for(syntax::Node* node : groupInfo->conditions) {
+                delete node;
+            }
+            delete groupInfo;
+            paramPtr->itemGroup->info_ = nullptr;
+            paramPtr->itemGroup->ready_.signalAll();
         }
     }
     return 0;
