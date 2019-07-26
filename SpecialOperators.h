@@ -21,9 +21,13 @@ int opInternalFuncListInit(const std::string& name,
 // 特殊的运算符的声明
 class opCondFunc : public Operator {
 public:
-    opCondFunc() : Operator() {};
+    opCondFunc() : Operator() {}
+    OperatorType type() {return Condition;}
     std::string str();
-    int score() { return score_ };
+    int score() {return 1;}
+    Operator* newOperator() {return new opCondFunc();}
+    int process(Node* node, MifItem* item);
+    int find(const std::string& content, std::pair<size_t, size_t>* range);
     bool isSupported(DataType type) const {
         if (dataTypes_.find(type) == dataTypes_.end()) {
             return false;
@@ -35,12 +39,6 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-    /* 记录了当前运算符的评分 */
-    static const int score_;
-
-public:
-    int process(Node* node, MifItem* item);
-    int find(const std::string& content, std::pair<size_t, size_t>* range);
 
 private:
     // 记录了函数名
@@ -48,15 +46,18 @@ private:
 };
 
 std::set<DataType> opCondFunc::dataTypes_ {Number, String, Group};
-int opCondFunc::score_ = 1;
 
 OPREG(CondFunc);
 
 class opAssignFunc : public Operator {
 public:
-    opAssignFunc() : Operator() {};
+    opAssignFunc() : Operator() {}
+    OperatorType type() {return Assign;}
     std::string str();
-    int score() { return score_ };
+    int score() {return 1;}
+    Operator* newOperator() {return new opAssignFunc();}
+    int process(Node* node, MifItem* item);
+    int find(const std::string& content, std::pair<size_t, size_t>* range);
     bool isSupported(DataType type) const {
         if (dataTypes_.find(type) == dataTypes_.end()) {
             return false;
@@ -68,12 +69,6 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-    /* 记录了当前运算符的评分 */
-    static const int score_;
-
-public:
-    int process(Node* node, MifItem* item);
-    int find(const std::string& content, std::pair<size_t, size_t>* range);
 
 private:
     // 记录了函数名
@@ -81,15 +76,18 @@ private:
 };
 
 std::set<DataType> opAssignFunc::dataTypes_ {Number, String, Group};
-int opAssignFunc::score_ = 1;
 
 OPREG(AssignFunc);
 
 class opReplace : public Operator {
 public:
-    opReplace() : Operator() {};
+    opReplace() : Operator() {}
+    OperatorType type() {return Assign;}
     std::string str();
-    int score() { return score_ };
+    int score() {return 1;}
+    Operator* newOperator() {return new opReplace();}
+    int process(Node* node, MifItem* item);
+    int find(const std::string& content, std::pair<size_t, size_t>* range);
     bool isSupported(DataType type) const {
         if (dataTypes_.find(type) == dataTypes_.end()) {
             return false;
@@ -101,20 +99,13 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-    /* 记录了当前运算符的评分 */
-    static const int score_;
-
-public:
-    int process(Node* node, MifItem* item);
-    int find(const std::string& content, std::pair<size_t, size_t>* range);
 
 private:
     // 记录了进行替换的两个关键变量
     int startIndex_, length_;
 };
 
-std::set<DataType> opReplace::dataTypes_ {Number, String, Group};
-int opReplace::score_ = 1;
+std::set<DataType> opReplace::dataTypes_ {String};
 
 OPREG(Replace);
 

@@ -104,6 +104,12 @@ int MifLayerReadWrite::assignWithTag(const std::string& tagName,
     return 0;
 }
 
+int MifLayerReadWrite::getTagType(const std::string& tagName,
+        syntax::DataType* type) {
+    CHECK_ARGS(false,
+            "We did not expect you will get tag type from output layer.");
+}
+
 int MifLayerReadWrite::getTagVal(const std::string& tagName,
         const int index, std::string* val) {
     CHECK_ARGS(!layerPath_.empty(),
@@ -201,6 +207,28 @@ int MifLayerReadOnly::newItemWithTag(MifLayer* input, const int index,
 int MifLayerReadOnly::assignWithTag(const std::string& tagName,
         const std::string& val) {
     CHECK_RET(-1, "Read-only layer do not support assign option.");
+}
+
+int MifLayerReadOnly::getTagType(const std::string& tagName,
+        syntax::DataType* type) {
+    CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
+    std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
+    auto cacheIterator = tagTypeCache_.find(tagName);
+    if (cacheIterator != tagTypeCache_.end()) {
+        *type = cacheIterator->second;
+        return 0;
+    } else {
+        std::string tagStringVal;
+        if (srcLayer_->getTagVal(tagName, 0, &tagStringVal) < 0) {
+            tagTypeCache[tagName] = syntax::New;
+            *type = syntax::New;
+            return 0;
+        } else {
+            *type = syntax::getDataType(tagVal);
+            tagTypeCache[tagName] = *type;
+            return 0;
+        }
+    }
 }
 
 int MifLayerReadOnly::getTagVal(const std::string& tagName,
@@ -306,41 +334,6 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
         tagNumberCache_[tagName] = *val;
         tagNumberCacheLock_.unlock();
         return 0;
-    }
-}
-
-int MifItem::getTagType(const std::string& tagName, syntax::DataType* type) {
-    tagTypeCacheLock_.lock();
-    auto cacheIterator = tagTypeCache_.find(tagName);
-    if (cacheIterator != tagTypeCache_.end()) {
-        *type = cacheIterator->second;
-        tagTypeCacheLock_.unlock();
-        return 0;
-    } else {
-        std::string tagStringVal;
-        CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagStringVal),
-                "Failed to get value of tag \"%s\" from mif layer.",
-        double tagNumberVal;
-        if (isType(tagVal, &tagNumberVal)) {
-            tagNumberCacheLock_.lock();
-            tagNumberCache[tagName] = tagNumberVal;
-            tagNumberCacheLock_.unlock();
-            tagStringCacheLock_.lock();
-            tagStringCache[tagName] = tagStringVal;
-            tagStringCacheLock_.unlock();
-            tagTypeCache[tagName] = syntax::Number;
-            tagTypeCacheLock_.unlock();
-            *type = syntax::Number;
-            return 0;
-        } else {
-            tagStringCacheLock_.lock();
-            tagStringCache[tagName] = tagStringVal;
-            tagStringCacheLock_.unlock();
-            tagTypeCache[tagName] = syntax::String;
-            tagTypeCacheLock_.unlock();
-            *type = syntax::String;
-            return 0;
-        }
     }
 }
 

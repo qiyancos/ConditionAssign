@@ -39,6 +39,8 @@ public:
     // 获取某一个Layer的指针
     int getLayerByIndex(MifLayer** layerPtr, const LayerType layerType,
             const int targetID = -1);
+    // 获取外挂表的文件路径全名
+    int getPluginFullPath(const std::string& layerName, std::string* fullPath);
     // 获取一个可以运行的工作项
     int getReadyJob(const int threadID, ExecutorJob** jobConsumerPtr);
     // 从备选工作队列中选择准备好的工作项放到准备队列

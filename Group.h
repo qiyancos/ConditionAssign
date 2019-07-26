@@ -22,13 +22,13 @@ public:
         // 所在layer的名称
         std::string layerName;
         // 筛选条件
-        std::vector<Node*> conditions;
+        ConfigItem configItem;
         // 原始的tag集合
-        std::set<std::string> tagGroup;
-        // 新的tag名称集合
+        std::string oldTagName;
+        // 新映射tag集合
+        std::string newTagName;
+        // 索引的tag名称集合
         std::string tagName;
-        // 二次索引的信息
-        std::string groupTagName;
     }; 
     
     // 未生成实体时存放的解析信息
@@ -42,11 +42,19 @@ public:
     static Type getInputType();
     // 设置当前的输入类型
     static int setInputType(const Type type);
+    // 设置当前Group的layer指针
+    int setLayer(MifLayer* layer) {layer_ = layer;}
+    // 获取当前Group对应的layer
+    Layer* getLayer() {return layer_;}
     // 获取当前Group的元素个数
     int size() {return size_;}
+    // 判断当前的
+    bool isDynamic() {return dynamic_;}
 
     // 基于一个ItemGroup生成类型Group
     virtual int init(const Group& itemGroup, const std::string& tagName) = 0;
+    // 动态Group的构建
+    virtual int buildDynamicGroup(Group** groupPtr);
     
     // 向Group中添加元素的虚函数
     virtual int addElement(const int newElement);
@@ -54,28 +62,34 @@ public:
     virtual int addElement(wsl::Geometry* newElement);
 
     // 包含关系的判断
-    virtual int checkOneContain(const std::string& src, bool* result) = 0;
-    virtual int checkAllContain(const std::string& src, bool* result) = 0;
+    virtual int checkOneContain(const std::string& src, bool* result);
+    virtual int checkAllContain(const std::string& src, bool* result);
     // 地理位置包含的判断
-    virtual int checkOneContain(wsl::Geometry* src, bool* result)= 0;
-    virtual int checkAllContain(wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneContain(wsl::Geometry* src, bool* result);
+    virtual int checkAllContain(wsl::Geometry* src, bool* result);
     // 地理位置被包含的判断
-    virtual int checkOneContained(wsl::Geometry* src, bool* result) = 0;
-    virtual int checkAllContained(wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneContained(wsl::Geometry* src, bool* result);
+    virtual int checkAllContained(wsl::Geometry* src, bool* result);
     // 地理位置交叉的判断
-    virtual int checkOneIntersect(wsl::Geometry* src, bool* result) = 0;
-    virtual int checkAllIntersect(wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneIntersect(wsl::Geometry* src, bool* result);
+    virtual int checkAllIntersect(wsl::Geometry* src, bool* result);
     // 地理位置接触的判断
-    virtual int checkOneInContact(wsl::Geometry* src, bool* result) = 0;
-    virtual int checkAllInContact(wsl::Geometry* src, bool* result) = 0;
+    virtual int checkOneInContact(wsl::Geometry* src, bool* result);
+    virtual int checkAllInContact(wsl::Geometry* src, bool* result);
     // 地理位置相离的判断
-    virtual int checkOneDeparture(wsl::Geometry* src, bool* result) = 0;
-    virtual int checkAllDeparture(wsl::Geometry* src, bool* result) = 0;
-
-    Group(Type type);
+    virtual int checkOneDeparture(wsl::Geometry* src, bool* result);
+    virtual int checkAllDeparture(wsl::Geometry* src, bool* result);
+    
+    // 构造函数
+    Group(const Type type, const bool dynamic = false);
+    // 析构函数
     virtual ~Group();
 
 protected:
+    // 元素所在层
+    MifLayer* layer_ = nullptr;
+    // 当前Group是不是一个动态Group
+    bool dynamic_ = false;
     // 当前Group的元素个数
     int size_ = 0;
     // 当前Group的类型
@@ -88,11 +102,13 @@ Group::Type Group::inputType_ = Group::Item;
 
 class ItemGroup : public Group {
 public:
-    ItemGroup(MifLayer* layer);
+    ItemGroup(const bool dynamic = false);
+    // 基于一个ItemGroup生成类型Group
+    int init(const Group& itemGroup, const std::string& tagName);
+    // 动态Group的构建
+    int buildDynamicGroup(Group** groupPtr);
     // 添加元素
     int addElement(const int newElement);
-    // 元素所在层
-    MifLayer* layer_;
     // 元素组的索引
     std::vector<int> group_;
 };

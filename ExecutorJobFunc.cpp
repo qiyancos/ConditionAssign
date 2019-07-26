@@ -140,6 +140,7 @@ int parseGroup(void* param) {
     paramPtr->resourcePool->insertGroup(itemGroup.first, itemGroup.second);
     paramPtr->resourcePool->insertGroup(typeGroup.first, typeGroup.second);
     *(paramPtr->groupInfo.second) = typeGroup.second;
+    delete paramPtr->groupInfo;
     std::vector<ExecutorJob*> newJobs;
     if (itemGroup.first > 0) {
         CHECK_ARGS(typeGroup.first > 0,
@@ -151,7 +152,7 @@ int parseGroup(void* param) {
                 itemGroup.second->info_->layerName.c_str());
         
         int itemCount = syntax::calculateScore(
-                itemGroup.second->info_->conditions);
+                itemGroup.second->info_->configItem.score());
         itemCount /= MAX_SCORE_SUM_PER_JOB;
         itemCount = itemCount == 0 ? 1 : itemCount;
         int startIndex = 0;
@@ -207,7 +208,7 @@ int buildGroup(void* param) {
             CHECK_RET(paramPtr->pluginLayer->newMifItem(index,
                     &workingItem, nullptr),
                     "Failed to create new mif item while building group.");
-            result = syntax::satisfyConditions(groupInfo->conditions.back(),
+            result = syntax::satisfyConditions(groupInfo->configItem,
                     workingItem);
             CHECK_RET(result, "Failed to check conditions in mif item.");
             if (result) {
@@ -221,9 +222,6 @@ int buildGroup(void* param) {
         }
         groupInfo->checkedCnt += totalCount;
         if (groupInfo->checkedCnt == pluginLayer->size()) {
-            for(syntax::Node* node : groupInfo->conditions) {
-                delete node;
-            }
             delete groupInfo;
             paramPtr->itemGroup->info_ = nullptr;
             paramPtr->itemGroup->ready_.signalAll();
@@ -244,8 +242,7 @@ int processMifItem(void* param) {
     int result = 0;
     while (paramPtr->itemCount--) {
         ConfigItem& configItem = subGroup[configIndex++];
-        result = syntax::satisfyConditions(
-                    configItem.conditions_.back(), workingItem);
+        result = syntax::satisfyConditions(configItem, workingItem);
         CHECK_RET(result, "Failed to check conditions in mif item.");
         if (result) {
             CHECK_RET(syntax::applyAssigns(configItem.assigns_,

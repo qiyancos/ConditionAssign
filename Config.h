@@ -20,24 +20,28 @@ public:
     // 获取当前ConfigItem的分数
     int score();
     // 添加一个新的运算符到运算符库中
-    int addOperator(syntax::Operator* newOperator);
+    int addOperator(syntax::Operator* newOperator,
+            syntax::Operator** newOperatorPtr = nullptr);
     // 添加一个核心条件操作对应的节点指针
-    int addCondition(syntax::Node* newCondition);
+    int addCondition(syntax::Node* newNode,
+            syntax::Node** newNodePtr = nullptr);
     // 添加一个核心赋值操作对应的节点指针
-    int addAssign(syntax::Node* newAssign);
+    int addAssign(syntax::Node* newNode, syntax::Node** newNodePtr = nullptr);
+    // 获取当前ConfigItem的条件主节点
+    int getMainConditionNode(syntax::Node** nodePtr);
+    // 获取当前ConfigItem的赋值主节点
+    int getMainAssignNode(syntax::Node** nodePtr);
 
     // 析构函数
     ~ConfigItem();
 
-public:
+private:
+    // 当前ConfigItem的运算评分
+    int score_ = -1;
     // 核心条件操作对应的主节点
     std::vector<syntax::Node*> conditions_;
     // 核心赋值操作对应的主节点
     std::vector<syntax::Node*> assigns_;
-
-private:
-    // 当前ConfigItem的运算评分
-    int score_ = -1;
     // 所有的运算符实体库
     std::vector<syntax::Operator*> operators_;
 };

@@ -34,12 +34,12 @@ namespace syntax {
 }
 
 // 数据类型
-enum DataType {Number, String, Group, Expr};
+enum DataType {Empty, Number, String, Group, Expr};
 // debug使用获取数据类型对应的字符串
 std::string getTypeString(const DataType type);
 // 获取一个字符串的类型
-DataType getDataType(const std::string& data, std::string* stringVal,
-        double* numberVal);
+DataType getDataType(const std::string& data, std::string* stringVal = nullptr,
+        double* numberVal = nullptr);
 // 判断一个数值是给定类型
 template<typename T> bool isType(const std::string& data, T* result);
 
@@ -61,8 +61,14 @@ struct Node;
 // 运算符类
 class Operator {
 public:
+    // 运算符的类型，类型可以辅助解析
+    enum OperatorType {Condition, Assign}
+    // 生成一个与自己相同类型的运算符
+    virtual Operator* newOperator();
     // 获取当前运算符的运算评分
     virtual int score() = 0;
+    // 获取当前运算符的类型
+    virtual OperatorType type() = 0;
     // 根据给定的节点数据，计算运算结果
     virtual int process(Node* node, MifItem* item) = 0;
     // 检查给定的数据类型是否支持
@@ -79,7 +85,7 @@ public:
 // 配置文件语法分析节点
 struct Node {
     // 归约深度，用于解析
-    int reduceDepth;
+    int reduceDepth = -1;
     // 当前节点左右子节点
     Node* leftNode = nullptr;
     Node* rightNode = nullptr;
@@ -110,9 +116,9 @@ int operatorListInit(const Operator* newOp, const bool front = false);
 // 计算一个节点向量的分数
 int calculateScore(const std::vector<Node*>& nodeVec);
 // 判断一个给定MifItem是否满足条件
-int satisfyConditions(const std::vector<Node*>& conditions, MifItem* item);
+int satisfyConditions(const ConfigItem& configItem, MifItem* item);
 // 对MifItem执行赋值操作
-int applyAssigns(const std::vector<Node*>& assigns, MifItem* item);
+int applyAssigns(const ConfigItem& configItem, MifItem* item);
 
 } // namesapce syntax
 

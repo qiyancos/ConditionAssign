@@ -8,12 +8,17 @@ namespace condition_assign {
 namespace syntax {
 
 // 定义单个运算符
-#define OPDEF(Name, Score, String, ...) { \
+#define OPDEF(Name, Type, Score, String, ...) { \
     class op##Name : public Operator { \
     public: \
         op##Name() : Operator() {} \
         std::string str() {return str_;} \
-        int score() { return score_; } \
+        OperatorType type() {return Type;} \
+        int score() { return Score; } \
+        \
+        Operator* newOperator() { \
+            return new op##Name(); \
+        } \
         \
         int process(Node* node, MifItem* item); \
         \
@@ -40,53 +45,50 @@ namespace syntax {
     private: \
         /* 用于记录当前运算符支持的数据类型 */ \
         static const std::set<DataType> dataTypes_; \
-        /* 记录了当前运算符的评分 */ \
-        static const int score_; \
         /* 记录了当前运算符对应的字符串 */ \
         static const std::string str_; \
     }; \
     std::set<DataType> op##Name::dataTypes_ {__VA_ARGS__}; \
-    int op##Name::score_ = Score; \
     std::string op##Name::str_ = String; \
     /* 注册运算符 */ \
     OPREG(Name);
 }
 
 // 逻辑运算符的声明
-OPDEF(Not, 1, "!", Expr);
-OPDEF(Or, 1, "||", Expr);
-OPDEF(And, 1, "&&", Expr);
+OPDEF(Not, Condition, 1, "!", Expr);
+OPDEF(Or, Condition, 1, "||", Expr);
+OPDEF(And, Condtion, 1, "&&", Expr);
 // 比较运算符声明
-OPDEF(Equal, 1, "==", Number, String);
-OPDEF(NotEqual, 1, "!=", Number, String);
+OPDEF(Equal, Condition, 1, "==", Number, String);
+OPDEF(NotEqual, Condition, 1, "!=", Number, String);
 // 数字大小比较运算声明
-OPDEF(LessEqual, 1, "<=", Number);
-OPDEF(LessThan, 1, "<", Number);
-OPDEF(GreaterEqual, 1, ">=", Number);
-OPDEF(GreaterThan, 1, ">", Number);
+OPDEF(LessEqual, Condition, 1, "<=", Number);
+OPDEF(LessThan, Condition, 1, "<", Number);
+OPDEF(GreaterEqual, Condition, 1, ">=", Number);
+OPDEF(GreaterThan, Condition, 1, ">", Number);
 // 字符串运算比较运算声明
-OPDEF(Contain, 1, "%=%", String);
-OPDEF(IsPrefix, 1, "%=", String);
-OPDEF(IsSuffix, 1, "=%", String);
-OPDEF(RegularExpr, 1, ":=", String);
+OPDEF(Contain, Condition, 1, "%=%", String);
+OPDEF(IsPrefix, Condition, 1, "%=", String);
+OPDEF(IsSuffix, Condition, 1, "=%", String);
+OPDEF(RegularExpr, Condition, 1, ":=", String);
 // 由于正则表达式的特殊性，提升其优先级
 OPREG_PRIOR(RegularExpr);
 // Tag包含运算声明
-OPDEF(TagContain, 1, "=<", Group);
+OPDEF(TagContain, Condition, 1, "=<", Group);
 // 地理关系运算声明
-OPDEF(GeoContain, 1, "<[]>", Group);
-OPDEF(GeoContainAll, 1, "&<[]>", Group);
-OPDEF(GeoContained, 1, "[<>]", Group);
-OPDEF(GeoContainedAll, 1, "&[<>]", Group);
-OPDEF(GeoIntersect, 1, "<[>]", Group);
-OPDEF(GeoIntersectAll, 1, "&<[>]", Group);
-OPDEF(GeoInContact, 1, "<[>]", Group);
-OPDEF(GeoInContactAll, 1, "&<[>]", Group);
-OPDEF(GeoDeparture, 1, "<>[]", Group);
-OPDEF(GeoDepartureAll, 1, "&<>[]", Group);
+OPDEF(GeoContain, Condition, 1, "<[]>", Group);
+OPDEF(GeoContainAll, Condition, 1, "&<[]>", Group);
+OPDEF(GeoContained, Condition, 1, "[<>]", Group);
+OPDEF(GeoContainedAll, Condition, 1, "&[<>]", Group);
+OPDEF(GeoIntersect, Condition, 1, "<[>]", Group);
+OPDEF(GeoIntersectAll, Condition, 1, "&<[>]", Group);
+OPDEF(GeoInContact, Condition, 1, "<[>]", Group);
+OPDEF(GeoInContactAll, Condition, 1, "&<[>]", Group);
+OPDEF(GeoDeparture, Condition, 1, "<>[]", Group);
+OPDEF(GeoDepartureAll, Condition, 1, "&<>[]", Group);
 // 赋值相关运算符的声明
-OPDEF(Assign, 1, "=", Number, String);
-OPDEF(SelfAdd, 1, "+=", Number, String);
+OPDEF(Assign, Assign, 1, "=", New, Number, String);
+OPDEF(SelfAdd, Assign, 1, "+=", New, Number, String);
 
 } // namepsace syntax
 

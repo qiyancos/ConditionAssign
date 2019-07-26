@@ -24,6 +24,9 @@ public:
     // 依据字段名进行赋值操作
     virtual int assignWithTag(const std::string& tagName,
             const int index, const std::string& val) = 0;
+    // 获取当前MifItem的某个字段的类型
+    virtual int getTagType(const stg::string& tagName,
+            syntax::DataType* type) = 0;
     // 获取当前MifItem的某个字段的内容
     virtual int getTagVal(const stg::string& tagName, const int index,
             std::string* val) = 0;
@@ -66,6 +69,10 @@ protected:
     std::mutex tagColCacheLock_;
     // 缓存Tag名称到对应索引的映射关系，快速查找
     std::map<std::string, int> tagColCache_;
+    // Tag类型映射缓存的锁
+    std::mutex tagTypeCacheLock_
+    // 缓存的Tag的数据类型 
+    std::map<std::string, syntax::DataType> tagTypeCache_;
     // MifItem缓存锁
     std::mutex itemCacheLock_;
     // MifItem对应的缓存
@@ -84,6 +91,8 @@ public:
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
+    // 获取当前MifItem的某个字段的类型
+    int getTagType(const stg::string& tagName, syntax::DataType* type);
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const stg::string& tagName, const int index,
             std::string* val);
@@ -114,6 +123,8 @@ public:
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
+    // 获取当前MifItem的某个字段的类型
+    int getTagType(const stg::string& tagName, syntax::DataType* type);
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const stg::string& tagName, const int index,
             std::string* val);
@@ -150,8 +161,6 @@ public:
     int getTagVal(const stg::string& tagName, std::string* val);
     // 获取当前MifItem的某个字段的浮点数值
     int getTagVal(const stg::string& tagName, double* val);
-    // 获取当前MifItem的某个字段的类型
-    int getTagType(const stg::string& tagName, syntax::DataType* type);
     // 获取当前MifItem地理坐标信息
     int getGeometry(wsl::Geometry** val);
 
@@ -174,10 +183,6 @@ private:
     std::mutex tagNumberCacheLock_
     // 缓存的Tag数值(浮点数)映射
     std::map<std::string, double> tagNumberCache_;
-    // Tag类型映射缓存的锁
-    std::mutex tagTypeCacheLock_
-    // 缓存的Tag的数据类型 
-    std::map<std::string, syntax::DataType> tagTypeCache_;
     // 缓存的地理坐标信息
     wsl::Geometry* geometry_ = nullptr;
 }

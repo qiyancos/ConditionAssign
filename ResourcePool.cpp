@@ -52,6 +52,8 @@ int ResourcePool::openLayer(const std::string& layerPath,
     if (layerType = Input) {
         CHECK_RET(inputLayer_->open(layerPath),
                 "Failed to open input layer \"%s\".", layerPath.c_str());
+        std::lock_guard<std::mutex> pluginLayerGuard(pluginLayersLock_);
+        pluginLayersMap_[layerPath] = inputLayer_;
         return 0;
     } else if (layerType = Output) {
         outputLayersLock_.lock();
@@ -65,10 +67,12 @@ int ResourcePool::openLayer(const std::string& layerPath,
         return 0;
     } else {
         pluginLayersLock_.lock();
-        CHECK_ARGS(pluginLayerMap_.find(layerPath) == pluginLayerMap_.end(),
-                "Trying to reopen plugin layer \"%s\".", layerPath.c_str());
+        auto mapIterator = pluginLayersMap_.find(layerPath);
+        if (mapIterator != pluginLayersMap_.end()) {
+            return 0;
+        }
         MifLayer* newLayer = new MifLayerReadOnly();
-        pluginLayers_[layerPath] = newLayer;
+        pluginLayersMap_[layerPath] = newLayer;
         CHECK_RET(newLayer->open(layerPath),
                 "Failed to open plugin layer \"%s\".", layerPath.c_str());
         pluginLayersLock_.unlock();
@@ -139,6 +143,27 @@ int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
     }
 }
 
+int ResourcePool::getPluginFullPath(const std::string& layerName,
+        std::string* fullPath) {
+    bool needLock = pluginLayerMap_.size() < targetCnt_;
+    if (needLock) pluginLayersLock_.lock();
+    auto mapIterator = pluginLayerMap_.find(layerName);
+    if (mapIterator == pluginLayerMap_.end()) {
+        for (auto mapIteratorTemp : pluginLayerMap_) {
+            if (mapIteratorTemp->first.find(layerName)) {
+                *fullPath = mapIteratorTemp->first;
+                if (needLock) pluginLayersLock_.lock();
+                return 0;
+            }
+        }
+        return -1;
+    } else {
+        *fullPath = mapIterator->first;
+        if (needLock) pluginLayersLock_.unlock();
+        return 0;
+    }
+}
+
 int ResourcePool::getReadyJob(const int executorID,
         ExecutorJob** jobConsumerPtr) {
     CHECK_ARGS(!readyQueue_[executorID].empty(),
@@ -154,8 +179,8 @@ int ResourcePool::getReadyJob(const int executorID,
 }
 
 int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
-    using vacacy = std::pair<ExecutorJob**, int>;
-    std::vector<vacacy> jobVacacies;
+    using vacancy = std::pair<ExecutorJob**, int>;
+    std::vector<vacancy> jobVacancies;
     for (auto lock : readyQueueLock_) {
         lock.lock();
     }
@@ -163,14 +188,14 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
         std::queue<ExecutorJob*>& que = readyQueue_[index];
         while(que.size() < MAX_READY_QUEUE_SIZE) {
             que.push(nullptr);
-            jobVacacies.push_back(vacacy(&(que.back()), index));
+            jobVacancies.push_back(vacancy(&(que.back()), index));
         }
     }
     std::lock_guard<std::mutex> candidateGuard(candidateQueueLock_);
     int selected = 0, index = 0;
-    while (selected < jobVacacies.size() && !candidateQueue_.empty()) {
-        *(jobVacacies[selected].first) = candidateQueue_.front();
-        signalExecutorIndexes->insert(jobVacacies[selected++].second);
+    while (selected < jobVacancies.size() && !candidateQueue_.empty()) {
+        *(jobVacancies[selected].first) = candidateQueue_.front();
+        signalExecutorIndexes->insert(jobVacancies[selected++].second);
         readyJobCnt_++;
         candidateQueue_.pop();
     }

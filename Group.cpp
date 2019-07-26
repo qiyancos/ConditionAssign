@@ -3,34 +3,149 @@
 
 namespace condition_assign {
 
-Group::Group(Type type) : type_(type) {}
+Group::Group(const Type type, const bool dynamic = false) :
+        type_(type), dynamic_(dynamic) {}
 
 Type Group::getGroupType() {
     return groupType_;
 }
 
-static Type getInputType() {
+static Type Group::getInputType() {
     return Group::inputType_;
 }
 
-static int setInputType(const Type type) {
+static int Group::setInputType(const Type type) {
     Group::inputType_ = type;
     return 0;
 }
 
-virtual int addElement(const int newElement) {
+virtual int Group::buildDynamicGroup(Group** groupPtr) {
+    CHECK_RET(-1, "Can not build dynamic from this type of group.");
+}
+
+virtual int Group::addElement(const int newElement) {
     CHECK_RET(-1, "Add mif item is not supported.");
 }
 
-virtual int addElement(const std::string& newElement) {
+virtual int Group::addElement(const std::string& newElement) {
     CHECK_RET(-1, "Add string-type element is not supported.");
 }
 
-virtual int addElement(wsl::Geometry* newElement) {
+virtual int Group::addElement(wsl::Geometry* newElement) {
     CHECK_RET(-1, "Add geometry-type element is not supported.");
 }
 
-ItemGroup::ItemGroup(MifLayer* layer) : Group(Item), layer_(layer) {}
+virtual int Group::checkOneContain(const std::string& src, bool* result) {
+    CHECK_RET(-1, "Check one contain for tag not supported.");
+}
+
+virtual int Group::checkAllContain(const std::string& src, bool* result);          
+    CHECK_RET(-1, "Check all contain for tag not supported.");
+}
+
+virtual int Group::checkOneContain(wsl::Geometry* src, bool* result);              
+    CHECK_RET(-1, "Check one contain for geometry not supported.");
+}
+
+virtual int Group::checkAllContain(wsl::Geometry* src, bool* result);              
+    CHECK_RET(-1, "Check all contain for geometry not supported.");
+}
+                   
+virtual int Group::checkOneContained(wsl::Geometry* src, bool* result);            
+    CHECK_RET(-1, "Check one contained for geometry not supported.");
+}
+
+virtual int Group::checkAllContained(wsl::Geometry* src, bool* result);            
+    CHECK_RET(-1, "Check all contained for geometry not supported.");
+}
+                   
+virtual int Group::checkOneIntersect(wsl::Geometry* src, bool* result);            
+    CHECK_RET(-1, "Check one intersect for geometry not supported.");
+}
+
+virtual int Group::checkAllIntersect(wsl::Geometry* src, bool* result);            
+    CHECK_RET(-1, "Check all intersect for geometry not supported.");
+}
+                   
+virtual int Group::checkOneInContact(wsl::Geometry* src, bool* result);            
+    CHECK_RET(-1, "Check one in contact  for geometry not supported.");
+}
+
+virtual int Group::checkAllInContact(wsl::Geometry* src, bool* result);            
+    CHECK_RET(-1, "Check all in contact for geometry not supported.");
+}
+                   
+virtual int Group::checkOneDeparture(wsl::Geometry* src, bool* result);            
+    CHECK_RET(-1, "Check one departure for geometry not supported.");
+}
+
+virtual int Group::checkAllDeparture(wsl::Geometry* src, bool* result);            
+    CHECK_RET(-1, "Check all departure for geometry not supported.");
+}
+                   
+ItemGroup::ItemGroup(const bool dynamic = false) : Group(Item, dynamic) {}
+
+int ItemGroup::init(const Group& itemGroup, const std::string& tagName) {
+    CHECK_RET(-1, "Item group can not be initiated with iten group.");
+}
+
+int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
+    CHECK_ARGS(dynamic_ && info_ != nullptr,
+            "Can not find group infomation for dynamic group.");
+    Group* newItemGroup = new ItemGroup(true);
+    CHECK_ARGS(layer_ != nullptr, "Plugin layer not provided.");
+    newItemGroup->setLayer(layer_);
+    std::string oldTagVal;
+    CHECK_RET(item->getTagVal(info_->oldTagName, &oldTagVal),
+            "Failed to get value of tag \"%s\" from input layer.",
+            info_->oldTagName.c_str());
+    std::vector<std::string> oldTagGroup = htk::split(oldTagVal, "|");
+    std::set<std::string> oldTagMap(oldTagGroup.begin(), oldTagGroup.end());
+    if (size_ == 0) {
+        MifItem* workingItem;
+        for (int index = 0; index < layer_.size(); index++) {
+            CHECK_RET(layer_.newMifItem(index, &workingItem, nullptr),
+                    "Failed to create working mif item for plugin layer.");
+            if (satisfyConditions(info_->configItem, workingItem)) {
+                std::string newTagVal;
+                CHECK_RET(workingItem->getTagVal(info_->newTagName,
+                        &newTagVal), "Failed to get value of tag \"%s\" %s",
+                        info_->newTagName.c_str(), "from plugin layer.");
+                if (oldTagMap.find(newTagVal) != oldTagMap.end()) {
+                    newItemGroup->addElement(index);
+                }
+            }
+        }
+    } else {
+        MifItem* workingItem;
+        for (int index : group_) {
+            CHECK_RET(layer_.newMifItem(index, &workingItem, nullptr),
+                    "Failed to create working mif item for plugin layer.");
+            if (satisfyConditions(info_->configItem, workingItem)) {
+                std::string newTagVal;
+                CHECK_RET(workingItem->getTagVal(info_->newTagName,
+                        &newTagVal), "Failed to get value of tag \"%s\" %s",
+                        info_->newTagName.c_str(), "from plugin layer.");
+                if (oldTagMap.find(newTagVal) != oldTagMap.end()) {
+                    newItemGroup->addElement(index);
+                }
+            }
+        }
+    }
+    if (info_->tagName == "POINT") {
+        groupPtr = new PointGroup();
+    } else if (info_->tagName == "LINE") {
+        groupPtr = new LineGroup();
+    } else if (info_->tagName == "AREA") {
+        groupPtr = new AreaGroup();
+    } else {
+        groupPtr = new TagGroup();
+    }
+    CHECK_RET(groupPtr->init(*newItemGroup, info_->tagName),
+            "Failed to init from new dynamic item group.");
+    delete newItemGroup;
+    return 0;
+}
 
 int ItemGroup::addElement(const int newElement) {
     size_++;
@@ -38,7 +153,7 @@ int ItemGroup::addElement(const int newElement) {
     return 0;
 }
 
-TagGroup::TagGroup() : Group(Tag) {}
+TagGroup::TagGroup(const bool dynamic) : Group(Tag, dynamic) {}
 
 int TagGroup::init(const Group& itemGroup, const std::string& tagName) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,

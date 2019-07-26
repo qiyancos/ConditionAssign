@@ -164,13 +164,24 @@ int opTagContain::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() == Group::Tag,
-            "Group type not supported");
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    CHECK_RET(groupPtr->checkOneContain(leftVal, &result),
-            "Failed to running group-check function.");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() == Group::Tag,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkOneContain(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() == Group::Tag,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkOneContain(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -179,14 +190,26 @@ int opGeoContain::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneContain(leftVal, &result),
-            "Failed to running group-check function.");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkOneContain(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkOneContain(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -195,14 +218,26 @@ int opGeoContainAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllContain(leftVal, &result),
-            "Failed to running group-check function.");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkAllContain(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkAllContain(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -211,14 +246,26 @@ int opGeoContained::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneContained(leftVal, &result),
-            "Failed to running group-check function.");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkOneContained(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkOneContained(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -227,14 +274,26 @@ int opGeoContainedAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllContained(leftVal, &result),
-            "Failed to running group-check function.");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkAllContained(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkAllContained(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -243,16 +302,28 @@ int opGeoIntersect::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
-    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
-            "Only contain(ed) functions support point-type mif item!");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneIntersect(leftVal, &result),
-            "Failed to running group-check function.");
+    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
+            "Only contain(ed) functions support point-type mif item!");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkOneIntersect(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkOneIntersect(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -261,16 +332,28 @@ int opGeoIntersectAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
-    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
-            "Only contain(ed) functions support point-type mif item!");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllIntersect(leftVal, &result),
-            "Failed to running group-check function.");
+    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
+            "Only contain(ed) functions support point-type mif item!");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkAllIntersect(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkAllIntersect(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -279,16 +362,28 @@ int opGeoInContact::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
-    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
-            "Only contain(ed) functions support point-type mif item!");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneInContact(leftVal, &result),
-            "Failed to running group-check function.");
+    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
+            "Only contain(ed) functions support point-type mif item!");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkOneInContact(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkOneInContact(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -297,16 +392,28 @@ int opGeoInContactAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
-    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
-            "Only contain(ed) functions support point-type mif item!");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllInContact(leftVal, &result)),
-            "Failed to running group-check function.");
+    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
+            "Only contain(ed) functions support point-type mif item!");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkAllInContact(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkAllInContact(leftVal, &result)),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -315,16 +422,28 @@ int opGeoDeparture::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
-    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
-            "Only contain(ed) functions support point-type mif item!");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkOneDeparture(leftVal, &result),
-            "Failed to running group-check function.");
+    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
+            "Only contain(ed) functions support point-type mif item!");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkOneDeparture(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkOneDeparture(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -333,16 +452,28 @@ int opGeoDepartureAll::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
     groupPtr->ready_.wait();
-    CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
-            groupPtr->getGroupType() != Group::Item,
-            "Group type not supported");
-    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
-            "Only contain(ed) functions support point-type mif item!");
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
             "Failed to get mif item geometry info.");
-    CHECK_RET(groupPtr->checkAllDeparture(leftVal, &result),
-            "Failed to running group-check function.");
+    CHECK_ARGS(groupPtr->getInputType() != Group::Point,
+            "Only contain(ed) functions support point-type mif item!");
+    if (groupPtr->isDynamic()) {
+        Group* dynamicGroup;
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+                "Failed to build dynamic group.");
+        CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
+                dynamicGroup->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(dynamicGroup->checkAllDeparture(leftVal, &result),
+                "Failed to running group-check function.");
+        delete dynamicGroup;
+    } else {
+        CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
+                groupPtr->getGroupType() != Group::Item,
+                "Group type not supported");
+        CHECK_RET(groupPtr->checkAllDeparture(leftVal, &result),
+                "Failed to running group-check function.");
+    }
     return result;
 }
 
@@ -350,7 +481,7 @@ int opAssign::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     CHECK_RET(item->assignWithTag(node->tagName, node->value.stringValue),
             "Failed to assign value to tag \"%s\".", node->tagName.c_str());
-    return 0;
+    return 1;
 }
 
 int opSelfAdd::process(Node* node, MifItem* item) {
@@ -368,14 +499,16 @@ int opSelfAdd::process(Node* node, MifItem* item) {
         }
     } else {
         std::string leftVal;
-        CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                "Can not get value of tag \"%s\".", node->tagName.c_str());
+        if (node->leftType != New) {
+            CHECK_RET(item->getTagVal(node->tagName, &leftVal),
+                    "Can not get value of tag \"%s\".", node->tagName.c_str());
+        }
         leftVal += node->value.stringValue;
         tempStream << leftVal;
     }
     CHECK_RET(item->assignWithTag(node->tagName, tempStream.str()),
             "Failed to assign value to tag \"%s\".", node->tagName.c_str());
-    return 0;
+    return 1;
 }
 
 } // namespace syntax
