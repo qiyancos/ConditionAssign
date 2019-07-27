@@ -415,9 +415,166 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
     return 0;
 }
 
+int groupKeyGenerate(const std::string& str) {
+    int sum = 0;
+    for (int i = 0; i < str.length(); i++) {
+        sum += (str[i] == ' ' ? 0 : str[i]);
+    }
+    return sum ^ (str.length() * 1234) + sum;
+}
+
+int parseGroupArgs(const std::string& content, std::string* layerName,
+        std::string* conditions, std::string* oldTagName,
+        std::string* newTagName, std::string* tagName) {
+    size_t startIndex, endIndex;
+    // 获取layerName参数
+    startIndex = content.find("(");
+    endIndex = content.find(",");
+    CHECK_ARGS(endIndex > startIndex, "Can not locate left bracket of group.");
+    *layerName = htk::trim(content.substr(startIndex,
+            endIndex - startIndex), " ");
+    CHECK_ARGS(layerName->length() > 0, "No layer name provided for group.");
+    // 获取条件部分
+    startIndex = endIndex + 1;
+    endIndex = content.find(",", startIndex);
+    if (endIndex = std::string::npos) {
+        endIndex = content.find("->");
+        CHECK_ARGS(endIndex != std::string::npos,
+                "Can not find \"->\" for group.");
+        endIndex = content.find_last_of(")", endIndex);
+        CHECK_ARGS(endIndex != std::string::npos && endIndex > startIndex,
+                "Can not locate right bracket of group.");
+        *conditions = htk::trim(content.substr(startIndex,
+                endIndex - startIndex), " ");
+    } else {
+        *conditions = htk::trim(content.substr(startIndex,
+                endIndex - startIndex), " ");
+        // 获取重映射部分参数
+        startIndex = endIndex + 1;
+        endIndex = content.find(",", startIndex);
+        if (endIndex != std::string::npos) {
+            *oldTagName = htk::trim(content.substr(startIndex,
+                    endIndex - startIndex), " ");
+            startIndex = endIndex + 1
+            endIndex = content.find(")", startIndex);
+            CHECK_ARGS(endIndex != std::string::npos,
+                "Can not locate right bracket of group.");
+            *newTagName = htk::trim(content.substr(startIndex,
+                    endIndex - startIndex), " ");
+        } else {
+            startIndex = endIndex + 1;
+            endIndex = content.find(")", startIndex);
+            *oldTagName = htk::trim(content.substr(startIndex,
+                    endIndex - startIndex), " ");
+            CHECK_ARGS(oldTagName->empty(), "New tag name must be %s",
+                    "provided together with old tag name in group.");
+        }
+    }
+    // 获取tagName
+    startIndex = content.find("->") + 2;
+    endIndex = content.size();
+    *tagName = htk::trim(content.substr(startIndex,
+            endIndex - startIndex), " ");
+    CHECK_ARGS(tagName->length() > 0, "No redirect target name is provided.");
+    // 分析参数情况
+    CHECK_ARGS((!oldTagName->empty() && !newTagName->empty()) ||
+            (oldTagName->empty() && newTagName->empty()),
+            "New tag name and old tag name must be %s",
+            "both provdied or neither provided");
+    return 0;
+}
+
 int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         std::pair<int, Group*>* itemGroup, std::pair<int, Group*>* typeGroup) {
-    // TODO
+    std::string layerName, conditions, oldTagName, newTagName, tagName;
+    CHECK_RET(parseGroupArgs(content, &layerName, &conditions, &oldTagName,
+            &newTagName, &tagName), "Failed to parse group arguments.");
+    CHECK_RET(resourcePool->getPluginFullPath(layerName, &layerName),
+            "Can not find plugin layer \"%s\".", layerName.c_str());
+    int staticItemGroupKey = groupKeyGenerate(layerName + conditions);
+    int typeGroupKey = groupKeyGenerate(layerName + conditions + tagName);
+    // 生成Group信息
+    if (!oldTagName.empty()) {
+        // 静态Group的处理
+        itemGroup->second = new ItemGroup();
+        if (tagName == "POINT") {
+            typeGroup->second = PointGroup();
+        } else if (tagName == "LINE") {
+            typeGroup->second = LineGroup();
+        } else if (tagName == "AREA") {
+            typeGroup->second = AreaGroup();
+        } else {
+            typeGroup->second = TagGroup();
+        }
+        int matchCnt = resourcePool->findInsertGroup(staticItemGroupKey,
+                &(itemGroup->second), typeGroupKey, &(typeGroup->second));
+        switch (matchCnt) {
+        case 0:
+            itemGroup->second->info_ = new Group::GroupInfo();
+            itemGroup->second->info_->layerName = layerName;
+            // 获取外挂表指针并解析条件语句
+            MifLayer* pluginLayer;
+            CHECK_RET(resourcePool->getLayerByName(&pluginLayer,
+                    ResourcePool::Plugin, layerName),
+                    "Failed to find layer named as \"%s\".", 
+                    layerName.c_str());
+            itemGroup->second->setLayer(pluginLayer);
+            std::vector<std::pair<std::string, Group**>*> newGroup;
+            CHECK_RET(parseConditions(conditions,
+                    &(itemGroup->second->info_->configItem),
+                    resourcePool, pluginLayer, &newGroup),
+                    "Failed to parse conditions in group.");
+            CHECK_ARGS(newGroup.empty(), "New-Condition-Assign %s",
+                    "do not support group nested structure.");
+            itemGroup->second->parseDone_.signalAll();
+            itemGroup->first = staticItemGroupKey;
+        case 1:
+            type->first = typeGroupKey;
+        case 2: return 0;
+        default:
+            CHECK_RET(-1, "Failed to find and insert new groups.");
+        }
+    } else {
+        // 动态Group的处理
+        itemGroup->second = new ItemGroup(true);
+        int dynamicItemGroupKey = groupKeyGenerate(layerName + conditions +
+                    oldTagName + newTagName);
+        if (resourcePool->findInsertGroup(dynamicItemGroupKey,
+                &(itemGroup->second)) > -1) {
+            return 0;
+        }
+        Group* oldStaticGroup;
+        if (resourcePool->findGroup(staticItemGroupKey,
+                &oldStaticGroup) > -1) {
+            oldStaticGroup->parseDone_.wait();
+            itemGroup->second->info_ = new Group::GroupInfo(
+                    *(oldStaticGroup->info_));
+            itemGroup->second->setLayer(oldStaticGroup->getLayer());
+            itemGroup->second->info_->checkedCnt = 0;
+        } else {
+            itemGroup->second->info_ = new Group::GroupInfo();
+            itemGroup->second->info_->layerName = layerName;
+            // 获取外挂表指针并解析条件语句
+            MifLayer* pluginLayer;
+            CHECK_RET(resourcePool->getLayerByName(&pluginLayer,
+                    ResourcePool::Plugin, layerName),
+                    "Failed to find layer named as \"%s\".", 
+                    layerName.c_str());
+            itemGroup->second->setLayer(pluginLayer);
+            std::vector<std::pair<std::string, Group**>*> newGroup;
+            CHECK_RET(parseConditions(conditions,
+                    &(itemGroup->second->info_->configItem),
+                    resourcePool, pluginLayer, &newGroup),
+                    "Failed to parse conditions in group.");
+            CHECK_ARGS(newGroup.empty(), "New-Condition-Assign %s",
+                    "do not support group nested structure.");
+            itemGroup->second->parseDone_.signalAll();
+        }
+        itemGroup->first = dynamicItemGroupKey;
+        itemGroup->second->info_->oldTagName = oldTagName;
+        itemGroup->second->info_->newTagName = newTagName;
+        itemGroup->second->info_->tagName = tagName;
+    }
 }
 
 } // namesapce parser

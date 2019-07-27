@@ -130,65 +130,72 @@ int parseConfigFile(void* param) {
 }
 
 int parseGroup(void* param) {
+    // 第一个整数为-1表示当前Group是否已经存在并注册
     using GroupPair = std::pair<int, Group*>;
     ParseGroupParam* paramPtr = reinterpret_cast<ParseGroupParam*>(param);
-    GroupPair itemGroup, typeGroup;
+    GroupPair itemGroup(-1, nullptr), typeGroup(-1, nullptr);
     CHECK_RET(parser::parseGroupInfo(paramPtr->groupInfo.first,
             paramPtr->resourcePool, &itemGroup, &typeGroup),
             "Failed to parse group infomation [%s]",
             paramPtr->groupInfo.first);
-    paramPtr->resourcePool->insertGroup(itemGroup.first, itemGroup.second);
-    paramPtr->resourcePool->insertGroup(typeGroup.first, typeGroup.second);
-    *(paramPtr->groupInfo.second) = typeGroup.second;
-    delete paramPtr->groupInfo;
-    std::vector<ExecutorJob*> newJobs;
-    if (itemGroup.first > 0) {
-        CHECK_ARGS(typeGroup.first > 0,
-                "Type group found but item group not found.");
-        MifLayer* pluginLayer;
-        CHECK_RET(paramPtr->resourcePool->getLayerByName(&pluginLayer,
-                ResourcePool::Plugin, itemGroup.second->info_->layerName),
-                "Failed to found plugin layer \"%s\"",
-                itemGroup.second->info_->layerName.c_str());
-        
-        int itemCount = syntax::calculateScore(
-                itemGroup.second->info_->configItem.score());
-        itemCount /= MAX_SCORE_SUM_PER_JOB;
-        itemCount = itemCount == 0 ? 1 : itemCount;
-        int startIndex = 0;
-        int totalCnt = pluginLayer->size();
-        int edgeCount = totalCount / itemCount * itemCount;
-        if (totalCount - edgeCount <= (lineCount >> 1)) {
-            edgeCount -= lineCount;
-        }
-        
-        while (startIndex < edgeCount) {
+    // 判断解析group的结果
+    if (typeGroup.second == nullptr) {
+        *(paramPtr->groupInfo.second) = itemGroup.second;
+        delete paramPtr->groupInfo;
+        return 0;
+    } else {
+        *(paramPtr->groupInfo.second) = typeGroup.second;
+        delete paramPtr->groupInfo;
+        // 分发任务
+        std::vector<ExecutorJob*> newJobs;
+        if (itemGroup.first > -1) {
+            CHECK_ARGS(typeGroup.first > 0,
+                    "Type group found but item group not found.");
+            MifLayer* pluginLayer;
+            CHECK_RET(paramPtr->resourcePool->getLayerByName(&pluginLayer,
+                    ResourcePool::Plugin, itemGroup.second->info_->layerName),
+                    "Failed to found plugin layer \"%s\"",
+                    itemGroup.second->info_->layerName.c_str());
+            
+            int itemCount = syntax::calculateScore(
+                    itemGroup.second->info_->configItem.score());
+            itemCount /= MAX_SCORE_SUM_PER_JOB;
+            itemCount = itemCount == 0 ? 1 : itemCount;
+            int startIndex = 0;
+            int totalCnt = pluginLayer->size();
+            int edgeCount = totalCount / itemCount * itemCount;
+            if (totalCount - edgeCount <= (lineCount >> 1)) {
+                edgeCount -= lineCount;
+            }
+            
+            while (startIndex < edgeCount) {
+                newJobs.push_back(new ExecutorJob(ExecutorJob::BuildGroup,
+                        new BuildGroupParams {pluginLayer,itemGroup.second,
+                        typeGroup.second, startIndex, itemCount,
+                        paramPtr->resourcePool}));
+                startIndex += itemCount;
+            }
             newJobs.push_back(new ExecutorJob(ExecutorJob::BuildGroup,
-                    new BuildGroupParams {pluginLayer,itemGroup.second,
-                    typeGroup.second, startIndex, itemCount,
-                    paramPtr->resourcePool}));
-            startIndex += itemCount;
-        }
-        newJobs.push_back(new ExecutorJob(ExecutorJob::BuildGroup,
                 new BuildGroupParams {pluginLayer, itemGroup.second,
                 typeGroup.second, edgeCount, totalCount -edgeCount,
                 paramPtr->resourcePool}));
-        newJobs.push_back(new ExecutorJob(ExecutorJob::BuildGroup,
-                new BuildGroupParams {pluginLayer, itemGroup.second,
-                typeGroup.second, -1, 0, paramPtr->resourcePool}));
-    } else if (typeGroup.first > 0) {
-        newJobs.push_back(new ExecutorJob(ExecutorJob::BuildGroup,
-                new BuildGroupParams {nullptr, itemGroup.second,
-                typeGroup.second, -1, 0, paramPtr->resourcePool}));
+            newJobs.push_back(new ExecutorJob(ExecutorJob::BuildGroup,
+                    new BuildGroupParams {pluginLayer, itemGroup.second,
+                    typeGroup.second, -1, 0, paramPtr->resourcePool}));
+        } else if (typeGroup.first > -1) {
+            newJobs.push_back(new ExecutorJob(ExecutorJob::BuildGroup,
+                    new BuildGroupParams {nullptr, itemGroup.second,
+                    typeGroup.second, -1, 0, paramPtr->resourcePool}));
+        }
+        std::lock_guard<std::mutex> candidateGuard(
+                paramPtr->resourcePool->candidateQueueLock_);
+        for (ExecutorJob* job : newJobs) {
+            paramPtr->resourcePool->candidateQueue_.push(job);
+        }
+        paramPtr->resourcePool->newCandidateJob.signalAll();
     }
-    std::lock_guard<std::mutex> candidateGuard(
-            paramPtr->resourcePool->candidateQueueLock_);
-    for (ExecutorJob* job : newJobs) {
-        paramPtr->resourcePool->candidateQueue_.push(job);
-    }
-    paramPtr->resourcePool->newCandidateJob.signalAll();
     return 0;
-}
+}    
 
 int buildGroup(void* param) {
     BuildGroupParam* paramPtr = reinterpret_cast<BuildGroupParam*>(param);

@@ -29,7 +29,10 @@ public:
     // 插入生成好的Group到映射中去
     int insertGroup(const int key, Group* newGroup);
     // 根据group的key获取
-    int findGroup(const std::string& key, Group** groupPtr);
+    int findGroup(const int key, Group** groupPtr);
+    // 根据group的key获取并插入Group(与解析匹配的功能)
+    int findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
+            const int typeGroupKey = 0, Group** typeGroupPtr = nullptr);
     // 打开指定的Layer
     int openLayer(const std::string& layerPath, const LayerType layerType,
             const int layerID = -1);

@@ -33,6 +33,8 @@ public:
     
     // 未生成实体时存放的解析信息
     GroupInfo* info_ = nullptr;
+    // Group的内容是否解析完毕
+    Semaphore parseDone_(0, OnceForAll);
     // Group数据是否准备完毕
     Semaphore ready_(0, OnceForAll);
 

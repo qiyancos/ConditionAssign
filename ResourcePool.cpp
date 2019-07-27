@@ -23,11 +23,6 @@ int ResourcePool::getConfigSubGroup(int targetID,
     return 0;
 }
 
-int ResourcePool::newGroup(Group** newGroupPtr, Group* newGroup) {
-    *newGroupPtr = newGroup;
-    return 0;
-}
-
 int ResourcePool::insertGroup(const int key, Group* newGroup) {
     std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     CHECK_ARGS(groupMap_.find(key) == groupMap_.end(),
@@ -36,7 +31,7 @@ int ResourcePool::insertGroup(const int key, Group* newGroup) {
     return 0;
 }
 
-int ResourcePool::findGroup(const std::string& key, Group** groupPtr){
+int ResourcePool::findGroup(const int key, Group** groupPtr){
     std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     auto mapIterator = groupMap_.find(key);
     if (mapIterator == groupMap_.end()) {
@@ -45,6 +40,41 @@ int ResourcePool::findGroup(const std::string& key, Group** groupPtr){
         *groupPtr = mapIterator->second;
         return 0;
     }
+}
+
+int ResourcePool::findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
+        const int typeGroupKey = -1, Group** typeGroupPtr = nullptr) {
+    int result = 0;
+    std::lock_guard<std::mutex> mapGuard(groupMapLock_);
+    auto itemIterator = groupMap_.find(itemGroupKey)
+    auto typeIterator = groupMap_.find(typeGroupKey)
+    if (mapIterator != groupMap_.end()) {
+        result++;
+        if (*itemGroupPtr != nullptr) {
+            delete *itemGroupPtr;
+        }
+        *itemGroupPtr = itemIterator.second;
+    } else {
+        CHECK_ARGS(*itemGroupPtr != nullptr,
+                "Can not insert empty item group into group map.");
+        groupMap_[itemGroupKey] = *itemGroupPtr;
+    }
+    if (typeGroupKey != -1) {
+        if (typeIterator != groupMap_.end()) {
+            CHECK_ARGS(itemIterator != groupMap_.end(),
+                "Lack of item group bound with type group.");
+            result++;
+            if (*typeGroupPtr != nullptr) {
+                delete *typeGroupPtr;
+            }
+            *typeGroupPtr = typeIterator.second;
+        } else {
+            CHECK_ARGS(*typeGroupPtr != nullptr,
+                    "Can not insert empty item group into group map.");
+            groupMap_[typeGroupKey] = *typeGroupPtr;
+        }
+    }
+    return result;
 }
 
 int ResourcePool::openLayer(const std::string& layerPath,
