@@ -3,6 +3,18 @@
 
 namespace condition_assign {
 
+ConfigItem::~ConfigItem() {
+    for (syntax::Node* node : conditions_) {
+        delete node;
+    }
+    for (syntax::Node* node : assigns_) {
+        delete node;
+    }
+    for (syntax::Operator* op : operators_) {
+        delete op;
+    }
+}
+
 int ConfigItem::score() {
     if (score_ == -1)
         int tempScore = 0;
@@ -43,27 +55,21 @@ int ConfigItem::addAssign(syntax::Node* newNode,
     return 0;
 }
 
-int getMainConditionNode(syntax::Node** nodePtr) {
+int ConfigItem::getMainConditionNode(syntax::Node** nodePtr) {
     CHECK_ARGS(!conditions_.empty(), "No main node in an empty config item.");
     *nodePtr = conditions_.front();
     return 0;
 }
 
-int getMainAssignNode(syntax::Node** nodePtr) {
+int ConfigItem::getMainAssignNode(syntax::Node** nodePtr) {
     CHECK_ARGS(!assigns_.empty(), "No main node in an empty config item.");
     *nodePtr = assigns_.front();
     return 0;
 }
 
-ConfigItem::~ConfigItem() {
-    for (syntax::Node* node : conditions_) {
-        delete node;
-    }
-    for (syntax::Node* node : assigns_) {
-        delete node;
-    }
-    for (syntax::Operator* op : operators_) {
-        delete op;
+ConfigSubGroup::~ConfigSubGroup() {
+    for (ConfigItem* item : group_) {
+        delete item;
     }
 }
 
@@ -410,8 +416,8 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
     CHECK_RET(parseAssigns(partitions[1], configItem, resourcePool, srcLayer),
             "Failed to parse assign expressions \"%s\".",
             partitions[1].c_str());
-    std::lock_guard<std::mutex> groupGuard(subGroup->groupLock);
-    subGroup->group.push_back(configItem);
+    std::lock_guard<std::mutex> groupGuard(subGroup->groupLock_);
+    subGroup->group_.push_back(configItem);
     return 0;
 }
 

@@ -21,9 +21,12 @@ class ResourcePool {
 public:
     enum LayerType {Input, Output, Plugin};
     // 构造函数
-    ResourcePool();
+    ResourcePool() = default;
+    // 析构函数
+    ~ResourcePool();
+
     // 初始化
-    int init(const int targetCnt, const int pluginCnt, const int executorCnt);
+    int init(ExecutorPool::Params params);
     // 根据目标层ID获取对应的ConfigSubGroup
     int getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr);
     // 插入生成好的Group到映射中去
@@ -48,16 +51,15 @@ public:
     int getReadyJob(const int threadID, ExecutorJob** jobConsumerPtr);
     // 从备选工作队列中选择准备好的工作项放到准备队列
     int selectReadyJob(std::set<int>* wakeupExecutorID);
-    // 释放所有的资源
-    int releaseResource();
 
 private:
     // 当前工作的目标层数目
     int targetCnt_;
-    // 当前工作的外挂表层数目
-    int pluginCnt_;
     // 当前的执行器数量
     int executorCnt_;
+    
+    // 对配置文件解析完毕后的语法信息, 使用指针避免加锁的需要
+    std::vector<ConfigSubGroup*> configGroup_;
     
     // 所有Group数据缓存的锁
     std::mutex groupMapLock_;
@@ -65,22 +67,15 @@ private:
     std::map<int, Group*> groupMap_;
 
     // 输入层数据
-    MifLayer* inputLayer_;
-    // 外挂表锁
-    std::mutex pluginLayersLock_;
+    MifLayer* inputLayer_ = nullptr;
     // 外挂表数据
     std::map<std::string, MifLayer*> pluginLayersMap_;
-    // 输出层数据路径到索引的映射锁
-    std::mutex outputLayersLock_;
     // 输出层数据路径到索引的映射
     std::map<std::string, int> outputLayersMap_;
     // 输出层数据
     std::vector<MifLayer*> outputLayers_;
 
 public:
-    // 对配置文件解析完毕后的语法信息, 使用指针避免加锁的需要
-    std::vector<ConfigSubGroup*> configGroup_;
-    
     // 预备队列的写入操作互斥锁
     std::vector<std::mutex> readyQueueLock_;
     // 当前预备队列中任务的数目

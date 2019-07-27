@@ -22,6 +22,7 @@ int opInternalFuncListInit(const std::string& name,
 class opCondFunc : public Operator {
 public:
     opCondFunc() : Operator() {}
+    ~opCondFunc() = default;
     OperatorType type() {return Condition;}
     std::string str();
     int score() {return 1;}
@@ -39,8 +40,6 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-
-private:
     // 记录了函数名
     std::string funcName_;
 };
@@ -52,6 +51,7 @@ OPREG(CondFunc);
 class opAssignFunc : public Operator {
 public:
     opAssignFunc() : Operator() {}
+    ~opAssignFunc() = default;
     OperatorType type() {return Assign;}
     std::string str();
     int score() {return 1;}
@@ -69,8 +69,6 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-
-private:
     // 记录了函数名
     std::string funcName_;
 };
@@ -82,6 +80,7 @@ OPREG(AssignFunc);
 class opReplace : public Operator {
 public:
     opReplace() : Operator() {}
+    ~opReplace() = default;
     OperatorType type() {return Assign;}
     std::string str();
     int score() {return 1;}
@@ -99,8 +98,6 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-
-private:
     // 记录了进行替换的两个关键变量
     int startIndex_, length_;
 };

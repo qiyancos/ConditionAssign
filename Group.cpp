@@ -6,17 +6,31 @@ namespace condition_assign {
 Group::Group(const Type type, const bool dynamic = false) :
         type_(type), dynamic_(dynamic) {}
 
-Type Group::getGroupType() {
-    return groupType_;
+virtual Group::~Group() {
+    if (info_ != nullptr) {
+        delete info_;
+    }
 }
 
 static Type Group::getInputType() {
     return Group::inputType_;
 }
 
-static int Group::setInputType(const Type type) {
-    Group::inputType_ = type;
+static int Group::setInputType(const std::string& typeStr) {
+    if (typeStr == "POINT" || typeStr.empty()) {
+        Group::inputType_ = Point;
+    } else if (typeStr == "LINE") {
+        Group::inputType_ = Line;
+    } else if (typeStr == "AREA") {
+        Group::inputType_ = Area;
+    } else {
+        return -1;
+    }
     return 0;
+}
+
+Type Group::getGroupType() {
+    return groupType_;
 }
 
 virtual int Group::buildDynamicGroup(Group** groupPtr) {

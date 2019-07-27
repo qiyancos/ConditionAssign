@@ -2,17 +2,20 @@
 
 namespace condition_assign {
 
-ResourcePool() {}
-
-int ResourcePool::init(const int targetCnt, const int pluginCnt,
-        const int executorCnt) {
-    pluginCnt_ = pluginCnt;
-    executorCnt_ = executorCnt;
-    readyQueue_.resize(executorCnt, std::queue<ExecutorJob*>());
-    targetCnt_ = targetCnt;
-    configGroup_.resize(targetCnt, new ConfigSubGroup());
+int ResourcePool::init(ExecutorPool::Params params) {
+    executorCnt_ = params.executorNum;
+    targetCnt_ = params.size(targetCnt;
+    readyQueue_.resize(executorCnt_, std::queue<ExecutorJob*>());
+    configGroup_.resize(targetCnt_, new ConfigSubGroup());
     inputLayer_ = new MifLayerReadOnly();
-    outputLayers_.resize(targetCnt, new MifLayerReadWrite());
+    pluginLayersMap_[params.input] = inputLayer_;
+    for (std::string layerPath : params.plugins) {
+        pluginLayersMap_[layerPath] = new MifLayerReadWrite();
+    }
+    outputLayers_.resize(targetCnt_, new MifLayerReadWrite());
+    for (int layerID = 0; layerID < targetCnt_; layerID++) {
+        outputLayersMap_[params.outputs[layerID]] = layerID;
+    }
     return 0;
 }
 
@@ -82,30 +85,26 @@ int ResourcePool::openLayer(const std::string& layerPath,
     if (layerType = Input) {
         CHECK_RET(inputLayer_->open(layerPath),
                 "Failed to open input layer \"%s\".", layerPath.c_str());
-        std::lock_guard<std::mutex> pluginLayerGuard(pluginLayersLock_);
-        pluginLayersMap_[layerPath] = inputLayer_;
         return 0;
     } else if (layerType = Output) {
-        outputLayersLock_.lock();
-        CHECK_ARGS(outputLayerMap_.find(layerPath) == outputLayerMap_.end(),
-                "Trying to reopen output layer \"%s\".", layerPath.c_str());
-        CHECK_ARGS(layerID < targetCnt_, "Too much open output layers.");
-        outputLayerMap_[layerPath] = layerID;
-        CHECK_RET(outputLayers_[layerID]->open(layerPath, inputLayer_),
+        int index = -1;
+        if (layerID == -1) {
+            CHECK_ARGS(outputLayersMap_.find(layerPath) !=
+                    outputLayersMap_.end(),
+                    "Trying to open output layer \"%s\" not registered.",
+                    layerPath.c_str());
+            index = outputLayersMap_.find(layerPath);
+        }
+        CHECK_RET(outputLayers_[index]->open(layerPath, inputLayer_),
                 "Failed to open output layer \"%s\".", layerPath.c_str());
-        outputLayersLock_.unlock();
         return 0;
     } else {
-        pluginLayersLock_.lock();
         auto mapIterator = pluginLayersMap_.find(layerPath);
         if (mapIterator != pluginLayersMap_.end()) {
             return 0;
         }
-        MifLayer* newLayer = new MifLayerReadOnly();
-        pluginLayersMap_[layerPath] = newLayer;
-        CHECK_RET(newLayer->open(layerPath),
+        CHECK_RET(mapIterator.second->open(layerPath),
                 "Failed to open plugin layer \"%s\".", layerPath.c_str());
-        pluginLayersLock_.unlock();
         return 0;
     }
 }
@@ -119,19 +118,14 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
                 "Can not get target ID for input layer.");
         *layerPtr = inputLayer_;
     } else if (layerType = Output) {
-        bool needLock = outputLayerMap_.size() < targetCnt_;
-        if (needLock) outputLayersLock_.lock();
         auto mapIterator = outputLayerMap_.find(layerPath);
         CHECK_ARGS(mapIterator != outputLayerMap_.end(),
                 "Can not find output layer named as \"%s\".",
                 layerPath.c_str());
         *targetID = mapIterator->second;
         *layerPtr = outputLayers_[mapIterator->second];
-        if (needLock) outputLayersLock_.unlock();
         return 0;
     } else {
-        bool needLock = pluginLayerMap_.size() < targetCnt_;
-        if (needLock) pluginLayersLock_.lock();
         auto mapIterator = pluginLayerMap_.find(layerPath);
         if (mapIterator == pluginLayerMap_.end()) {
             std::string completeLayerPath;
@@ -148,7 +142,6 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
         } else {
             *layerPtr = pluginLayers_[mapIterator->second];
         }
-        if (needLock) pluginLayersLock_.unlock();
         return 0;
     }
 }
@@ -175,21 +168,17 @@ int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
 
 int ResourcePool::getPluginFullPath(const std::string& layerName,
         std::string* fullPath) {
-    bool needLock = pluginLayerMap_.size() < targetCnt_;
-    if (needLock) pluginLayersLock_.lock();
     auto mapIterator = pluginLayerMap_.find(layerName);
     if (mapIterator == pluginLayerMap_.end()) {
         for (auto mapIteratorTemp : pluginLayerMap_) {
             if (mapIteratorTemp->first.find(layerName)) {
                 *fullPath = mapIteratorTemp->first;
-                if (needLock) pluginLayersLock_.lock();
                 return 0;
             }
         }
         return -1;
     } else {
         *fullPath = mapIterator->first;
-        if (needLock) pluginLayersLock_.unlock();
         return 0;
     }
 }
@@ -235,27 +224,36 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     return 0;
 }
 
-int ResourcePool::releaseResource() {
+ResourcePool::~ResourcePool() {
     for (auto configSubGroupPtr : configGroup_) {
-        delete configSubGroupPtr;
+        if (configSubGroupPtr != nullptr) {
+            delete configSubGroupPtr;
+        }
     }
     for (auto groupMapIterator : groupMap_) {
-        delete groupMapIterator->second;
+        if (groupMapIterator.second != nullptr) {
+            delete groupMapIterator.second;
+        }
     }
-    delete inputLayer_;
     for (auto mapIterator : pluginLayerMap_) {
-        delete mapIterator->second;
+        delete mapIterator.second;
     }
     for (auto layerPtr : outputLayers_) {
-        delete layerPtr;
+        if (layerPtr != nullptr) {
+            delete layerPtr;
+        }
     }
     for (auto que : readyQueue_) {
         for (auto jobPtr : que) {
-            delete jobPtr;
+            if (jobPtr != nullptr) {
+                delete jobPtr;
+            }
         }
     }
     for (auto job : candidateQueue_) {
-        delete job;
+        if (job != nullptr) {
+            delete job;
+        }
     }
 }
 

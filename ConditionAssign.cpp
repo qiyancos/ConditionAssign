@@ -70,5 +70,8 @@ int main(int argc, char** argv) {
             (end - start));
     sys_log_println(_INFORANK, "=====================================\n\n");
     sys_log_close();
+    for (Operator* regOp : syntax::operatorListInit) {
+        delete regOp;
+    }
     return 0;
 }

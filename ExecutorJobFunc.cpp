@@ -25,13 +25,52 @@ int saveLayer(void* param) {
     return 0;
 }
 
+int parseConfigFile(void* param) {
+    ParseConfigFileParam* paramPtr =
+            reinterpret_cast<ParseConfigFileParam*>(param);
+    std::ifstream configFileStream(paramPtr->filePath);
+    CHECK_ARGS(configFileStream, "Failed to open config file \"%s\".",
+            paramPtr->filePath.c_str());
+    std::string content;
+    std::vector<std::string>* fullContent = new std::vector<std::string>();
+    while (getline(configFileStream, content)) {
+        fullContent->push_back(content);
+    }
+    int startIndex = 0;
+    int lineCount = MAX_LINE_PER_JOB;
+    int totalCnt = fullContent->size() ;
+    int edgeCount = totalCount / lineCount * lineCount;
+    if (totalCount - edgeCount < (lineCount >> 1)) {
+        edgeCount -= lineCount;
+    }
+    std::vector<ExecutorJob*> newJobs;
+    while (startIndex < edgeCount) {
+        newJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigLines,
+                new ParseConfigLinesParams {fullContent, startIndex,
+                lineCount, paramPtr->layerID, paramPtr->resourcePool}));
+        startIndex += lineCount;
+    }
+    newJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigLines,
+            new ParseConfigLinesParams {fullContent, edgeCount, totalCount -
+            edgeCount, paramPtr->layerID, paramPtr->resourcePool}));
+    std::lock_guard<std::mutex> lockGuard(
+            paramPtr->resourcePool->candidateQueueLock_);
+    for (ExecutorJob* job : newJobs) {
+        paramPtr->resourcePool->candidateQueue_.push(job);
+    }
+    paramPtr->resourcePool->newCandidateJob.signalAll();
+    return 0;
+}
+
 int parseConfigLines(void* param) {
     ParseConfigLineParam* paramPtr =
             reinterpret_cast<ParseConfigLineParam*>(param);
     int index = paramPtr->startIndex;
     int lineCount = paramPtr->lineCount;
-    SubConfigGroup* subGroup =
-            paramPtr->resourcePool->configGroup_[paramPtr->layerID];
+    SubConfigGroup* subGroup;
+    CHECK_RET(paramPtr->resourcePool->getConfigSubGroup(paramPtr->layerID,
+            &subGroup), "Failed to get config sub group for layer[%d]",
+            paramPtr->layerID);
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
         CHECK_RET(parser::parseConfigLine((*(paramPtr->fullContent))[index],
@@ -46,7 +85,6 @@ int parseConfigLines(void* param) {
         newJobs.push_back(new ExecutorJob(ExecutorJob::ParseGroup,
                 new ParseGroupParams {groupInfo, paramPtr->resourcePool}));
     }
-    std::lock_guard<std::mutex> readyCntGuard(subGroup->readyCntLock);
     std::vector<std::pair<int, int>> rangesInJob;
     if (subGroup->readyCnt += lineCount == paramPtr->fullContent->size()) {
         // 当前配置文件的所有内容均已经解析完毕
@@ -89,43 +127,6 @@ int parseConfigLines(void* param) {
     for (ExecutorJob* job : newJobs) {
         paramPtr->resourcePool->candidateQueue_.push(job);
     }
-    return 0;
-}
-
-int parseConfigFile(void* param) {
-    ParseConfigFileParam* paramPtr =
-            reinterpret_cast<ParseConfigFileParam*>(param);
-    std::ifstream configFileStream(paramPtr->filePath);
-    CHECK_ARGS(configFileStream, "Failed to open config file \"%s\".",
-            paramPtr->filePath.c_str());
-    std::string content;
-    std::vector<std::string>* fullContent = new std::vector<std::string>();
-    while (getline(configFileStream, content)) {
-        fullContent->push_back(content);
-    }
-    int startIndex = 0;
-    int lineCount = MAX_LINE_PER_JOB;
-    int totalCnt = fullContent->size() ;
-    int edgeCount = totalCount / lineCount * lineCount;
-    if (totalCount - edgeCount < (lineCount >> 1)) {
-        edgeCount -= lineCount;
-    }
-    std::vector<ExecutorJob*> newJobs;
-    while (startIndex < edgeCount) {
-        newJobs.push_back(new ExecutorJob(ExecutorJob::ConfigLineParse,
-                new ParseConfigLinesParams {fullContent, startIndex,
-                lineCount, paramPtr->layerID, paramPtr->resourcePool}));
-        startIndex += lineCount;
-    }
-    newJobs.push_back(new ExecutorJob(ExecutorJob::ConfigLineParse,
-            new ParseConfigLinesParams {fullContent, edgeCount, totalCount -
-            edgeCount, paramPtr->layerID, paramPtr->resourcePool}));
-    std::lock_guard<std::mutex> lockGuard(
-            paramPtr->resourcePool->candidateQueueLock_);
-    for (ExecutorJob* job : newJobs) {
-        paramPtr->resourcePool->candidateQueue_.push(job);
-    }
-    paramPtr->resourcePool->newCandidateJob.signalAll();
     return 0;
 }
 
@@ -223,7 +224,6 @@ int buildGroup(void* param) {
             }
             index++;
         }
-        std::lock_guard(groupInfo_->buildLock) buildGuard;
         for (int newIndex : passedIndex) {
             paramPtr->itemGroup->addElement(newIndex);
         }

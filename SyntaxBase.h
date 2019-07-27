@@ -78,8 +78,11 @@ public:
             std::pair<size_t, size_t>* range) = 0;
     // 获取当前运算符的字符串形式
     virtual std::string str() = 0;
+    
+    // 构造函数
+    Operator() = default;
     // 虚析构函数
-    virtual ~Operator() {}
+    virtual ~Operator() = default;
 };
 
 // 配置文件语法分析节点

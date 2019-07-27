@@ -12,6 +12,7 @@ namespace syntax {
     class op##Name : public Operator { \
     public: \
         op##Name() : Operator() {} \
+        ~op##Name() == default; \
         std::string str() {return str_;} \
         OperatorType type() {return Type;} \
         int score() { return Score; } \

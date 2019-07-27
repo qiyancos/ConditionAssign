@@ -4,43 +4,16 @@
 
 namespace condition_assign {
 
-Semaphore::Semaphore(const int count = 1, const Type type = Normal) : 
-        type_(type), count_(count), wakeupCnt_(0) {}
-
-void Semaphore::wait() {
-    std::unique_lock<std::mutex> lock {lock_};
-    if (--count_ < 0) {
-        condition_.wait(lock, [&]()->bool{return wakeupCnt_ > 0;});
-        --wakeupCnt_;
-    }
-}
-
-void Semaphore::signal() {
-    std::lock_guard<std::mutex> lock {lock_};
-    if (++count_ <= 0) {
-        ++wakeupCnt_;
-        condition_.notify_one();
-    }
-    if (type_ == OnceForAll) {
-        count_ = INT_MAX;
-    }
-}
-
-void Semaphore::signalAll() {
-    std::lock_guard<std::mutex> lock {lock_};
-    while (++count_ <= 0) {
-        ++wakeupCnt_;
-        condition_.notify_one();
-    }
-    if (type_ == OnceForAll) {
-        count_ = INT_MAX;
-    }
-}
-
 Executor::Executor(const int id, ExecutorPool* pool) : id_(id), pool_(pool) {
     status_ = &(pool_->executorStatus_[id_]);
     haveReadyJob_ = &(pool_->executorWakeup_[id_]);
     needReadyJob_ = &(pool_->needReadyJob_);
+}
+
+Executor::~Executor() {
+    if (thread_ != nullptr) {
+        delete thread_;
+    }
 }
 
 static int Executor::mainRunner(const Executor& executor) {
@@ -59,12 +32,13 @@ static int Executor::mainRunner(const Executor& executor) {
                     (*workingJobPtr)->getJobFunc();
             if (jobFunc((*workingJobPtr)->param_) < 0) {
                 sys_log_println(_ERROR,
-                        "Error occourred while running executor job.");
+                        "Error occourred while running executor job %s[%d].",
+                        "in executor", executor.id_);
                 executor.status_ = Executor::Error;
                 executor.needStatusCheck_->signal();
                 return -1;
             } else {
-                delete (*workingJobPtr);
+                delete *workingJobPtr;
                 *workingJobPtr = nullptr;
             }
         } else {
@@ -82,28 +56,65 @@ int Executor::startWaiting() {
     return 0;
 }
 
-ExecutorJob::ExecutorJob(const JobType type, const int targetID,
-        const int mifItemIndex, void* param) : type_(type), targetID_(targetID),
-        mifItemIndex_(mifItemIndex), param_(param) {}
+ExecutorJob::ExecutorJob(const JobType type, void* param) :
+        type_(type), param_(param) {}
 
 std::function<int(void*)> ExecutorJob::getJobFunc(){
     switch (type_) {
     case LoadLayer: return std::function<int(void*)>(job_func::loadLayer);
     case SaveLayer: return std::function<int(void*)>(job_func::saveLayer);
-    case ConfigLineParse:
+    case ParseConfigLines:
         return std::function<int(void*)>(job_func::parseConfigLines);
-    case ConfigFileParse:
+    case ParseConfigFile:
         return std::function<int(void*)>(job_func::parseConfigFile);
     case ParseGroup: return std::function<int(void*)>(job_func::parseGroup);
     case BuildGroup: return std::function<int(void*)>(job_func::buildGroup);
-    case MifItemProcess:
+    case ProcessMifItem:
         return std::function<int(void*)>(job_func::processMifItem);
     }
 }
 
-ExecutorJob::~ExecutorJob() {delete param_;}
+ExecutorJob::~ExecutorJob() {
+    switch (type_) {
+    case LoadLayer:
+        delete reinterpret_cast<job_func::LoadLayerParams*>(param_);
+        break;
+    case SaveLayer:
+        delete reinterpret_cast<job_func::SaveLayerParams*>(param_);
+        break;
+    case ParseConfigLines:
+        delete reinterpret_cast<job_func::ParseConfigLinesParams*>(param_);
+        break;
+    case ParseConfigFile:
+        delete reinterpret_cast<job_func::ParseConfigFileParams*>(param_);
+        break;
+    case ParseGroup:
+        delete reinterpret_cast<job_func::ParseGroupParams*>(param_);
+        break;
+    case BuildGroup:
+        delete reinterpret_cast<job_func::BuildGroupParams*>(param_);
+        break;
+    case ProcessMifItem:
+        delete reinterpret_cast<job_func::ProcessMifItemParams*>(param_);
+        break;
+    }
+}
 
 ExecutorPool::ExecutorPool(const Params& params) : params_(params) {}
+
+ExecutorPool::~ExecutorPool() {
+    for (ExecutorJob* job : workingJob_) {
+        if (job != nullptr) {
+            delete job;
+        }
+    }
+    if (executorConsole_ != nullptr) {
+        delete executorConsole_;
+    }
+    if (resourceConsole_ != nullptr) {
+        delete resourceConsole_;
+    }
+}
 
 int ExecutorPool::init() {
     CHECK_ARGS(params_.outputs.size() == params_.configs.size(),
@@ -111,6 +122,8 @@ int ExecutorPool::init() {
             params_.outputs.size(),
             "does not match the count of output layers",
             params_.configs.size());
+    CHECK_RET(Group::setInputType(params_.geoType),
+            "Failed to set input layer's geometry type.");
     int totalMifLayerCount = params_.outputs.size() +
             params_.plugins.size() + 1;
     CHECK_ARGS(totalMifLayerCount <= MAX_MIFLAYERS,
@@ -120,10 +133,7 @@ int ExecutorPool::init() {
         std::cerr << "Warning: thread number is greater than the";
         std::cerr << " cpu cores in this computer." << std::endl;
     }
-    CHECK_RET(resourcePool_.init(params_.outputs.size(),
-            params_.plugins.size(), executorCnt, executorCnt >
-            MAX_CANDIDATE_SIZE ? MAX_CANDIDATE_SIZE : executorCnt),
-            "ResourcePool failed to init.");
+    CHECK_RET(resourcePool_.init(params_, "ResourcePool failed to init.");
     workingJob_.resize(executorCnt, nullptr);
     executorWakeup_.resize(executorCnt, Semaphore(0));
     executorStatus_.resize(executorCnt, Executor::Idle);
@@ -150,7 +160,7 @@ int ExecutorPool::execute() {
                 &(params_.plugins[i]), &resourcePool_}));
     }
     for (int i = 0; i < params_.configs.size(); i++) {
-        initJobs.push_back(new ExecutorJob(ExecutorJob::parseConfigFile,
+        initJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigFile,
                 new job_func::ParseConfigFileParams {
                 &(params_.configs[i]), i, &resourcePool_}));
     }
@@ -162,7 +172,7 @@ int ExecutorPool::execute() {
     resourcePool_.candidateQueueLock_.unlock();
     resourceConsole_ = new std::thread(resourceController);
     for (int id = 0; id < params_.executorNum; id++) {
-        executors_[id].thread = new std::thread(Executor::mainRunner,
+        executors_[id].thread_ = new std::thread(Executor::mainRunner,
                 executors_[id]);
     }
     executorConsole_ = new std::thread(executorController);
@@ -171,7 +181,7 @@ int ExecutorPool::execute() {
     executorConsole_->join();
     resourceConsole_->join();
     for (int id = 0; id < params_.executorNum; id++) {
-        executors_[id].thread->join();
+        executors_[id].thread_->join();
     }
     CHECK_ARGS(status_ == Finished, "Main procedure exit with bad status.");
     return 0;

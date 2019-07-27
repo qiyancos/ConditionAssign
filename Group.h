@@ -15,10 +15,8 @@ public:
     enum Type {Item, Tag, Point, Line, Area};
     // 解析完毕后的group结构信息
     struct GroupInfo {
-        // 搭建Group的锁
-        std::mutex buildLock;
         // 已经检查过的元素个数
-        int checkedCnt = 0;
+        std::atomic<int> checkedCnt(0);
         // 所在layer的名称
         std::string layerName;
         // 筛选条件
@@ -29,21 +27,15 @@ public:
         std::string newTagName;
         // 索引的tag名称集合
         std::string tagName;
-    }; 
-    
-    // 未生成实体时存放的解析信息
-    GroupInfo* info_ = nullptr;
-    // Group的内容是否解析完毕
-    Semaphore parseDone_(0, OnceForAll);
-    // Group数据是否准备完毕
-    Semaphore ready_(0, OnceForAll);
+    };
 
-    // 获取当前Group的类型
-    Type getGroupType();
     // 获取当前输入的地理类型
     static Type getInputType();
     // 设置当前的输入类型
-    static int setInputType(const Type type);
+    static int setInputType(const std::string& typeStr);
+    
+    // 获取当前Group的类型
+    Type getGroupType();
     // 设置当前Group的layer指针
     int setLayer(MifLayer* layer) {layer_ = layer;}
     // 获取当前Group对应的layer
@@ -87,6 +79,14 @@ public:
     // 析构函数
     virtual ~Group();
 
+public:
+    // 未生成实体时存放的解析信息
+    GroupInfo* info_ = nullptr;
+    // Group的内容是否解析完毕
+    Semaphore parseDone_(0, OnceForAll);
+    // Group数据是否准备完毕
+    Semaphore ready_(0, OnceForAll);
+
 protected:
     // 元素所在层
     MifLayer* layer_ = nullptr;
@@ -111,6 +111,8 @@ public:
     int buildDynamicGroup(Group** groupPtr);
     // 添加元素
     int addElement(const int newElement);
+
+public:
     // 元素组的索引
     std::vector<int> group_;
 };
@@ -125,6 +127,7 @@ public:
     // 检测是否存在于当前的Tag组里面
     int checkOneContain(const std::string& src, bool* result);
     int checkAllContain(const std::string& src, bool* result);
+
 private:
     std::set<std::string> group_;
 };
@@ -143,6 +146,7 @@ public:
     // 地理位置被包含的判断
     int checkOneContained(wsl::Geometry* src, bool* result);
     int checkAllContained(wsl::Geometry* src, bool* result);
+
 private:
     std::vector<wsl::Feature<wsl::Point>*> group_;
 };
@@ -170,6 +174,7 @@ public:
     // 地理位置相离的判断
     int checkOneDeparture(wsl::Geometry* src, bool* result);
     int checkAllDeparture(wsl::Geometry* src, bool* result);
+
 private:
     std::vector<wsl::Feature<wsl::Line>*> group_;
 };
@@ -197,6 +202,7 @@ public:
     // 地理位置相离的判断
     int checkOneDeparture(wsl::Geometry* src, bool* result);
     int checkAllDeparture(wsl::Geometry* src, bool* result);
+
 private:
     std::vector<wsl::Feature<wsl::Polygon>*> group_;
 };

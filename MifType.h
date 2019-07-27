@@ -35,11 +35,8 @@ public:
     // 判断当前的MifLayer是不是新打开的
     virtual bool isNew() {return false;}
     // 获取当前Layer给定索引的mifitem
-    int newMifItem(const int index, MifItem** newItem, MifLayer* targetLayer);
-    // 判等
-    bool operator == (const MifLayer& b) {
-        return layerPath_ == b.layerPath_;
-    }
+    int newMifItem(const int index, MifItem** newItemPtr,
+            MifLayer* targetLayer);
 
     // 构造函数
     MifLayer(AccessType type);
@@ -102,7 +99,7 @@ public:
     // 构造函数
     MifLayerReadOnly();
     // 虚构函数
-    ~MifLayerReadOnly();
+    ~MifLayerReadOnly() = default;
 
 protected:
     // 获取对应Layer中Tag的Col索引，对于读操作如果没有会返回-1
@@ -136,7 +133,7 @@ public:
     // 构造函数
     MifLayerReadWrite();
     // 虚构函数
-    ~MifLayerReadWrite();
+    ~MifLayerReadWrite() = default;
 
 protected:
     // 获取对应Layer中Tag的Col索引，对于读操作如果没有会返回-1
@@ -155,6 +152,9 @@ class MifItem {
 public:
     // 构造函数
     MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer);
+    // 析构函数
+    ~MifItem() = default;
+
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const std::string& val);
     // 获取当前MifItem的某个字段的内容
@@ -166,13 +166,11 @@ public:
 
 public:
     // 当前MifItem所属的MifLayer
-    MifLayer* srcLayer_;
+    MifLayer* srcLayer_ = nullptr;
     // 当前MifItem在MifLayer中的索引
     const int inedx_;
     // 当前MifItem所属的MifLayer
-    MifLayer* targetLayer_;
-    // 判断当前输入与输出是否同一层
-    bool sameLayer = false;
+    MifLayer* targetLayer_ = nullptr;
 
 private:
     // Tag字符串映射缓存的锁

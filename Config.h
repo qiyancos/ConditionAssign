@@ -16,7 +16,11 @@ namespace condition_assign {
 // 单行ConditionAssign对应的结构
 class ConfigItem {
 public:
-    ConfigItem();
+    // 构造函数
+    ConfigItem() = default;
+    // 析构函数
+    ~ConfigItem();
+
     // 获取当前ConfigItem的分数
     int score();
     // 添加一个新的运算符到运算符库中
@@ -32,9 +36,6 @@ public:
     // 获取当前ConfigItem的赋值主节点
     int getMainAssignNode(syntax::Node** nodePtr);
 
-    // 析构函数
-    ~ConfigItem();
-
 private:
     // 当前ConfigItem的运算评分
     int score_ = -1;
@@ -46,15 +47,19 @@ private:
     std::vector<syntax::Operator*> operators_;
 };
 
-struct ConfigSubGroup {
-    // 当前子组完成解析的ConfigItem数量锁
-    std::mutex readyCntLock;
+class ConfigSubGroup {
+public:
     // 当前子组完成解析的ConfigItem数量
-    int readyCnt;
+    std::atomic<int> readyCnt_(0);
     // 子组的锁
-    std::mutex groupLock;
+    std::mutex groupLock_;
     // 多有ConfigItem的组
-    std::vector<ConfigItem*> group;
+    std::vector<ConfigItem*> group_;
+    
+    // 构造函数
+    ConfigSubGroup() = default;
+    // 析构函数
+    ~ConfigSubGroup();
 }
 
 namespace parser {

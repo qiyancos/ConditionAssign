@@ -5,19 +5,24 @@ namespace condition_assign {
 
 MifLayer::MifLayer(AccessType type) : type_(type) {}
 
-int MifLayer::newMifItem(const int index, MifItem** newItem,
+virtual MifLayer::~MifLayer() {
+    for (auto itemIterator : itemCache_) {
+        delete itemIterator.second;
+    }
+}
+
+int MifLayer::newMifItem(const int index, MifItem** newItemPtr,
         MifLayer* targetLayer) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not create new mif item from unopened mif layer.");
+    ready_.wait();
     CHECK_ARGS(index > -1 && index < mifSize_,
             "Mif item index[%d] out of bound.", index);
     std::lock_guard<std::mutex> cacheGuard(itemCacheLock_);
     auto itemIterator = itemCache_.find(index);
     if (itemIterator == itemCache_.end()){
-        *newItem = new MifItem(this, targetLayer, indexi);
-        itemCache_[index] = *newItem;
+        *newItemPtr = new MifItem(this, targetLayer, indexi);
+        itemCache_[index] = *newItemPtr;
     } else {
-        *newItem = itemIterator->second;
+        *newItemPtr = itemIterator->second;
     }
     return 0;
 }
@@ -74,8 +79,7 @@ int MifLayerReadWrite::save(std::string layerPath = "") {
 
 int MifLayerReadWrite::newItemWithTag(MifLayer* input, const int index,
         const std::string& tagName, const std::string val) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not operate with unopened mif layer.")
+    ready_.wait();
     mifLock_->lock();
     mif_.mid.push_back(input->mif_.mid[index]);
     mif_.data.geo_vec.push_back(input->mif_.data.geo_vec[index] == NULL ?
@@ -90,8 +94,7 @@ int MifLayerReadWrite::newItemWithTag(MifLayer* input, const int index,
 
 int MifLayerReadWrite::assignWithTag(const std::string& tagName,
         const int index, const std::string& val) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not operate with unopened mif layer.")
+    ready_.wait();
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index of tag \"%s\" for write.",
@@ -112,8 +115,7 @@ int MifLayerReadWrite::getTagType(const std::string& tagName,
 
 int MifLayerReadWrite::getTagVal(const std::string& tagName,
         const int index, std::string* val) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not operate with unopened mif layer.")
+    ready_.wait();
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index of tag \"%s\".", tagName.c_str()); 
@@ -126,8 +128,7 @@ int MifLayerReadWrite::getTagVal(const std::string& tagName,
 }
 
 int MifLayerReadWrite::getGeometry(wsl::Geometry** val, const int index) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not operate with unopened mif layer.")
+    ready_.wait();
     CHECK_ARGS(index < mifSize_ && index >= 0,
             "Index[%d] out of bound.", index);
     mifLock_.lock();
@@ -138,8 +139,7 @@ int MifLayerReadWrite::getGeometry(wsl::Geometry** val, const int index) {
 
 int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
         AccessType accessType) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not operate with unopened mif layer.")
+    ready_.wait();
     tagColCacheLock_.lock();
     auto colCacheIterator = tagColCache_.find(tagName);
     if (colCacheIterator != tagColCache_.end()) {
@@ -211,6 +211,7 @@ int MifLayerReadOnly::assignWithTag(const std::string& tagName,
 
 int MifLayerReadOnly::getTagType(const std::string& tagName,
         syntax::DataType* type) {
+    ready_.wait();
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
@@ -233,8 +234,7 @@ int MifLayerReadOnly::getTagType(const std::string& tagName,
 
 int MifLayerReadOnly::getTagVal(const std::string& tagName,
         const int index, std::string* val) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not operate with unopened mif layer.")
+    ready_.wait();
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index of tag \"%s\".", tagName.c_str()); 
@@ -245,8 +245,7 @@ int MifLayerReadOnly::getTagVal(const std::string& tagName,
 }
 
 int MifLayerReadOnly::getGeometry(wsl::Geometry** val, const int index) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not operate with unopened mif layer.")
+    ready_.wait();
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
     val = mif_.data.geo_vec[index];
@@ -255,8 +254,7 @@ int MifLayerReadOnly::getGeometry(wsl::Geometry** val, const int index) {
 
 int MifLayerReadOnly::getTagColID(const std::string& tagName, int* colID,
         AccessType accessType) {
-    CHECK_ARGS(!layerPath_.empty(),
-            "Can not operate with unopened mif layer.")
+    ready_.wait();
     tagColCacheLock_.lock();
     auto colCacheIterator = tagColCache_.find(tagName);
     if (colCacheIterator != tagColCache_.end()) {
@@ -279,12 +277,13 @@ int MifLayerReadOnly::getTagColID(const std::string& tagName, int* colID,
 }
 
 MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer) :
-        srcLayer_(srcLayer), targetLayer_(targetLayer), index_(index),
-        sameLayer_(targetLayer != nullptr && *srcLayer == *targetLayer) {}
+        srcLayer_(srcLayer), targetLayer_(targetLayer), index_(index) {}
 
 int MifItem::assignWithTag(const std::string& tagName,
         const std::string& val) {
-    if (!sameLayer_) {
+    CHECK_ARGS(targetLayer_ != nullptr,
+            "Can not assign value to tag in an empty target layer.");
+    if (targetLayer->isNew()) {
         CHECK_RET(targetLayer_->newItemWithTag(srcLayer_, index_, tagName, val),
                 "Failed to assign value to tag \"%s\" %s",
                 tagName.c_str(), "mif layer in a new mif item.");
@@ -292,8 +291,8 @@ int MifItem::assignWithTag(const std::string& tagName,
         CHECK_RET(targetLayer_->assignWithTag(tagName, index_, val),
                 "Failed to assign value to tag \"%s\".", tagName.c_str());
     }
-    // 我们不跟踪的新的Tag，因为并行的机制决定了并不能使用他们
     /*
+    // 我们不跟踪的新的Tag，因为并行的机制决定了并不能使用他们
     tagStringCacheLock_.lock();
     tagStringCache_[tagName] = val;
     tagStringCacheLock_.unlock();
