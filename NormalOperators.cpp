@@ -118,7 +118,7 @@ int opGreaterEqual::process(Node* node, MifItem* item) {
 int opGreaterThan::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
-    CHECK_RET(item->getTagVal(node->tagName, &leftVal,
+    CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
     return (leftVal > node->value.numberValue);
 }
@@ -411,7 +411,7 @@ int opGeoInContactAll::process(Node* node, MifItem* item) {
         CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
                 groupPtr->getGroupType() != Group::Item,
                 "Group type not supported");
-        CHECK_RET(groupPtr->checkAllInContact(leftVal, &result)),
+        CHECK_RET(groupPtr->checkAllInContact(leftVal, &result),
                 "Failed to running group-check function.");
     }
     return result;

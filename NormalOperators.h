@@ -8,11 +8,11 @@ namespace condition_assign {
 namespace syntax {
 
 // 定义单个运算符
-#define OPDEF(Name, Type, Score, String, ...) { \
+#define OPDEF(Name, Type, Score, String, ...) \
     class op##Name : public Operator { \
     public: \
         op##Name() : Operator() {} \
-        ~op##Name() == default; \
+        ~op##Name() = default; \
         std::string str() {return str_;} \
         OperatorType type() {return Type;} \
         int score() { return Score; } \
@@ -35,7 +35,7 @@ namespace syntax {
             } \
         } \
         \
-        bool isSupported(DataType type) const { \
+        bool isSupported(const DataType type) { \
             if (dataTypes_.find(type) == dataTypes_.end()) { \
                 return false; \
             } else { \
@@ -49,16 +49,15 @@ namespace syntax {
         /* 记录了当前运算符对应的字符串 */ \
         static const std::string str_; \
     }; \
-    std::set<DataType> op##Name::dataTypes_ {__VA_ARGS__}; \
-    std::string op##Name::str_ = String; \
+    const std::set<DataType> op##Name::dataTypes_ {__VA_ARGS__}; \
+    const std::string op##Name::str_ = String; \
     /* 注册运算符 */ \
     OPREG(Name);
-}
 
 // 逻辑运算符的声明
 OPDEF(Not, Condition, 1, "!", Expr);
 OPDEF(Or, Condition, 1, "||", Expr);
-OPDEF(And, Condtion, 1, "&&", Expr);
+OPDEF(And, Condition, 1, "&&", Expr);
 // 比较运算符声明
 OPDEF(Equal, Condition, 1, "==", Number, String);
 OPDEF(NotEqual, Condition, 1, "!=", Number, String);

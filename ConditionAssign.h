@@ -19,7 +19,7 @@ Create on: 2018/08/27
 #include <tx_common.h>
 #include <tx_platform.h>
 
-namespace condition_asssign {
+namespace condition_assign {
 
 #define CHECK_EXIT(expr, info, ...) { \
     int errCode = expr; \
@@ -48,6 +48,6 @@ namespace condition_asssign {
     } \
 }
 
-} // namespace condition_asssign
+} // namespace condition_assign
 
 #endif // CONDITIONASSIGN_H

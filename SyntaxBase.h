@@ -2,6 +2,7 @@
 #define SYNTAXBASE_H
 
 #include "type_factory.h"
+#include "ConditionAssign.h"
 
 #include <string>
 #include <vector>
@@ -24,21 +25,18 @@ namespace syntax {
     CHECK_ARGS(node->leftNode == nullptr && node->rightNode == nullptr, \
             "Bad node-tree structure!"); \
     CHECK_ARGS(node->op.isSupported(node->leftType) && \
-            node->op.isSupported(node->rightType) \
+            node->op.isSupported(node->rightType), \
             "Unsupported data type!"); \
 }
 
-// 用于运算符的注册宏
-#define OPREG(Name) { \
-    int globalOpReg##Name = operatorListInit(new op##Name()); \
-}
+#define OPREG(Name) \
+    int globalOpReg##Name = operatorListInit(new op##Name());
 
-#define OPREG_PRIOR(iName) { \
-    int globalOpReg##Name = operatorListInit(new op##Name(), true); \
-}
+#define OPREG_PRIOR(Name) \
+    int globalOpRegPrior##Name = operatorListInit(new op##Name(), true);
 
 // 数据类型
-enum DataType {Empty, Number, String, GroupType, Expr};
+enum DataType {New, Number, String, GroupType, Expr};
 // debug使用获取数据类型对应的字符串
 std::string getTypeString(const DataType type);
 // 获取一个字符串的类型
@@ -68,7 +66,7 @@ public:
     // 运算符的类型，类型可以辅助解析
     enum OperatorType {Condition, Assign};
     // 生成一个与自己相同类型的运算符
-    virtual Operator* newOperator();
+    virtual Operator* newOperator() {return nullptr;};
     // 获取当前运算符的运算评分
     virtual int score() = 0;
     // 获取当前运算符的类型
@@ -76,7 +74,7 @@ public:
     // 根据给定的节点数据，计算运算结果
     virtual int process(Node* node, MifItem* item) = 0;
     // 检查给定的数据类型是否支持
-    virtual bool isSupported(DataType type) = 0;
+    virtual bool isSupported(const DataType type) = 0;
     // 找到对应操作符的在当前行范围的函数, 范围是左闭右开的
     virtual int find(const std::string& content,
             std::pair<size_t, size_t>* range) = 0;
