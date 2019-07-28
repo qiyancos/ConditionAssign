@@ -1,14 +1,18 @@
-#ifndef SYNTAXBASE_H_
+#ifndef SYNTAXBASE_H
 #define SYNTAXBASE_H
 
-#include "Group.h"
-#include "ResourcePool.h"
+#include "type_factory.h"
 
 #include <string>
 #include <vector>
+#include <list>
 #include <stack>
 
 namespace condition_assign {
+
+class Group;
+class MifItem;
+class ConfigItem;
 
 namespace syntax {
 
@@ -34,7 +38,7 @@ namespace syntax {
 }
 
 // 数据类型
-enum DataType {Empty, Number, String, Group, Expr};
+enum DataType {Empty, Number, String, GroupType, Expr};
 // debug使用获取数据类型对应的字符串
 std::string getTypeString(const DataType type);
 // 获取一个字符串的类型
@@ -62,7 +66,7 @@ struct Node;
 class Operator {
 public:
     // 运算符的类型，类型可以辅助解析
-    enum OperatorType {Condition, Assign}
+    enum OperatorType {Condition, Assign};
     // 生成一个与自己相同类型的运算符
     virtual Operator* newOperator();
     // 获取当前运算符的运算评分

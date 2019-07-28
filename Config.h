@@ -1,15 +1,13 @@
-#ifndef CONFIG_H_
+#ifndef CONFIG_H
 #define CONFIG_H
 
 #include "SyntaxBase.h"
-#include "NormalOperators.h"
-#include "SpecialOperator.h"
 #include "ResourcePool.h"
 
+#include <atomic>
 #include <map>
 #include <string>
 #include <vector>
-#include <stack>
 
 namespace condition_assign {
 
@@ -50,7 +48,7 @@ private:
 class ConfigSubGroup {
 public:
     // 当前子组完成解析的ConfigItem数量
-    std::atomic<int> readyCnt_(0);
+    std::atomic<int> readyCnt_ {0};
     // 子组的锁
     std::mutex groupLock_;
     // 多有ConfigItem的组
@@ -60,7 +58,9 @@ public:
     ConfigSubGroup() = default;
     // 析构函数
     ~ConfigSubGroup();
-}
+};
+
+class ResourcePool;
 
 namespace parser {
 
@@ -69,7 +69,7 @@ enum DelimType {Null, Not, And, Or, Semicolon, LeftBracket, RightBracket};
 // 双目逻辑运算符类型和位置信息
 using Delimeter = std::pair<int, DelimType>;
 // 代解析的简单表达式形式
-using Expression = std::pair<std::string, Node*>;
+using Expression = std::pair<std::string, syntax::Node*>;
 
 // 解析单行配置文件内容并生成对应的ConfigItem
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,

@@ -156,10 +156,7 @@ int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
     } else if (layerType = Output) {
         CHECK_ARGS(targetID > -1 && targetID < targetCnt,
                 "Invalid targetID [%d].", targetID);
-        bool needLock = outputLayerMap_.size() < targetCnt_;
-        if (needLock) outputLayersLock_.lock();
         *layerPtr = outputLayers_[targetID];
-        if (needLock) outputLayersLock_.unlock();
         return 0;
     } else {
         CHECK_ARGS(false, "Plugin layer cannot be found with layer ID.");
@@ -187,13 +184,12 @@ int ResourcePool::getReadyJob(const int executorID,
         ExecutorJob** jobConsumerPtr) {
     CHECK_ARGS(!readyQueue_[executorID].empty(),
             "No ready job found for executor[%d].", executorID);
-    readyQueueLock_[executorID].lock();
+    std::lock_guard<std::mutex> readyQueueGuard(readyQueueLock_[executorID]);
     *jobConsumerPtr = readyQueue_[executorID].front();
     CHECK_ARGS(*jobConsumerPtr != nullptr,
             "No job consumer pointer is provided.");
     readyJobCnt_--;
     readyQueue_[executorID].pop();
-    readyQueueLock_[executorID].unlock();
     return 0;
 }
 

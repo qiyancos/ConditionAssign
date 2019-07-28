@@ -133,14 +133,18 @@ int ExecutorPool::init() {
         std::cerr << "Warning: thread number is greater than the";
         std::cerr << " cpu cores in this computer." << std::endl;
     }
-    CHECK_RET(resourcePool_.init(params_, "ResourcePool failed to init.");
+    resourcePool = new ResourcePool();
+    CHECK_RET(resourcePool_->init(params_, "ResourcePool failed to init.");
     workingJob_.resize(executorCnt, nullptr);
-    executorWakeup_.resize(executorCnt, Semaphore(0));
     executorStatus_.resize(executorCnt, Executor::Idle);
     for (int id = 0; id < executorCnt; id++) {
         executors_.push_back(Executor(id, this));
     }
     status_ = Idle;
+    // 初始化信号量
+    executorWakeup_.resize(executorCnt, Semaphore(0));
+    needReadyJob_.init(1);
+    return 0;
 }
 
 int ExecutorPool::execute() {
@@ -148,35 +152,35 @@ int ExecutorPool::execute() {
     std::vector<ExecutoJob*> initJobs;
     initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
             new job_func::LoadLayerParams {ReourcePool::Input,
-            &(params_.input), &resourcePool_}));
+            &(params_.input), resourcePool_}));
     for (int i = 0; i < params_.outputs.size(); i++) {
         initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
                 new job_func::LoadLayerParams {ReourcePool::Output,
-                &(params_.outputs[i]), &resourcePool_}));
+                &(params_.outputs[i]), resourcePool_}));
     }
     for (int i = 0; i < params_.plugins.size(); i++) {
         initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
                 new job_func::LoadLayerParams {ReourcePool::Plugin,
-                &(params_.plugins[i]), &resourcePool_}));
+                &(params_.plugins[i]), resourcePool_}));
     }
     for (int i = 0; i < params_.configs.size(); i++) {
         initJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigFile,
                 new job_func::ParseConfigFileParams {
-                &(params_.configs[i]), i, &resourcePool_}));
+                &(params_.configs[i]), i, resourcePool_}));
     }
-    resourcePool_.candidateQueueLock_.lock();
+    resourcePool_->candidateQueueLock_.lock();
     for (int i = 0; i < initJobs.size(); i++) {
-        resourcePool_.candidateQueue_.push(initJobs[i]);
+        resourcePool_->candidateQueue_.push(initJobs[i]);
     }
     // 插入初始化的工作内容
-    resourcePool_.candidateQueueLock_.unlock();
+    resourcePool_->candidateQueueLock_.unlock();
     resourceConsole_ = new std::thread(resourceController);
     for (int id = 0; id < params_.executorNum; id++) {
         executors_[id].thread_ = new std::thread(Executor::mainRunner,
                 executors_[id]);
     }
     executorConsole_ = new std::thread(executorController);
-    resourcePool_.newCandidateJob.signal();
+    resourcePool_->newCandidateJob.signal();
     // 等待所有子线程结束
     executorConsole_->join();
     resourceConsole_->join();
@@ -197,7 +201,7 @@ int ExecutorPool::resourceController() {
         } else {
             wakeupByNewCandidateJob = false;
         }
-        CHECK_RET(resourcePool_.selectReadyJob(&wakeupExecutorID),
+        CHECK_RET(resourcePool_->selectReadyJob(&wakeupExecutorID),
                 "Failed to select ready job from candidate queue.");
         if (wakeupExecutorID.empty()) {
             needStatusCheck_.signal();
@@ -205,7 +209,7 @@ int ExecutorPool::resourceController() {
             if (status_ == Finished || status_ == Error) {
                 return 0;
             }
-            resourcePool_.newCandidateJob.wait();
+            resourcePool_->newCandidateJob.wait();
             wakeupByNewCandidateJob = true;
         } else {
             for (auto id : wakeupExecutorID) {

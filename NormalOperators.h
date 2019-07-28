@@ -75,18 +75,18 @@ OPDEF(RegularExpr, Condition, 1, ":=", String);
 // 由于正则表达式的特殊性，提升其优先级
 OPREG_PRIOR(RegularExpr);
 // Tag包含运算声明
-OPDEF(TagContain, Condition, 1, "=<", Group);
+OPDEF(TagContain, Condition, 1, "=<", GroupType);
 // 地理关系运算声明
-OPDEF(GeoContain, Condition, 1, "<[]>", Group);
-OPDEF(GeoContainAll, Condition, 1, "&<[]>", Group);
-OPDEF(GeoContained, Condition, 1, "[<>]", Group);
-OPDEF(GeoContainedAll, Condition, 1, "&[<>]", Group);
-OPDEF(GeoIntersect, Condition, 1, "<[>]", Group);
-OPDEF(GeoIntersectAll, Condition, 1, "&<[>]", Group);
-OPDEF(GeoInContact, Condition, 1, "<[>]", Group);
-OPDEF(GeoInContactAll, Condition, 1, "&<[>]", Group);
-OPDEF(GeoDeparture, Condition, 1, "<>[]", Group);
-OPDEF(GeoDepartureAll, Condition, 1, "&<>[]", Group);
+OPDEF(GeoContain, Condition, 1, "<[]>", GroupType);
+OPDEF(GeoContainAll, Condition, 1, "&<[]>", GroupType);
+OPDEF(GeoContained, Condition, 1, "[<>]", GroupType);
+OPDEF(GeoContainedAll, Condition, 1, "&[<>]", GroupType);
+OPDEF(GeoIntersect, Condition, 1, "<[>]", GroupType);
+OPDEF(GeoIntersectAll, Condition, 1, "&<[>]", GroupType);
+OPDEF(GeoInContact, Condition, 1, "<[>]", GroupType);
+OPDEF(GeoInContactAll, Condition, 1, "&<[>]", GroupType);
+OPDEF(GeoDeparture, Condition, 1, "<>[]", GroupType);
+OPDEF(GeoDepartureAll, Condition, 1, "&<>[]", GroupType);
 // 赋值相关运算符的声明
 OPDEF(Assign, Assign, 1, "=", New, Number, String);
 OPDEF(SelfAdd, Assign, 1, "+=", New, Number, String);

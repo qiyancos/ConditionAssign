@@ -25,7 +25,8 @@ namespace condition_asssign {
     int errCode = expr; \
     if (errCode < 0) { \
         sys_log_println(_ERROR, (std::string(info) + " in [%s]." + \
-                "Error code = %d\n").c_str(), __VA_ARGS__, __func__, errCode); \
+                "Error code = %d\n").c_str(), \
+                ##__VA_ARGS__, __func__, errCode); \
         exit(status); \
     } \
 }
@@ -34,7 +35,7 @@ namespace condition_asssign {
     int retCode = expr; \
     if (retCode < 0) { \
         sys_log_println(_ERROR, (std::string(info) + " in [%s]." + \
-                "Return %d\n").c_str(), __VA_ARGS__, __func__, retCode); \
+                "Return %d\n").c_str(), ##__VA_ARGS__, __func__, retCode); \
         return retCode; \
     } \
 }
@@ -42,7 +43,7 @@ namespace condition_asssign {
 #define CHECK_ARGS(expr, info, ...) { \
     if (!expr) { \
         sys_log_println(_ERROR, (std::string(info) + " in [%s].").c_str(), \
-                __VA_ARGS__, __func__); \
+                ##__VA_ARGS__, __func__); \
         return -1; \
     } \
 }

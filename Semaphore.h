@@ -1,48 +1,65 @@
 #ifndef SEMAPHORE_H
 #define SEMAPHORE_H
 
+#include <mutex>
+#include <condition_variable>
+#include <functional>
+
 namespace condition_assign {
 
 // 用于进行线程调度的信号量
 class Semaphore {
 public:
     enum Type {Normal, OnceForAll};
-    
-    // 构造函数
-    Semaphore(const int count = 1, const Type type = Normall);
+    struct Param {
+        // 当前信号量的类型
+        Type type;
+        // 等待线程计数
+        int count;
+        // 唤醒状态
+        int wakeupCnt;
+        // 互斥锁
+        std::mutex lock;
+        // 信号量用于通知
+        std::condition_variable condition;
+    };
+
+    // 初始化函数
+    Semaphore(const int count = 0, const Type type = Normal);
     // 析构函数
     ~Semaphore() = default;
     
+    // 初始化函数
+    int init(const int count = 0, const Type type = Normal);
     // 等待信号的到来
-    std::function<void()> wait = waitOrigin;
+    void wait();
     // 发出信号，开启等待的线程
-    std::function<void()> signal = signalOrigin;
+    void signal();
     // 发出信号，开启等待的线程
-    std::function<void()> signalAll = signalOrigin;
+    void signalAll();
+    
+    // 等待信号的到来
+    std::function<void(Param*)> waitFunc = waitOrigin;
+    // 发出信号，开启等待的线程
+    std::function<void(Param*)> signalFunc = signalOrigin;
+    // 发出信号，开启等待的线程
+    std::function<void(Param*)> signalAllFunc = signalOrigin;
 
 private:
     // 等待信号的到来
-    void waitOrigin();
+    static void waitOrigin(Param* param);
     // 发出信号，开启等待的线程
-    void signalOrigin();
+    static void signalOrigin(Param* param);
     // 发出信号，开启等待的线程
-    void signalAllOrigin();
+    static void signalAllOrigin(Param* param);
     
     // 空等待函数
-    void emptyFunc() {}
+    static void emptyFunc(Param* param) {}
 
 private:
-    // 当前信号量的类型
-    Type type_;
-    // 等待线程计数
-    int count_;
-    // 唤醒状态
-    int wakeupCnt_;
-    // 互斥锁
-    std::mutex lock_;
-    // 信号量用于通知
-    std::condition_variable condition_;
-}
+    // 信号量的参数
+    Param param_;
+};
 
 } // namespace condition_assign
 

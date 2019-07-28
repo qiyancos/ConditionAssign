@@ -4,7 +4,10 @@
 namespace condition_assign {
 
 Group::Group(const Type type, const bool dynamic = false) :
-        type_(type), dynamic_(dynamic) {}
+        type_(type), dynamic_(dynamic) {
+    parseDone_.init(0, OnceForAll);
+    ready_,init(0, OnceForAll);
+}
 
 virtual Group::~Group() {
     if (info_ != nullptr) {

@@ -1,10 +1,12 @@
 #ifndef MIFTYPE_H
 #define MIFTYPE_H
 
+#include "Semaphore.h"
+#include "SyntaxBase.h"
+
 #include <vector>
 #include <map>
 #include <string>
-#include <set>
 
 namespace condition_assign {
 
@@ -25,10 +27,10 @@ public:
     virtual int assignWithTag(const std::string& tagName,
             const int index, const std::string& val) = 0;
     // 获取当前MifItem的某个字段的类型
-    virtual int getTagType(const stg::string& tagName,
+    virtual int getTagType(const std::string& tagName,
             syntax::DataType* type) = 0;
     // 获取当前MifItem的某个字段的内容
-    virtual int getTagVal(const stg::string& tagName, const int index,
+    virtual int getTagVal(const std::string& tagName, const int index,
             std::string* val) = 0;
     // 获取当前MifItem地理坐标信息
     virtual int getGeometry(wsl::Geometry** val, const int index) = 0;
@@ -53,7 +55,7 @@ public:
     // Layer数据结构
     wgt::MIF mif_;
     // 当前MifLayer是否打开
-    Semaphore opened_(0, Semaphore::OnceForAll);
+    Semaphore ready_;
 
 protected:
     // 当前MifLayer的处理类型
@@ -67,14 +69,14 @@ protected:
     // 缓存Tag名称到对应索引的映射关系，快速查找
     std::map<std::string, int> tagColCache_;
     // Tag类型映射缓存的锁
-    std::mutex tagTypeCacheLock_
+    std::mutex tagTypeCacheLock_;
     // 缓存的Tag的数据类型 
     std::map<std::string, syntax::DataType> tagTypeCache_;
     // MifItem缓存锁
     std::mutex itemCacheLock_;
     // MifItem对应的缓存
     std::map<int, MifItem*> itemCache_;
-}
+};
 
 class MifLayerReadOnly : public MifLayer {
 public:
@@ -89,9 +91,9 @@ public:
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
     // 获取当前MifItem的某个字段的类型
-    int getTagType(const stg::string& tagName, syntax::DataType* type);
+    int getTagType(const std::string& tagName, syntax::DataType* type);
     // 获取当前MifItem的某个字段的内容
-    int getTagVal(const stg::string& tagName, const int index,
+    int getTagVal(const std::string& tagName, const int index,
             std::string* val);
     // 获取当前MifItem的某个字段的类型
     int getGeometry(wsl::Geometry** val, const int index);
@@ -106,7 +108,7 @@ protected:
     // 对于写操作如果没有会新建，读取或者新建失败会返回-1
     int getTagColID(const std::string& tagName, int* colID,
             AccessType accessType) = 0;
-}
+};
 
 class MifLayerReadWrite : public MifLayer {
 public:
@@ -121,9 +123,9 @@ public:
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
     // 获取当前MifItem的某个字段的类型
-    int getTagType(const stg::string& tagName, syntax::DataType* type);
+    int getTagType(const std::string& tagName, syntax::DataType* type);
     // 获取当前MifItem的某个字段的内容
-    int getTagVal(const stg::string& tagName, const int index,
+    int getTagVal(const std::string& tagName, const int index,
             std::string* val);
     // 获取当前MifItem地理坐标信息
     int getGeometry(wsl::Geometry** val, const int index);
@@ -146,7 +148,7 @@ private:
     std::mutex mifLock_;
     // 当前MifLayer是否是一个新增图层
     bool newLayer_ = false;
-}
+};
 
 class MifItem {
 public:
@@ -158,9 +160,9 @@ public:
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const std::string& val);
     // 获取当前MifItem的某个字段的内容
-    int getTagVal(const stg::string& tagName, std::string* val);
+    int getTagVal(const std::string& tagName, std::string* val);
     // 获取当前MifItem的某个字段的浮点数值
-    int getTagVal(const stg::string& tagName, double* val);
+    int getTagVal(const std::string& tagName, double* val);
     // 获取当前MifItem地理坐标信息
     int getGeometry(wsl::Geometry** val);
 
@@ -174,16 +176,16 @@ public:
 
 private:
     // Tag字符串映射缓存的锁
-    std::mutex tagStringCacheLock_
+    std::mutex tagStringCacheLock_;
     // 缓存的Tag数值(字符串)映射
     std::map<std::string, std::string> tagStringCache_;
     // Tag浮点数映射缓存的锁
-    std::mutex tagNumberCacheLock_
+    std::mutex tagNumberCacheLock_;
     // 缓存的Tag数值(浮点数)映射
     std::map<std::string, double> tagNumberCache_;
     // 缓存的地理坐标信息
     wsl::Geometry* geometry_ = nullptr;
-}
+};
 
 } // namespace condition_assign
 

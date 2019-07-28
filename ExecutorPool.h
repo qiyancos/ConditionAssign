@@ -1,11 +1,13 @@
 #ifndef EXECUTORPOOL_H
 #define EXECUTORPOOL_H
 
-#include <string>
-#include <mutex>
-#include <function>
 #include "ResourcePool.h"
 #include "Config.h"
+
+#include <string>
+#include <mutex>
+#include <functional>
+#include <thread>
 
 namespace condition_assign {
 
@@ -14,9 +16,6 @@ namespace condition_assign {
 // 候选工作队列的数量
 #define MAX_CANDIDATE_SIZE 4
 
-#ifndef RESOURCEPOOL_H
-class ResourcePool;
-#endif
 class ExecutorPool;
 
 // Executor类对应线程，只使用其中的函数
@@ -48,13 +47,13 @@ public:
     ExecutorPool* pool_;
     // 执行器唯一的标识ID
     const int id_;
-}
+};
 
 // Executor工作项
 class ExecutorJob {
 public:
     // 工作类型
-    enum JobTypes {
+    enum JobType {
         // 加载给定的Layer数据
         LoadLayer,
         // 关闭并保存Layer
@@ -75,7 +74,7 @@ public:
     std::function<int(void*)> getJobFunc();
     
     // 构造函数，参数是一个结构体
-    ExecutorJob(const JobTypes type, void* param);
+    ExecutorJob(const JobType type, void* param);
     // 析构函数
     ~ExecutorJob();
 
@@ -105,7 +104,7 @@ public:
         std::vector<std::string> plugins;
         // 使用的所有配置文件的完整路径
         std::vector<std::string> configs;
-    }
+    };
 
     // 执行初始化操作，然后交给executorController
     int execute();
@@ -127,15 +126,15 @@ public:
     // 当前所有Executor正在执行的工作
     std::vector<ExecutorJob*> workingJob_;
     // 当前所有Executor和执行器池交互的信号量
-    std::vector<Semaphore> executorWakeup_(0, Semaphore::WithCount);
+    std::vector<Semaphore> executorWakeup_;
     // 判断当前是否有执行器需要获取新的工作
-    Semaphore needReadyJob_(1);
+    Semaphore needReadyJob_;
     // 确定是否需要进行状态检查
-    Semaphore needStatusCheck_(0);
+    Semaphore needStatusCheck_;
     // 状态检查结束
-    Semaphore statusCheckOver_(0);
+    Semaphore statusCheckOver_;
     // 运行资源的统一管控结构
-    ResourcePool resourcePool_;
+    ResourcePool* resourcePool_;
 
 private:
     // 执行池状态锁

@@ -209,10 +209,10 @@ int parseExpr(const syntax::Operator::OperatorType opType,
             CHECK_RET(srcLayer->getTagType(node->tagName, &(node->leftType)),
                     "Failed to get data type of tag \"%s\".",
                     node->tagName.c_str());
-            if (op->isSupported(syntax::Group) {
+            if (op->isSupported(syntax::GroupType) {
                 CHECK_ARGS(node->value->stringValue.find(")->") !=
                         std::string::npos, "Bad group format.");
-                node->rightType = syntax::Group;
+                node->rightType = syntax::GroupType;
                 newGroup->push_back(new std::pair<std::string, Group**>(
                         node->value.stringValue, &(node->value.groupPtr)));
             } else {

@@ -3,19 +3,17 @@
 
 #include "MifType.h"
 #include "Config.h"
+#include "ExecutorPool.h"
 
 #include <string>
 #include <mutex>
-#include <function>
+#include <functional>
+#include <queue>
 
 namespace condition_assign {
 
 // 准备好工作项的队列的最大长s
 #define MAX_READY_QUEUE_SIZE 2
-
-#ifndef EXECUTORPOOL_H
-class ExecutorJob;
-#endif
 
 class ResourcePool {
 public:
@@ -84,7 +82,7 @@ public:
     std::vector<std::queue<ExecutorJob*>> readyQueue_;
 
     // 该信号量用于确定是否有新的备选工作项
-    Semaphore newCandidateJob(0);
+    Semaphore newCandidateJob_;
     // 候选工作项队列的写入互斥锁
     std::mutex candidateQueueLock_;
     // 候选工作项的队列

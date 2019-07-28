@@ -16,7 +16,7 @@ public:
     // 解析完毕后的group结构信息
     struct GroupInfo {
         // 已经检查过的元素个数
-        std::atomic<int> checkedCnt(0);
+        std::atomic<int> checkedCnt {0};
         // 所在layer的名称
         std::string layerName;
         // 筛选条件
@@ -37,9 +37,9 @@ public:
     // 获取当前Group的类型
     Type getGroupType();
     // 设置当前Group的layer指针
-    int setLayer(MifLayer* layer) {layer_ = layer;}
+    void setLayer(MifLayer* layer) {layer_ = layer;}
     // 获取当前Group对应的layer
-    Layer* getLayer() {return layer_;}
+    MifLayer* getLayer() {return layer_;}
     // 获取当前Group的元素个数
     int size() {return size_;}
     // 判断当前的
@@ -83,9 +83,9 @@ public:
     // 未生成实体时存放的解析信息
     GroupInfo* info_ = nullptr;
     // Group的内容是否解析完毕
-    Semaphore parseDone_(0, OnceForAll);
+    Semaphore parseDone_;
     // Group数据是否准备完毕
-    Semaphore ready_(0, OnceForAll);
+    Semaphore ready_;
 
 protected:
     // 元素所在层

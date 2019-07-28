@@ -2,11 +2,33 @@
 
 namespace condition_assign {
 
-Semaphore::Semaphore(const int count = 1, const Type type = Normal) : 
-        type_(type), count_(count), wakeupCnt_(0) {}
+Semaphore::Semaphore(const int count = 0, const Type type = Normal) { 
+    param.type = type;
+    param.count = count;
+    param.wakeupCnt = 0; 
+}
 
-void Semaphore::waitOrigin() {
-    std::unique_lock<std::mutex> lock {lock_};
+int Semaphore::init(const int count = 0, const Type type = Normal) { 
+    param.type = type;
+    param.count = count;
+    param.wakeupCnt = 0; 
+    return 0;
+}
+
+void Semaphore::wait() {
+    waitFunc(&param_);
+}
+
+void Semaphore::signal() {
+    signalFunc(&param_);
+}
+
+void Semaphore::signalAll() {
+    signalAllFunc(&param_);
+}
+
+void Semaphore::waitOrigin(Parami* param) {
+    std::unique_lock<std::mutex> lock(lock_);
     if (--count_ < 0) {
         condition_.wait(lock, [&]()->bool{return wakeupCnt_ > 0;});
         --wakeupCnt_;
@@ -14,15 +36,15 @@ void Semaphore::waitOrigin() {
 }
 
 void Semaphore::signalOrigin() {
-    std::lock_guard<std::mutex> lock {lock_};
+    std::lock_guard<std::mutex> lock(lock_);
     if (++count_ <= 0) {
         ++wakeupCnt_;
         condition_.notify_one();
     }
     if (type_ == OnceForAll) {
-        wait = emptyFunc;
-        signal = emptyFunc;
-        signalAll = emptyFunc;
+        waitFunc = emptyFunc;
+        signalFunc = emptyFunc;
+        signalAllFunc = emptyFunc;
     }
 }
 
@@ -33,9 +55,9 @@ void Semaphore::signalAllOrigin() {
         condition_.notify_one();
     }
     if (type_ == OnceForAll) {
-        wait = emptyFunc;
-        signal = emptyFunc;
-        signalAll = emptyFunc;
+        waitFunc = emptyFunc;
+        signalFunc = emptyFunc;
+        signalAllFunc = emptyFunc;
     }
 }
 

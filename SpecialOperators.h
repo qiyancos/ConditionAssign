@@ -44,7 +44,7 @@ private:
     std::string funcName_;
 };
 
-std::set<DataType> opCondFunc::dataTypes_ {Number, String, Group};
+std::set<DataType> opCondFunc::dataTypes_ {Number, String, GroupType};
 
 OPREG(CondFunc);
 
@@ -73,7 +73,7 @@ private:
     std::string funcName_;
 };
 
-std::set<DataType> opAssignFunc::dataTypes_ {Number, String, Group};
+std::set<DataType> opAssignFunc::dataTypes_ {Number, String, GroupType};
 
 OPREG(AssignFunc);
 
