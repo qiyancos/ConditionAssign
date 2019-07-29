@@ -1,9 +1,9 @@
 #ifndef RESOURCEPOOL_H
 #define RESOURCEPOOL_H
 
+#include "ExecutorPool.h"
 #include "MifType.h"
 #include "Config.h"
-#include "ExecutorPool.h"
 
 #include <string>
 #include <mutex>
@@ -14,6 +14,8 @@ namespace condition_assign {
 
 // 准备好工作项的队列的最大长s
 #define MAX_READY_QUEUE_SIZE 2
+
+class ConfigSubGroup;
 
 class ResourcePool {
 public:
@@ -33,7 +35,7 @@ public:
     int findGroup(const int key, Group** groupPtr);
     // 根据group的key获取并插入Group(与解析匹配的功能)
     int findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
-            const int typeGroupKey = 0, Group** typeGroupPtr = nullptr);
+            const int typeGroupKey = -1, Group** typeGroupPtr = nullptr);
     // 打开指定的Layer
     int openLayer(const std::string& layerPath, const LayerType layerType,
             const int layerID = -1);
@@ -74,10 +76,10 @@ private:
     std::vector<MifLayer*> outputLayers_;
 
 public:
+    // 当前预备队列中任务的数目
+    std::atomic<int> readyJobCnt_ {0};
     // 预备队列的写入操作互斥锁
     std::vector<std::mutex> readyQueueLock_;
-    // 当前预备队列中任务的数目
-    int readyJobCnt_ = 0;
     // 准备就绪的工作项队列
     std::vector<std::queue<ExecutorJob*>> readyQueue_;
 

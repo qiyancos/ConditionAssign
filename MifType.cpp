@@ -1,13 +1,15 @@
 #include "MifType.h"
 #include "ConditionAssign.h"
 
+#include <unistd.h>
+
 namespace condition_assign {
 
 MifLayer::MifLayer(AccessType type) : type_(type) {
     ready_.init(0, Semaphore::OnceForAll);
 }
 
-virtual MifLayer::~MifLayer() {
+MifLayer::~MifLayer() {
     for (auto itemIterator : itemCache_) {
         delete itemIterator.second;
     }
@@ -21,7 +23,7 @@ int MifLayer::newMifItem(const int index, MifItem** newItemPtr,
     std::lock_guard<std::mutex> cacheGuard(itemCacheLock_);
     auto itemIterator = itemCache_.find(index);
     if (itemIterator == itemCache_.end()){
-        *newItemPtr = new MifItem(this, targetLayer, indexi);
+        *newItemPtr = new MifItem(this, targetLayer, index);
         itemCache_[index] = *newItemPtr;
     } else {
         *newItemPtr = itemIterator->second;
@@ -43,11 +45,11 @@ int MifLayerReadWrite::open(const std::string& layerPath,
         CHECK_ARGS(input != nullptr,
                 "Can not find input layer for header copy");
         layerPath_ = layerPath;
-        input->opened_.wait();
+        input->ready_.wait();
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         mif_.header = input->mif_.header;
-        mif_.header.corrdsys = input->mif_.header.COORDSYS_LL;
-        opened_.signalAll();
+        mif_.header.coordsys = input->mif_.header.COORDSYS_LL;
+        ready_.signalAll();
         newLayer_ = true;
         return 0;
     }
@@ -57,7 +59,7 @@ int MifLayerReadWrite::open(const std::string& layerPath,
             "Error occurred while openning mif layer \"%s\".",
             layerPath.c_str());
     mifSize_ = mif_.mid.size();
-    opened_.signalAll();
+    ready_.signalAll();
     return 0;
 }
 
@@ -77,17 +79,17 @@ int MifLayerReadWrite::save(std::string layerPath = "") {
 }
 
 int MifLayerReadWrite::newItemWithTag(MifLayer* input, const int index,
-        const std::string& tagName, const std::string val) {
+        const std::string& tagName, const std::string& val) {
     ready_.wait();
-    mifLock_->lock();
+    mifLock_.lock();
     mif_.mid.push_back(input->mif_.mid[index]);
     mif_.data.geo_vec.push_back(input->mif_.data.geo_vec[index] == NULL ?
             NULL : input->mif_.data.geo_vec[index]->clone());
     mifSize_++;
-    mifLock_->unlock();
+    mifLock_.unlock();
     CHECK_RET(assignWithTag(tagName, mifSize_ - 1, val),
             "Failed to assign value to tag \"%s\" in mif item [%d].",
-            tagName.c_str(), mifSize - 1);
+            tagName.c_str(), mifSize_ - 1);
     return 0;
 }
 
@@ -97,11 +99,11 @@ int MifLayerReadWrite::assignWithTag(const std::string& tagName,
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index of tag \"%s\" for write.",
-            tagName.c_str()); 
+            tagName.c_str());
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
     std::lock_guard<std::mutex> mifGuard(mifLock_);
-    mif_->mid[index][colID] = val;
+    mif_.mid[index][colID] = val;
     return 0;
 }
 
@@ -116,11 +118,11 @@ int MifLayerReadWrite::getTagVal(const std::string& tagName,
     ready_.wait();
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
-            "Failed to get column index of tag \"%s\".", tagName.c_str()); 
+            "Failed to get column index of tag \"%s\".", tagName.c_str());
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
     std::lock_guard<std::mutex> mifGuard(mifLock_);
-    *val = mif_->mid[index][colID];
+    *val = mif_.mid[index][colID];
     return 0;
 }
 
@@ -129,7 +131,7 @@ int MifLayerReadWrite::getGeometry(wsl::Geometry** val, const int index) {
     CHECK_ARGS(index < mifSize_ && index >= 0,
             "Index[%d] out of bound.", index);
     std::lock_guard<std::mutex> mifGuard(mifLock_);
-    val = mif_.data.geo_vec[index];
+    *val = mif_.data.geo_vec[index];
     return 0;
 }
 
@@ -139,7 +141,7 @@ int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
     std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
     auto colCacheIterator = tagColCache_.find(tagName);
     if (colCacheIterator != tagColCache_.end()) {
-        colID = colCacheIterator->second;
+        *colID = colCacheIterator->second;
         return 0;
     } else {
         std::string lowerTagName = htk::toLower(tagName);
@@ -147,7 +149,7 @@ int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
         auto colIterator = mif_.header.col_name_map.find(lowerTagName);
         if (colIterator != mif_.header.col_name_map.end()) {
             tagColCache_.insert(std::pair<std::string, int>(tagName,
-                    colID = colIterator->second));
+                    *colID = colIterator->second));
             return 0;
         } else {
             if (accessType == Read) {
@@ -158,7 +160,7 @@ int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
                 CHECK_RET(colIterator != mif_.header.col_name_map.end(),
                         "Create new column \"%s\" failed!", tagName.c_str());
                 tagColCache_.insert(std::pair<std::string, int>(tagName,
-                        colID = colIterator->second));
+                        *colID = colIterator->second));
                 return 0;
             }
         }
@@ -167,7 +169,7 @@ int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
 
 MifLayerReadOnly::MifLayerReadOnly() : MifLayer(MifLayer::Read) {}
 
-int MifLayerReadOnly::open(const syd::string& layerPath,
+int MifLayerReadOnly::open(const std::string& layerPath,
         MifLayer* input = nullptr) {
     CHECK_ARGS(layerPath.empty(), "Can not open with empty layer path.");
     CHECK_ARGS(!layerPath_.empty(),
@@ -179,7 +181,7 @@ int MifLayerReadOnly::open(const syd::string& layerPath,
     CHECK_RET(wgt::mif_to_wsbl(layerPath, mif_),
             "Error occurred while openning mif layer \"%s\".",
             layerPath.c_str());
-    opened_.signalAll();
+    ready_.signalAll();
     return 0;
 }
 
@@ -188,12 +190,12 @@ int MifLayerReadOnly::save(std::string layerPath = "") {
 }
 
 int MifLayerReadOnly::newItemWithTag(MifLayer* input, const int index,
-        const std::string& tagName, const std::string val) {
+        const std::string& tagName, const std::string& val) {
     CHECK_RET(-1, "Read-only layer do not support adding new item.");
 }
 
 int MifLayerReadOnly::assignWithTag(const std::string& tagName,
-        const std::string& val) {
+        const int index, const std::string& val) {
     CHECK_RET(-1, "Read-only layer do not support assign option.");
 }
 
@@ -208,13 +210,13 @@ int MifLayerReadOnly::getTagType(const std::string& tagName,
         return 0;
     } else {
         std::string tagStringVal;
-        if (srcLayer_->getTagVal(tagName, 0, &tagStringVal) < 0) {
-            tagTypeCache[tagName] = syntax::New;
+        if (getTagVal(tagName, 0, &tagStringVal) < 0) {
+            tagTypeCache_[tagName] = syntax::New;
             *type = syntax::New;
             return 0;
         } else {
-            *type = syntax::getDataType(tagVal);
-            tagTypeCache[tagName] = *type;
+            *type = syntax::getDataType(tagStringVal);
+            tagTypeCache_[tagName] = *type;
             return 0;
         }
     }
@@ -225,10 +227,10 @@ int MifLayerReadOnly::getTagVal(const std::string& tagName,
     ready_.wait();
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
-            "Failed to get column index of tag \"%s\".", tagName.c_str()); 
+            "Failed to get column index of tag \"%s\".", tagName.c_str());
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
-    *val = mif_->mid[index][colID];
+    *val = mif_.mid[index][colID];
     return 0;
 }
 
@@ -236,7 +238,7 @@ int MifLayerReadOnly::getGeometry(wsl::Geometry** val, const int index) {
     ready_.wait();
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
-    val = mif_.data.geo_vec[index];
+    *val = mif_.data.geo_vec[index];
     return 0;
 }
 
@@ -246,14 +248,14 @@ int MifLayerReadOnly::getTagColID(const std::string& tagName, int* colID,
     std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
     auto colCacheIterator = tagColCache_.find(tagName);
     if (colCacheIterator != tagColCache_.end()) {
-        colID = colCacheIterator->second;
+        *colID = colCacheIterator->second;
         return 0;
     } else {
         std::string lowerTagName = htk::toLower(tagName);
         auto colIterator = mif_.header.col_name_map.find(lowerTagName);
         if (colIterator != mif_.header.col_name_map.end()) {
             tagColCache_.insert(std::pair<std::string, int>(tagName,
-                    colID = colIterator->second));
+                    *colID = colIterator->second));
             return 0;
         } else {
             return -1;
@@ -268,9 +270,9 @@ int MifItem::assignWithTag(const std::string& tagName,
         const std::string& val) {
     CHECK_ARGS(targetLayer_ != nullptr,
             "Can not assign value to tag in an empty target layer.");
-    if (targetLayer->isNew()) {
-        CHECK_RET(targetLayer_->newItemWithTag(srcLayer_, index_, tagName, val),
-                "Failed to assign value to tag \"%s\" %s",
+    if (targetLayer_->isNew()) {
+        CHECK_RET(targetLayer_->newItemWithTag(srcLayer_, index_, tagName,
+                val), "Failed to assign value to tag \"%s\" %s",
                 tagName.c_str(), "mif layer in a new mif item.");
     } else {
         CHECK_RET(targetLayer_->assignWithTag(tagName, index_, val),
@@ -310,6 +312,7 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
         std::string tagVal;
         CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
                 "Failed to get value of tag \"%s\" from mif layer.",
+                tagName.c_str());
         CHECK_ARGS(syntax::isType(tagVal, val),
                 "Trying to get tag value \"%s\" as a number.", tagVal.c_str());
         tagNumberCache_[tagName] = *val;

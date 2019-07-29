@@ -1,13 +1,13 @@
 #include "ConditionAssign.h"
-#include "Executor.h"
+#include "ExecutorPool.h"
 #include "conf_helper.h"
 
-using namespace condition_asssign;
+using namespace condition_assign;
 
 int main(int argc, char** argv) {
     setlocale(LC_ALL, "Chinese-simplified");
     if (argc < 9) {
-        std::cout << "Usage: ./ConditionAssign";
+        std::cout << "Usage: " << std::string(argv[0]);
         for (std::string argName : conf_helper::argList) {
             std::cout << " <" << argName << ">";
         }
@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
     }
 
     std::string maxExecutor, logDir, inputLayer, inputGeoType;
-    std::vector<std::string> confFiles, outputLayers, pluginlayers;
+    std::vector<std::string> confFiles, outputLayers, pluginLayers;
     conf_helper::ConfArgParser argParser(argc, argv);
 
     CHECK_EXIT(argParser.findArgByName("MaxExecutor", &maxExecutor),
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
             "Can not find argument PluginLayers!");
     CHECK_EXIT(argParser.findArgByName("SourceGeoType", &inputGeoType),
             "Can not find argument SourceGeoType!");
-    int executorNum = atoi(maxExecutor);
+    int executorNum = atoi(maxExecutor.c_str());
 
     time_t start = 0, end = 0;
     time(&start);
@@ -41,12 +41,15 @@ int main(int argc, char** argv) {
     // …Ë÷√»’÷æ
     char date_str[256];
     strftime(date_str, sizeof(date_str), "%Y%m%d", localtime(&start));
-    sys_log_path(log_dir.c_str(), date_str);
+    sys_log_path(logDir.c_str(), date_str);
 
     sys_log_println(_INFORANK, "=====================================\n");
     sys_log_println(_INFORANK, "          [ ConditionAssign ]        \n");
     sys_log_println(_INFORANK, "-- InputLayer: [%s]\n", inputLayer.c_str());
-    sys_log_println(_INFORANK, "-- OutputLayers: [%s]\n", outputLayers.c_str());
+    for (int index = 0; index < outputLayers.size(); index++) {
+        sys_log_println(_INFORANK, "-- OutputLayers: [%d]-[%s]\n",
+                index + 1, outputLayers[index].c_str());
+    }
     sys_log_println(_INFORANK, "-- ThreadNum: [%d]\n", executorNum);
     sys_log_println(_INFORANK, "-- LogDir: [%s]\n", logDir.c_str());
 
@@ -70,7 +73,7 @@ int main(int argc, char** argv) {
             (end - start));
     sys_log_println(_INFORANK, "=====================================\n\n");
     sys_log_close();
-    for (Operator* regOp : syntax::operatorListInit) {
+    for (auto regOp : syntax::operatorList) {
         delete regOp;
     }
     return 0;

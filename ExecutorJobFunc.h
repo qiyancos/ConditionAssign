@@ -23,7 +23,7 @@ namespace job_func {
 // 加载目标Layer函数参数
 struct LoadLayerParam {
     // 需要打开的layer类型
-    ResourcePool::LayerType layerType;
+    const ResourcePool::LayerType layerType;
     // 目标层的路径
     std::string* layerPath;
     // 目标层的ID
@@ -66,7 +66,7 @@ int parseConfigLines(void* param);
 // 配置文件工作项生成函数参数
 struct ParseConfigFileParam {
     // 配置文件的路径
-    const std::string* filePath; 
+    const std::string* filePath;
     // 目标层的ID
     int layerID;
     // 资源池指针

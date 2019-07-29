@@ -1,12 +1,19 @@
 #ifndef GROUP_H
 #define GROUP_H
 
+#include "type_factory.h"
+#include "Semaphore.h"
+
 #include <vector>
+#include <atomic>
 #include <map>
 #include <iostream>
-#include "type_factory.h"
 
 namespace condition_assign {
+
+class ConfigItem;
+class MifLayer;
+class MifItem;
 
 // 组类型通用父类
 class Group {
@@ -14,26 +21,35 @@ public:
     // Group的类型
     enum Type {Item, Tag, Point, Line, Area};
     // 解析完毕后的group结构信息
-    struct GroupInfo {
+    class GroupInfo {
+    public:
+        // 构造函数
+        GroupInfo();
+        // 析构函数
+        ~GroupInfo();
+        // 生成一个当前GroupInfo的拷贝
+        GroupInfo* copy();
+
+    public:
         // 已经检查过的元素个数
-        std::atomic<int> checkedCnt {0};
+        std::atomic<int> checkedCnt_ {0};
         // 所在layer的名称
-        std::string layerName;
+        std::string layerName_;
         // 筛选条件
-        ConfigItem configItem;
+        ConfigItem* configItem_;
         // 原始的tag集合
-        std::string oldTagName;
+        std::string oldTagName_;
         // 新映射tag集合
-        std::string newTagName;
+        std::string newTagName_;
         // 索引的tag名称集合
-        std::string tagName;
+        std::string tagName_;
     };
 
     // 获取当前输入的地理类型
     static Type getInputType();
     // 设置当前的输入类型
     static int setInputType(const std::string& typeStr);
-    
+
     // 获取当前Group的类型
     Type getGroupType();
     // 设置当前Group的layer指针
@@ -48,8 +64,8 @@ public:
     // 基于一个ItemGroup生成类型Group
     virtual int init(const Group& itemGroup, const std::string& tagName) = 0;
     // 动态Group的构建
-    virtual int buildDynamicGroup(Group** groupPtr);
-    
+    virtual int buildDynamicGroup(Group** groupPtr, MifItem* item);
+
     // 向Group中添加元素的虚函数
     virtual int addElement(const int newElement);
     virtual int addElement(const std::string& newElement);
@@ -73,7 +89,7 @@ public:
     // 地理位置相离的判断
     virtual int checkOneDeparture(wsl::Geometry* src, bool* result);
     virtual int checkAllDeparture(wsl::Geometry* src, bool* result);
-    
+
     // 构造函数
     Group(const Type type, const bool dynamic = false);
     // 析构函数
@@ -100,15 +116,13 @@ protected:
     static Type inputType_;
 };
 
-Group::Type Group::inputType_ = Group::Item;
-
 class ItemGroup : public Group {
 public:
     ItemGroup(const bool dynamic = false);
     // 基于一个ItemGroup生成类型Group
     int init(const Group& itemGroup, const std::string& tagName);
     // 动态Group的构建
-    int buildDynamicGroup(Group** groupPtr);
+    int buildDynamicGroup(Group** groupPtr, MifItem* item);
     // 添加元素
     int addElement(const int newElement);
 
@@ -135,7 +149,7 @@ private:
 class PointGroup : public Group {
 public:
     PointGroup();
-    // 基于一个ItemGroup生成PointGroup 
+    // 基于一个ItemGroup生成PointGroup
     int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
     int addElement(wsl::Geometry* newElement);

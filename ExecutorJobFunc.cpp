@@ -157,11 +157,11 @@ int parseGroup(void* param) {
                     "Type group found but item group not found.");
             MifLayer* pluginLayer;
             CHECK_RET(paramPtr->resourcePool->getLayerByName(&pluginLayer,
-                    ResourcePool::Plugin, itemGroup.second->info_->layerName),
+                    ResourcePool::Plugin, itemGroup.second->info_->layerName_),
                     "Failed to found plugin layer \"%s\"",
-                    itemGroup.second->info_->layerName.c_str());
-            
-            int itemCount = itemGroup.second->info_->configItem.score();
+                    itemGroup.second->info_->layerName_.c_str());
+
+            int itemCount = itemGroup.second->info_->configItem_->score();
             itemCount = MAX_SCORE_SUM_PER_JOB / itemCount;
             itemCount = itemCount == 0 ? 1 : itemCount;
             int startIndex = 0;
@@ -197,13 +197,13 @@ int parseGroup(void* param) {
         paramPtr->resourcePool->newCandidateJob_.signalAll();
     }
     return 0;
-}    
+}
 
 int buildGroup(void* param) {
     BuildGroupParam* paramPtr = reinterpret_cast<BuildGroupParam*>(param);
     if (paramPtr->startIndex == -1) {
         paramPtr->typeGroup->init(*(paramPtr->itemGroup),
-                paramPtr->typeGroup->info_->tagName);
+                paramPtr->typeGroup->info_->tagName_);
         CHECK_ARGS(!paramPtr->typeGroup->info_,
                 "Type group should not have group info while building.");
         paramPtr->typeGroup->ready_.signalAll();
@@ -218,7 +218,7 @@ int buildGroup(void* param) {
             CHECK_RET(paramPtr->pluginLayer->newMifItem(index,
                     &workingItem, nullptr),
                     "Failed to create new mif item while building group.");
-            result = syntax::satisfyConditions(groupInfo->configItem,
+            result = satisfyConditions(*(groupInfo->configItem_),
                     workingItem);
             CHECK_RET(result, "Failed to check conditions in mif item.");
             if (result) {
@@ -229,8 +229,8 @@ int buildGroup(void* param) {
         for (int newIndex : passedIndex) {
             paramPtr->itemGroup->addElement(newIndex);
         }
-        groupInfo->checkedCnt += totalCount;
-        if (groupInfo->checkedCnt == paramPtr->pluginLayer->size()) {
+        groupInfo->checkedCnt_ += totalCount;
+        if (groupInfo->checkedCnt_ == paramPtr->pluginLayer->size()) {
             delete groupInfo;
             paramPtr->itemGroup->info_ = nullptr;
             paramPtr->itemGroup->ready_.signalAll();
@@ -251,10 +251,10 @@ int processMifItem(void* param) {
     int result = 0;
     while (paramPtr->itemCount--) {
         ConfigItem* configItem = subGroup[configIndex++];
-        result = syntax::satisfyConditions(*configItem, workingItem);
+        result = satisfyConditions(*configItem, workingItem);
         CHECK_RET(result, "Failed to check conditions in mif item.");
         if (result) {
-            CHECK_RET(syntax::applyAssigns(*configItem, workingItem),
+            CHECK_RET(applyAssigns(*configItem, workingItem),
                     "Failed apply assign expr to mif item.");
         }
     }

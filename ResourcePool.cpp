@@ -4,7 +4,7 @@ namespace condition_assign {
 
 int ResourcePool::init(ExecutorPool::Params params) {
     executorCnt_ = params.executorNum;
-    targetCnt_ = params.size(targetCnt;
+    targetCnt_ = params.outputs.size();
     readyQueue_.resize(executorCnt_, std::queue<ExecutorJob*>());
     configGroup_.resize(targetCnt_, new ConfigSubGroup());
     inputLayer_ = new MifLayerReadOnly();
@@ -21,7 +21,7 @@ int ResourcePool::init(ExecutorPool::Params params) {
 
 int ResourcePool::getConfigSubGroup(int targetID,
         ConfigSubGroup** subGroupPtr) {
-    CHECK_ARGS(targetID < targetCnt, "Invalid target ID [%d].", targetID);
+    CHECK_ARGS(targetID < targetCnt_, "Invalid target ID [%d].", targetID);
     *subGroupPtr = configGroup_[targetID];
     return 0;
 }
@@ -49,14 +49,14 @@ int ResourcePool::findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
         const int typeGroupKey = -1, Group** typeGroupPtr = nullptr) {
     int result = 0;
     std::lock_guard<std::mutex> mapGuard(groupMapLock_);
-    auto itemIterator = groupMap_.find(itemGroupKey)
-    auto typeIterator = groupMap_.find(typeGroupKey)
-    if (mapIterator != groupMap_.end()) {
+    auto itemIterator = groupMap_.find(itemGroupKey);
+    auto typeIterator = groupMap_.find(typeGroupKey);
+    if (itemIterator != groupMap_.end()) {
         result++;
         if (*itemGroupPtr != nullptr) {
             delete *itemGroupPtr;
         }
-        *itemGroupPtr = itemIterator.second;
+        *itemGroupPtr = itemIterator->second;
     } else {
         CHECK_ARGS(*itemGroupPtr != nullptr,
                 "Can not insert empty item group into group map.");
@@ -70,7 +70,7 @@ int ResourcePool::findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
             if (*typeGroupPtr != nullptr) {
                 delete *typeGroupPtr;
             }
-            *typeGroupPtr = typeIterator.second;
+            *typeGroupPtr = typeIterator->second;
         } else {
             CHECK_ARGS(*typeGroupPtr != nullptr,
                     "Can not insert empty item group into group map.");
@@ -82,18 +82,18 @@ int ResourcePool::findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
 
 int ResourcePool::openLayer(const std::string& layerPath,
         const LayerType layerType, const int layerID = -1) {
-    if (layerType = Input) {
+    if (layerType == Input) {
         CHECK_RET(inputLayer_->open(layerPath),
                 "Failed to open input layer \"%s\".", layerPath.c_str());
         return 0;
-    } else if (layerType = Output) {
+    } else if (layerType == Output) {
         int index = -1;
         if (layerID == -1) {
-            CHECK_ARGS(outputLayersMap_.find(layerPath) !=
-                    outputLayersMap_.end(),
+            auto mapIterator = outputLayersMap_.find(layerPath);
+            CHECK_ARGS(mapIterator != outputLayersMap_.end(),
                     "Trying to open output layer \"%s\" not registered.",
                     layerPath.c_str());
-            index = outputLayersMap_.find(layerPath);
+            index = mapIterator->second;
         }
         CHECK_RET(outputLayers_[index]->open(layerPath, inputLayer_),
                 "Failed to open output layer \"%s\".", layerPath.c_str());
@@ -103,7 +103,7 @@ int ResourcePool::openLayer(const std::string& layerPath,
         if (mapIterator != pluginLayersMap_.end()) {
             return 0;
         }
-        CHECK_RET(mapIterator.second->open(layerPath),
+        CHECK_RET(mapIterator->second->open(layerPath),
                 "Failed to open plugin layer \"%s\".", layerPath.c_str());
         return 0;
     }
@@ -114,33 +114,26 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
         int* targetID = nullptr) {
     if (layerType == Input) {
         // 我们建议使用getLayerByIndex而不是该函数获取输入层指针
-        CHECK_ARGS(targetIDPtr == nullptr,
-                "Can not get target ID for input layer.");
+        CHECK_ARGS(!targetID, "Can not get target ID for input layer.");
         *layerPtr = inputLayer_;
-    } else if (layerType = Output) {
-        auto mapIterator = outputLayerMap_.find(layerPath);
-        CHECK_ARGS(mapIterator != outputLayerMap_.end(),
+    } else if (layerType == Output) {
+        auto mapIterator = outputLayersMap_.find(layerPath);
+        CHECK_ARGS(mapIterator != outputLayersMap_.end(),
                 "Can not find output layer named as \"%s\".",
                 layerPath.c_str());
         *targetID = mapIterator->second;
         *layerPtr = outputLayers_[mapIterator->second];
         return 0;
     } else {
-        auto mapIterator = pluginLayerMap_.find(layerPath);
-        if (mapIterator == pluginLayerMap_.end()) {
+        auto mapIterator = pluginLayersMap_.find(layerPath);
+        if (mapIterator == pluginLayersMap_.end()) {
             std::string completeLayerPath;
-            for (auto mapIteratorTemp : pluginLayerMap_) {
-                if (mapIteratorTemp->first.find(layerPath)) {
-                    completeLayerPath = mapIteratorTemp->first;
-                    break;
-                }
-            }
-            CHECK_ARGS(!completeLayerPath.empty(),
+            CHECK_RET(getPluginFullPath(layerPath, &completeLayerPath),
                 "Can not find plugin layer named as \"%s\".",
                 layerPath.c_str());
-            *layerPtr = pluginLayers_[completeLayerPath];
+            *layerPtr = pluginLayersMap_[completeLayerPath];
         } else {
-            *layerPtr = pluginLayers_[mapIterator->second];
+            *layerPtr = mapIterator->second;
         }
         return 0;
     }
@@ -148,13 +141,13 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
 
 int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
         const LayerType layerType, const int targetID = -1) {
-    if (layerType = Input) {
+    if (layerType == Input) {
         CHECK_ARGS(targetID == -1,
                 "Can not find input layer with target ID [%d].", targetID);
         *layerPtr = inputLayer_;
         return 0;
-    } else if (layerType = Output) {
-        CHECK_ARGS(targetID > -1 && targetID < targetCnt,
+    } else if (layerType == Output) {
+        CHECK_ARGS(targetID > -1 && targetID < targetCnt_,
                 "Invalid targetID [%d].", targetID);
         *layerPtr = outputLayers_[targetID];
         return 0;
@@ -165,11 +158,11 @@ int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
 
 int ResourcePool::getPluginFullPath(const std::string& layerName,
         std::string* fullPath) {
-    auto mapIterator = pluginLayerMap_.find(layerName);
-    if (mapIterator == pluginLayerMap_.end()) {
-        for (auto mapIteratorTemp : pluginLayerMap_) {
-            if (mapIteratorTemp->first.find(layerName)) {
-                *fullPath = mapIteratorTemp->first;
+    auto mapIterator = pluginLayersMap_.find(layerName);
+    if (mapIterator == pluginLayersMap_.end()) {
+        for (auto mapIteratorTemp : pluginLayersMap_) {
+            if (mapIteratorTemp.first.find(layerName) != std::string::npos) {
+                *fullPath = mapIteratorTemp.first;
                 return 0;
             }
         }
@@ -196,8 +189,8 @@ int ResourcePool::getReadyJob(const int executorID,
 int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     using vacancy = std::pair<ExecutorJob**, int>;
     std::vector<vacancy> jobVacancies;
-    for (auto lock : readyQueueLock_) {
-        lock.lock();
+    for (int index = 0; index < readyQueueLock_.size(); index++) {
+        readyQueueLock_[index].lock();
     }
     for (int index; index < executorCnt_; index++) {
         std::queue<ExecutorJob*>& que = readyQueue_[index];
@@ -210,12 +203,12 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     int selected = 0, index = 0;
     while (selected < jobVacancies.size() && !candidateQueue_.empty()) {
         *(jobVacancies[selected].first) = candidateQueue_.front();
-        signalExecutorIndexes->insert(jobVacancies[selected++].second);
+        wakeupExecutorID->insert(jobVacancies[selected++].second);
         readyJobCnt_++;
         candidateQueue_.pop();
     }
-    for (auto lock : readyQueueLock_) {
-        lock.unlock();
+    for (int index = 0; index < readyQueueLock_.size(); index++) {
+        readyQueueLock_[index].unlock();
     }
     return 0;
 }
@@ -231,7 +224,7 @@ ResourcePool::~ResourcePool() {
             delete groupMapIterator.second;
         }
     }
-    for (auto mapIterator : pluginLayerMap_) {
+    for (auto mapIterator : pluginLayersMap_) {
         delete mapIterator.second;
     }
     for (auto layerPtr : outputLayers_) {
@@ -240,16 +233,20 @@ ResourcePool::~ResourcePool() {
         }
     }
     for (auto que : readyQueue_) {
-        for (auto jobPtr : que) {
+        while (!que.empty()) {
+            ExecutorJob* jobPtr = que.front();
             if (jobPtr != nullptr) {
                 delete jobPtr;
             }
+            que.pop();
         }
     }
-    for (auto job : candidateQueue_) {
-        if (job != nullptr) {
-            delete job;
+    while (!candidateQueue_.empty()) {
+        ExecutorJob* jobPtr = candidateQueue_.front();
+        if (jobPtr != nullptr) {
+            delete jobPtr;
         }
+        candidateQueue_.pop();
     }
 }
 

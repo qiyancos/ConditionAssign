@@ -1,5 +1,10 @@
 #include "Config.h"
+#include "MifType.h"
 #include "ConditionAssign.h"
+#include "NormalOperators.h"
+#include "SpecialOperators.h"
+#include "ResourcePool.h"
+#include "Group.h"
 
 namespace condition_assign {
 
@@ -16,9 +21,9 @@ ConfigItem::~ConfigItem() {
 }
 
 int ConfigItem::score() {
-    if (score_ == -1)
+    if (score_ == -1) {
         int tempScore = 0;
-        CHECK_RET(tempScore = calculateScore(conditions_),
+        CHECK_RET(tempScore == calculateScore(conditions_),
                 "Failed to calculate score of conditions.");
         score_ += tempScore;
         CHECK_RET(tempScore = calculateScore(assigns_),
@@ -86,19 +91,19 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
             switch(contentStr[index]) {
             case '-':
                 if (intoString = 3 && contentStr[index + 1] == '>') {
-                    result += "->";
+                    *result += "->";
                     newIndex += 2;
                     index += 2;
                     intoString = 0;
                 }
             case ')':
                 if (intoString = 2 && contentStr[index + 1] == '$') {
-                    result += ")$";
+                    *result += ")$";
                     index += 2;
                     newIndex += 2;
                     intoString = 0;
                 } else {
-                    result.append(')', 1);
+                    result->append(')', 1);
                     newIndex++;
                     index++;
                 }
@@ -108,7 +113,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                     intoString = 0;
                 }
             default:
-                result.append(contentStr[index++], 1);
+                result->append(contentStr[index++], 1);
                 newIndex++;
                 break;
             }
@@ -117,60 +122,60 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
             switch (contentStr[index]) {
             case ' ': index++; break;
             case ';':
-                delimeters.push_back(Delimeter(newIndex++, Semicolon));
-                result.append(';', 1);
+                delimeters->push_back(Delimeter(newIndex++, Semicolon));
+                result->append(';', 1);
                 index++;
                 break;
             case '&':
                 temp = contentStr[index++];
                 CHECK_ARGS(temp == '&' || temp == '<' || temp == '[',
                             "Operator \"&\" not supported.");
-                delimeters.push_back(Delimeter(newIndex++, And));
-                result.append('&', 1);
+                delimeters->push_back(Delimeter(newIndex++, And));
+                result->append('&', 1);
                 if (temp == '&') {
                     index++;
                     newIndex++;
-                    result.append('&', 1);
+                    result->append('&', 1);
                 }
                 break;
             case '|':
                 CHECK_ARGS(contentStr[index++] == '|',
                         "Operator \"|\" not supported.");
-                CHEKC_ARGS(opType == syntax::Operator::Condition,
+                CHECK_ARGS(opType == syntax::Operator::Condition,
                         "Operator \"||\" not supported in %s",
                         "assign expressions.");
-                delimeters.push_back(Delimeter(newIndex++, Or));
+                delimeters->push_back(Delimeter(newIndex++, Or));
                 index++;
                 newIndex++;
-                result.append('|', 2);
+                result->append('|', 2);
                 break;
             case '!':
-                CHEKC_ARGS(opType == syntax::Operator::Condition,
+                CHECK_ARGS(opType == syntax::Operator::Condition,
                         "Operator \"!\" not supported in assign expressions.");
-                delimeters.push_back(Delimeter(newIndex++, Not));
-                result.append('!', 1);
+                delimeters->push_back(Delimeter(newIndex++, Not));
+                result->append('!', 1);
                 index++;
                 break;
             case '(':
-                temp = newIndex == 0 ? -1 : result[newIndex - 1];
+                temp = newIndex == 0 ? -1 : (*result)[newIndex - 1];
                 if (temp == -1 || temp == '(' || temp == '|' ||
                         temp == '&' || temp == '!') {
                     intoString = 3;
                 } else {
-                    delimeters.push_back(Delimeter(newIndex++, LeftBracket));
+                    delimeters->push_back(Delimeter(newIndex++, LeftBracket));
                 }
-                result.append('(', 1);
+                result->append('(', 1);
                 index++;
                 break;
             case ')':
-                delimeters.push_back(Delimeter(newIndex++, RightBracket));
-                result.append(')', 1);
+                delimeters->push_back(Delimeter(newIndex++, RightBracket));
+                result->append(')', 1);
                 index++;
                 break;
             case '^':
-                CHEKC_ARGS(opType == syntax::Operator::Condition,
+                CHECK_ARGS(opType == syntax::Operator::Condition,
                         "Operator \"^\" not supported in assign expressions.");
-                result.append('^', 1);
+                result->append('^', 1);
                 CHECK_ARGS(contentStr[index] == '(',
                         "Operator \"^\" not supported.");
                 newIndex++;
@@ -178,7 +183,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
             case '\"':
                 intoString = 1;
             default:
-                result.append(contentStr[index++], 1);
+                result->append(contentStr[index++], 1);
                 newIndex++;
                 break;
             }
@@ -192,8 +197,9 @@ int parseExpr(const syntax::Operator::OperatorType opType,
         ResourcePool* resourcePool, MifLayer* srcLayer,
         std::vector<std::pair<std::string, Group**>*>* newGroups) {
     std::pair<size_t, size_t> range;
-    for (Operator* op : syntax::operatorList) {
-        if (op->find(content, &range) > -1) {
+    syntax::Operator* newOperator;
+    for (syntax::Operator* op : syntax::operatorList) {
+        if (op->find(&newOperator, content, &range) > -1) {
             CHECK_ARGS(op->type() != opType,
                     "Found operator type not matched.");
             CHECK_ARGS(range.first > 0,
@@ -203,17 +209,17 @@ int parseExpr(const syntax::Operator::OperatorType opType,
                     "No right value provided in expression \"%s\".",
                     content.c_str());
             node->tagName = content.substr(0, range.first);
-            node->value->stringValue = content.substr(range.second,
+            node->value.stringValue = content.substr(range.second,
                     content.size() - range.second);
-            configItem->addOperator(op->newOperator(), &(node->op));
+            configItem->addOperator(newOperator, &(node->op));
             CHECK_RET(srcLayer->getTagType(node->tagName, &(node->leftType)),
                     "Failed to get data type of tag \"%s\".",
                     node->tagName.c_str());
-            if (op->isSupported(syntax::GroupType) {
-                CHECK_ARGS(node->value->stringValue.find(")->") !=
+            if (op->isSupported(syntax::GroupType)) {
+                CHECK_ARGS(node->value.stringValue.find(")->") !=
                         std::string::npos, "Bad group format.");
                 node->rightType = syntax::GroupType;
-                newGroup->push_back(new std::pair<std::string, Group**>(
+                newGroups->push_back(new std::pair<std::string, Group**>(
                         node->value.stringValue, &(node->value.groupPtr)));
             } else {
                 node->rightType = syntax::getDataType(node->value.stringValue,
@@ -226,21 +232,21 @@ int parseExpr(const syntax::Operator::OperatorType opType,
             content.c_str());
 }
 
-int reduceExpr(std::vector<Node*>* nodeStack, const int reduceDepth) {
-    lastNodeIndex = nodeStack.size();
-    CHECK_ARGS(nodeStack.back()->rightNode != nullptr ||
-            (nodeStack.back()->rightNode == nullptr &&
-            nodeStack.back()->leftNode == nullptr),
+int reduceExpr(std::vector<syntax::Node*>* nodeStack, const int reduceDepth) {
+    int lastNodeIndex = nodeStack->size();
+    CHECK_ARGS(nodeStack->back()->rightNode != nullptr ||
+            (nodeStack->back()->rightNode == nullptr &&
+            nodeStack->back()->leftNode == nullptr),
             "Front node in node stack format not good.");
     while (lastNodeIndex > 0 &&
-            nodeStack[lastNodeIndex - 1]->reduceDepth >= reduceDepth) {
-        CHECK_ARGS(nodeStack.back()->reduceDepth >= reduceDepth,
+            (*nodeStack)[lastNodeIndex - 1]->reduceDepth >= reduceDepth) {
+        CHECK_ARGS(nodeStack->back()->reduceDepth >= reduceDepth,
                 "Expression nodes' reduce-depth out of order.");
-        if (nodeStack[lastNodeIndex - 1]->reduceDepth >= reduceDepth) {
-            CHECK_ARGS(nodeStack.back()->rightNode == nullptr,
+        if ((*nodeStack)[lastNodeIndex - 1]->reduceDepth >= reduceDepth) {
+            CHECK_ARGS(nodeStack->back()->rightNode == nullptr,
                     "Node stack end with two completed node.");
-            nodeStack[lastNodeIndex - 1]->rightNode = nodeStack.back();
-            nodeStack.pop_back();
+            (*nodeStack)[lastNodeIndex - 1]->rightNode = nodeStack->back();
+            nodeStack->pop_back();
         }
     }
     return 0;
@@ -251,7 +257,7 @@ int linkExpr(const std::string& content, ConfigItem* configItem,
         std::vector<Expression>* exprs) {
     int reduceDepth = 0, index = 0;
     syntax::Node* newNode;
-    std::vector<Node*> nodeStack;
+    std::vector<syntax::Node*> nodeStack;
     Delimeter* lastDelim = nullptr;
     for (Delimeter delim : delimeters) {
         // 表明中间存在需要解析的简单表达式
@@ -260,7 +266,7 @@ int linkExpr(const std::string& content, ConfigItem* configItem,
                     "Can not connect two conditions with \"!\".");
             CHECK_ARGS(delim.second != LeftBracket,
                     "Lack of logic operator between expressions..");
-            CHECK_ARGS(*lastDelim != RightBracket,
+            CHECK_ARGS(lastDelim->second != RightBracket,
                     "Lack of logic operator before expression.");
             configItem->addCondition(new syntax::Node(), &newNode);
             newNode->reduceDepth = reduceDepth;
@@ -281,10 +287,10 @@ int linkExpr(const std::string& content, ConfigItem* configItem,
                 newNode->rightType = syntax::Expr;
                 newNode->leftNode = nodeStack.front();
                 switch (delim.second) {
-                case Or: newNode->op = new syntax::opOr(); break;
+                case Or: newNode->op = new syntax::OperatorOr(); break;
                 case And:
                 case Semicolon:
-                    newNode->op = new syntax::opAnd(); break;
+                    newNode->op = new syntax::OperatorAnd(); break;
                 }
                 configItem->addOperator(newNode->op);
                 nodeStack.pop_back();
@@ -294,27 +300,28 @@ int linkExpr(const std::string& content, ConfigItem* configItem,
         } else {
             switch (delim.second) {
             case RightBracket:
-                CHECK_ARGS(*lastDelim == LeftBraket ||
-                        lastDelim == RightBracket,
+                CHECK_ARGS(lastDelim->second == LeftBracket ||
+                        lastDelim->second == RightBracket,
                         "Lack of expression after logic operator.");
                 reduceDepth--;
                 break;
             case LeftBracket:
-                CHECK_ARGS(*lastDelim != RightBracket,
+                CHECK_ARGS(lastDelim->second != RightBracket,
                         "Lack of logic operator before expression.");
                 reduceDepth++;
                 break;
             case Not:
-                CHECK_ARGS(*lastDelim != RightBracket,
+                CHECK_ARGS(lastDelim->second != RightBracket,
                         "Lack of logic operator before expression.");
                 configItem->addCondition(new syntax::Node(), &newNode);
                 nodeStack.push_back(newNode);
                 newNode->reduceDepth = reduceDepth;
                 newNode->rightType = syntax::Expr;
-                configItem->addOperator(new syntax::opNot(), &(newNode->op));
+                configItem->addOperator(new syntax::OperatorNot(),
+                        &(newNode->op));
                 break;
             default:
-                CHECK_ARGS(*lastDelim == RightBraket,
+                CHECK_ARGS(lastDelim->second == RightBracket,
                         "Invalid operator or delimeter before %s",
                         "binary logic operator.");
                 configItem->addCondition(new syntax::Node(), &newNode);
@@ -323,12 +330,12 @@ int linkExpr(const std::string& content, ConfigItem* configItem,
                 newNode->leftNode = nodeStack.back();
                 newNode->reduceDepth = reduceDepth;
                 switch (delim.second) {
-                case Or: newNode->op = new opOr(); break;
+                case Or: newNode->op = new syntax::OperatorOr(); break;
                 case And:
-                case Semicolon: newNode->op = new opAnd(); break;
+                case Semicolon: newNode->op = new syntax::OperatorAnd(); break;
                 }
                 configItem->addOperator(newNode->op);
-                nodeStacl.pop_back();
+                nodeStack.pop_back();
                 nodeStack.push_back(newNode);
             }
         }
@@ -360,8 +367,8 @@ int parseConditions(const std::string& content, ConfigItem* configItem,
         CHECK_RET(linkExpr(content, configItem, delimeters, &exprs),
                 "Failed split config line into expressions.");
     } else {
-        syntax::Noe* newNode;
-        configItem.addCondition(new syntax::Node(), &newNode);
+        syntax::Node* newNode;
+        configItem->addCondition(new syntax::Node(), &newNode);
         exprs.push_back(Expression(content, newNode));
     }
     for (auto expr : exprs) {
@@ -386,17 +393,20 @@ int parseAssigns(const std::string& content, ConfigItem* configItem,
         CHECK_RET(linkExpr(content, configItem, delimeters, &exprs),
                 "Failed split config line into expressions.");
     } else {
-        syntax::Noe* newNode;
-        configItem.addCondition(new syntax::Node(), &newNode);
+        syntax::Node* newNode;
+        configItem->addCondition(new syntax::Node(), &newNode);
         exprs.push_back(Expression(content, newNode));
     }
     for (auto expr : exprs) {
+        std::vector<std::pair<std::string, Group**>*> newGroups;
         CHECK_RET(parseExpr(syntax::Operator::Assign, expr.first, expr.second,
-                configItem, resourcePool, srcLayer, newGroups),
+                configItem, resourcePool, srcLayer, &newGroups),
                 "Failed to parse expression \"%s\".", expr.first.c_str());
+        CHECK_ARGS(newGroups.empty(),
+                "Do not support group operation in assign expressions.");
     }
     return 0;
-    
+
 }
 
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
@@ -461,7 +471,7 @@ int parseGroupArgs(const std::string& content, std::string* layerName,
         if (endIndex != std::string::npos) {
             *oldTagName = htk::trim(content.substr(startIndex,
                     endIndex - startIndex), " ");
-            startIndex = endIndex + 1
+            startIndex = endIndex + 1;
             endIndex = content.find(")", startIndex);
             CHECK_ARGS(endIndex != std::string::npos,
                 "Can not locate right bracket of group.");
@@ -504,30 +514,30 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         // 静态Group的处理
         itemGroup->second = new ItemGroup();
         if (tagName == "POINT") {
-            typeGroup->second = PointGroup();
+            typeGroup->second = new PointGroup();
         } else if (tagName == "LINE") {
-            typeGroup->second = LineGroup();
+            typeGroup->second = new LineGroup();
         } else if (tagName == "AREA") {
-            typeGroup->second = AreaGroup();
+            typeGroup->second = new AreaGroup();
         } else {
-            typeGroup->second = TagGroup();
+            typeGroup->second = new TagGroup();
         }
         int matchCnt = resourcePool->findInsertGroup(staticItemGroupKey,
                 &(itemGroup->second), typeGroupKey, &(typeGroup->second));
         switch (matchCnt) {
         case 0:
             itemGroup->second->info_ = new Group::GroupInfo();
-            itemGroup->second->info_->layerName = layerName;
+            itemGroup->second->info_->layerName_ = layerName;
             // 获取外挂表指针并解析条件语句
             MifLayer* pluginLayer;
             CHECK_RET(resourcePool->getLayerByName(&pluginLayer,
                     ResourcePool::Plugin, layerName),
-                    "Failed to find layer named as \"%s\".", 
+                    "Failed to find layer named as \"%s\".",
                     layerName.c_str());
             itemGroup->second->setLayer(pluginLayer);
             std::vector<std::pair<std::string, Group**>*> newGroup;
             CHECK_RET(parseConditions(conditions,
-                    &(itemGroup->second->info_->configItem),
+                    itemGroup->second->info_->configItem_,
                     resourcePool, pluginLayer, &newGroup),
                     "Failed to parse conditions in group.");
             CHECK_ARGS(newGroup.empty(), "New-Condition-Assign %s",
@@ -535,7 +545,7 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
             itemGroup->second->parseDone_.signalAll();
             itemGroup->first = staticItemGroupKey;
         case 1:
-            type->first = typeGroupKey;
+            typeGroup->first = typeGroupKey;
         case 2: return 0;
         default:
             CHECK_RET(-1, "Failed to find and insert new groups.");
@@ -553,23 +563,22 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         if (resourcePool->findGroup(staticItemGroupKey,
                 &oldStaticGroup) > -1) {
             oldStaticGroup->parseDone_.wait();
-            itemGroup->second->info_ = new Group::GroupInfo(
-                    *(oldStaticGroup->info_));
+            itemGroup->second->info_ = oldStaticGroup->info_->copy();
             itemGroup->second->setLayer(oldStaticGroup->getLayer());
-            itemGroup->second->info_->checkedCnt = 0;
+            itemGroup->second->info_->checkedCnt_ = 0;
         } else {
             itemGroup->second->info_ = new Group::GroupInfo();
-            itemGroup->second->info_->layerName = layerName;
+            itemGroup->second->info_->layerName_ = layerName;
             // 获取外挂表指针并解析条件语句
             MifLayer* pluginLayer;
             CHECK_RET(resourcePool->getLayerByName(&pluginLayer,
                     ResourcePool::Plugin, layerName),
-                    "Failed to find layer named as \"%s\".", 
+                    "Failed to find layer named as \"%s\".",
                     layerName.c_str());
             itemGroup->second->setLayer(pluginLayer);
             std::vector<std::pair<std::string, Group**>*> newGroup;
             CHECK_RET(parseConditions(conditions,
-                    &(itemGroup->second->info_->configItem),
+                    itemGroup->second->info_->configItem_,
                     resourcePool, pluginLayer, &newGroup),
                     "Failed to parse conditions in group.");
             CHECK_ARGS(newGroup.empty(), "New-Condition-Assign %s",
@@ -577,9 +586,9 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
             itemGroup->second->parseDone_.signalAll();
         }
         itemGroup->first = dynamicItemGroupKey;
-        itemGroup->second->info_->oldTagName = oldTagName;
-        itemGroup->second->info_->newTagName = newTagName;
-        itemGroup->second->info_->tagName = tagName;
+        itemGroup->second->info_->oldTagName_ = oldTagName;
+        itemGroup->second->info_->newTagName_ = newTagName;
+        itemGroup->second->info_->tagName_ = tagName;
     }
 }
 

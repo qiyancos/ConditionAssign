@@ -70,7 +70,7 @@ protected:
     std::map<std::string, int> tagColCache_;
     // Tag类型映射缓存的锁
     std::mutex tagTypeCacheLock_;
-    // 缓存的Tag的数据类型 
+    // 缓存的Tag的数据类型
     std::map<std::string, syntax::DataType> tagTypeCache_;
     // MifItem缓存锁
     std::mutex itemCacheLock_;
@@ -97,7 +97,7 @@ public:
             std::string* val);
     // 获取当前MifItem的某个字段的类型
     int getGeometry(wsl::Geometry** val, const int index);
-    
+
     // 构造函数
     MifLayerReadOnly();
     // 虚构函数
@@ -107,7 +107,7 @@ protected:
     // 获取对应Layer中Tag的Col索引，对于读操作如果没有会返回-1
     // 对于写操作如果没有会新建，读取或者新建失败会返回-1
     int getTagColID(const std::string& tagName, int* colID,
-            AccessType accessType) = 0;
+            AccessType accessType);
 };
 
 class MifLayerReadWrite : public MifLayer {
@@ -131,7 +131,7 @@ public:
     int getGeometry(wsl::Geometry** val, const int index);
     // 判断当前的MifLayer是不是新打开的
     virtual bool isNew() {return newLayer_;}
-    
+
     // 构造函数
     MifLayerReadWrite();
     // 虚构函数
@@ -141,7 +141,7 @@ protected:
     // 获取对应Layer中Tag的Col索引，对于读操作如果没有会返回-1
     // 对于写操作如果没有会新建，读取或者新建失败会返回-1
     int getTagColID(const std::string& tagName, int* colID,
-            AccessType accessType) = 0;
+            AccessType accessType);
 
 private:
     // mif数据锁
@@ -170,7 +170,7 @@ public:
     // 当前MifItem所属的MifLayer
     MifLayer* srcLayer_ = nullptr;
     // 当前MifItem在MifLayer中的索引
-    const int inedx_;
+    const int index_;
     // 当前MifItem所属的MifLayer
     MifLayer* targetLayer_ = nullptr;
 

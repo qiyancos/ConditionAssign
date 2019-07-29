@@ -58,7 +58,7 @@ install:
 	cp $(OBJNAME) $(OUTPUT)/bin -rf 2>/dev/null
 	cp ./conf/* $(OUTPUT)/conf -rf 2>/dev/null
 
-$(OUTPUT_OBJ)/%.o	: %.cpp
+$(OUTPUT_OBJ)/%.o	: %.cpp %.h
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH) 	
 
 $(OUTPUT_OBJ)/%.o	: %.c

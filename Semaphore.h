@@ -22,13 +22,20 @@ public:
         std::mutex lock;
         // 信号量用于通知
         std::condition_variable condition;
+
+        // 等待信号的到来
+        std::function<void(Param*)> waitFunc = waitOrigin;
+        // 发出信号，开启等待的线程
+        std::function<void(Param*)> signalFunc = signalOrigin;
+        // 发出信号，开启等待的线程
+        std::function<void(Param*)> signalAllFunc = signalOrigin;
     };
 
     // 初始化函数
     Semaphore(const int count = 0, const Type type = Normal);
     // 析构函数
     ~Semaphore() = default;
-    
+
     // 初始化函数
     int init(const int count = 0, const Type type = Normal);
     // 等待信号的到来
@@ -37,13 +44,6 @@ public:
     void signal();
     // 发出信号，开启等待的线程
     void signalAll();
-    
-    // 等待信号的到来
-    std::function<void(Param*)> waitFunc = waitOrigin;
-    // 发出信号，开启等待的线程
-    std::function<void(Param*)> signalFunc = signalOrigin;
-    // 发出信号，开启等待的线程
-    std::function<void(Param*)> signalAllFunc = signalOrigin;
 
 private:
     // 等待信号的到来
@@ -52,7 +52,7 @@ private:
     static void signalOrigin(Param* param);
     // 发出信号，开启等待的线程
     static void signalAllOrigin(Param* param);
-    
+
     // 空等待函数
     static void emptyFunc(Param* param) {}
 

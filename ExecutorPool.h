@@ -1,8 +1,8 @@
 #ifndef EXECUTORPOOL_H
 #define EXECUTORPOOL_H
 
-#include "ResourcePool.h"
 #include "Config.h"
+#include "Semaphore.h"
 
 #include <string>
 #include <mutex>
@@ -16,6 +16,7 @@ namespace condition_assign {
 // 候选工作队列的数量
 #define MAX_CANDIDATE_SIZE 4
 
+class ResourcePool;
 class ExecutorPool;
 
 // Executor类对应线程，只使用其中的函数
@@ -30,7 +31,7 @@ public:
     ~Executor();
     
     // 每个线程分配的主函数
-    static int mainRunner(const Executor& executor);
+    static int mainRunner(Executor* executor);
     // Executor进入等待状态的处理函数
     int startWaiting();
 
@@ -80,7 +81,7 @@ public:
 
 public:
     // 当前工作项的参数
-    const void* param_;
+    void* param_;
 
 private:
     // 当前工作项的类型
@@ -108,8 +109,6 @@ public:
 
     // 执行初始化操作，然后交给executorController
     int execute();
-    // 获取当前执行器池的状态
-    Status getStatus();
     // 初始化函数
     int init();
     
@@ -126,7 +125,7 @@ public:
     // 当前所有Executor正在执行的工作
     std::vector<ExecutorJob*> workingJob_;
     // 当前所有Executor和执行器池交互的信号量
-    std::vector<Semaphore> executorWakeup_;
+    std::vector<Semaphore*> executorWakeup_;
     // 判断当前是否有执行器需要获取新的工作
     Semaphore needReadyJob_;
     // 确定是否需要进行状态检查
@@ -136,12 +135,12 @@ public:
     // 运行资源的统一管控结构
     ResourcePool* resourcePool_;
 
-private:
     // 执行池状态锁
     std::mutex statusLock_;
     // 当前执行器池的主状态
     Status status_;
 
+private:
     // 状态管理线程
     std::thread* executorConsole_ = nullptr;
     // 资源管理线程
@@ -149,11 +148,11 @@ private:
     // ExecutorPool的参数信息
     const Params params_;
     // Executor状态管理函数
-    int executorController();
+    static int executorController(ExecutorPool* mainPool);
     // 工作项和资源管理函数
-    int resourceController();
+    static int resourceController(ExecutorPool* mainPool);
 };
 
 } // namespace condition_assign
 
-#endif // EXECUTOR_H
+#endif // EXECUTORPOOL_H

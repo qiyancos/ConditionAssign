@@ -2,9 +2,9 @@
 #define CONFIG_H
 
 #include "SyntaxBase.h"
-#include "ResourcePool.h"
 
 #include <atomic>
+#include <mutex>
 #include <map>
 #include <string>
 #include <vector>

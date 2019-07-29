@@ -27,7 +27,7 @@ namespace condition_assign {
         sys_log_println(_ERROR, (std::string(info) + " in [%s]." + \
                 "Error code = %d\n").c_str(), \
                 ##__VA_ARGS__, __func__, errCode); \
-        exit(status); \
+        exit(errCode); \
     } \
 }
 
@@ -41,7 +41,7 @@ namespace condition_assign {
 }
 
 #define CHECK_ARGS(expr, info, ...) { \
-    if (!expr) { \
+    if (!(expr)) { \
         sys_log_println(_ERROR, (std::string(info) + " in [%s].").c_str(), \
                 ##__VA_ARGS__, __func__); \
         return -1; \

@@ -1,67 +1,67 @@
 #include "NormalOperators.h"
 #include "ConditionAssign.h"
+#include "MifType.h"
+#include "Group.h"
 
 namespace condition_assign{
 
 namespace syntax {
 
-int opNot::process(Node* node, MifItem* item) {
+int OperatorNot::process(Node* node, MifItem* item) {
     int result;
-    CHECK_ARGS(node->leftNode == nullptr && node->rightNode != nullptr, \
-            "Bad node-tree structure!"); \
-    CHECK_ARGS(node->op.isSupported(node->leftType), \
-            "Unsupported data type."); \
+    CHECK_ARGS(!node->leftNode && node->rightNode,
+            "Bad node-tree structure!");
+    CHECK_ARGS(node->op->isSupported(node->leftType),
+            "Unsupported data type.");
     CHECK_RET(result = node->rightNode->op->process(node->rightNode, item),
-            "Operator process failed in \"%s %s %s\".",                         
+            "Operator process failed in \"%s %s %s\".",
             node->rightNode->tagName.c_str(),
             node->rightNode->op->str().c_str(),
             node->rightNode->value.stringValue.c_str());
     return ! result;
 }
 
-int opOr::process(Node* node, MifItem* item) {
+int OperatorOr::process(Node* node, MifItem* item) {
     int result;
-    CHECK_ARGS(node->leftNode != nullptr && node->rightNode != nullptr,
-            "Bad node-tree structure!");
-    CHECK_ARGS(node->op.isSupported(node->leftType) &&
-            node->op.isSupported(node->rightType),
+    CHECK_ARGS(node->leftNode && node->rightNode, "Bad node-tree structure!");
+    CHECK_ARGS(node->op->isSupported(node->leftType) &&
+            node->op->isSupported(node->rightType),
             "Unsupported data type!");
     CHECK_RET(result = node->leftNode->op->process(node->leftNode, item),
-            "Operator process failed in \"%s %s %s\".",                         
+            "Operator process failed in \"%s %s %s\".",
             node->leftNode->tagName.c_str(),
             node->leftNode->op->str().c_str(),
             node->leftNode->value.stringValue.c_str());
     if (result == 1) return 1;
     CHECK_RET(result = node->rightNode->op->process(node->rightNode, item),
-            "Operator process failed in \"%s %s %s\".",                         
+            "Operator process failed in \"%s %s %s\".",
             node->rightNode->tagName.c_str(),
             node->rightNode->op->str().c_str(),
             node->rightNode->value.stringValue.c_str());
-    return rightResult;
+    return result;
 }
 
-int opAnd::process(Node* node, MifItem* item) {
+int OperatorAnd::process(Node* node, MifItem* item) {
     int result;
-    CHECK_ARGS(node->leftNode != nullptr && node->rightNode != nullptr,
-            "Bad node-tree structure!");
-    CHECK_ARGS(node->op.isSupported(node->leftType) &&
-            node->op.isSupported(node->rightType),
+    CHECK_ARGS(node->leftNode && node->rightNode, "Bad node-tree structure!");
+    CHECK_ARGS(node->op->isSupported(node->leftType) &&
+            node->op->isSupported(node->rightType),
             "Unsupported data type!");
     CHECK_RET(result = node->leftNode->op->process(node->leftNode, item),
-            "Operator process failed in \"%s %s %s\".",                         
+            "Operator process failed in \"%s %s %s\".",
             node->leftNode->tagName.c_str(),
             node->leftNode->op->str().c_str(),
             node->leftNode->value.stringValue.c_str());
     if (result == 0) return 0;
     CHECK_RET(result = node->rightNode->op->process(node->rightNode, item),
-            "Operator process failed in \"%s %s %s\".",                         
+            "Operator process failed in \"%s %s %s\".",
             node->rightNode->tagName.c_str(),
             node->rightNode->op->str().c_str(),
             node->rightNode->value.stringValue.c_str());
-    return rightResult;
+    return result;
 }
 
-int opEqual::process(Node* node, MifItem* item) {
+int OperatorEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     if (node->leftType == node->rightType && node->leftType == Number) {
         double leftVal;
@@ -76,7 +76,7 @@ int opEqual::process(Node* node, MifItem* item) {
     }
 }
 
-int opNotEqual::process(Node* node, MifItem* item) {
+int OperatorNotEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     if (node->leftType == node->rightType && node->leftType == Number) {
         double leftVal;
@@ -91,7 +91,7 @@ int opNotEqual::process(Node* node, MifItem* item) {
     }
 }
 
-int opLessEqual::process(Node* node, MifItem* item) {
+int OperatorLessEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -99,7 +99,7 @@ int opLessEqual::process(Node* node, MifItem* item) {
     return floatLessEqual(leftVal, node->value.numberValue);
 }
 
-int opLessThan::process(Node* node, MifItem* item) {
+int OperatorLessThan::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -107,7 +107,7 @@ int opLessThan::process(Node* node, MifItem* item) {
     return (leftVal < node->value.numberValue);
 }
 
-int opGreaterEqual::process(Node* node, MifItem* item) {
+int OperatorGreaterEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -115,7 +115,7 @@ int opGreaterEqual::process(Node* node, MifItem* item) {
     return floatGreaterEqual(leftVal, node->value.numberValue);
 }
 
-int opGreaterThan::process(Node* node, MifItem* item) {
+int OperatorGreaterThan::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -123,7 +123,7 @@ int opGreaterThan::process(Node* node, MifItem* item) {
     return (leftVal > node->value.numberValue);
 }
 
-int opContain::process(Node* node, MifItem* item) {
+int OperatorContain::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -131,7 +131,7 @@ int opContain::process(Node* node, MifItem* item) {
     return (node->value.stringValue.find(leftVal) != std::string::npos);
 }
 
-int opIsPrefix::process(Node* node, MifItem* item) {
+int OperatorIsPrefix::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -139,7 +139,7 @@ int opIsPrefix::process(Node* node, MifItem* item) {
     return htk::startswith(leftVal, node->value.stringValue);
 }
 
-int opIsSuffix::process(Node* node, MifItem* item) {
+int OperatorIsSuffix::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -147,7 +147,7 @@ int opIsSuffix::process(Node* node, MifItem* item) {
     return htk::endswith(leftVal, node->value.stringValue);
 }
 
-int opRegularExpr::process(Node* node, MifItem* item) {
+int OperatorRegularExpr::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
     CHECK_ARGS(node->value.stringValue.substr(0, 2) == "^(",
@@ -159,7 +159,7 @@ int opRegularExpr::process(Node* node, MifItem* item) {
     return htk::RegexSearch(leftVal, node->value.stringValue);
 }
 
-int opTagContain::process(Node* node, MifItem* item) {
+int OperatorTagContain::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -169,7 +169,7 @@ int opTagContain::process(Node* node, MifItem* item) {
             "Can not get value of tag \"%s\".", node->tagName.c_str());
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() == Group::Tag,
                 "Group type not supported");
@@ -185,7 +185,7 @@ int opTagContain::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoContain::process(Node* node, MifItem* item) {
+int OperatorGeoContain::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -195,7 +195,7 @@ int opGeoContain::process(Node* node, MifItem* item) {
             "Failed to get mif item geometry info.");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -213,7 +213,7 @@ int opGeoContain::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoContainAll::process(Node* node, MifItem* item) {
+int OperatorGeoContainAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -223,7 +223,7 @@ int opGeoContainAll::process(Node* node, MifItem* item) {
             "Failed to get mif item geometry info.");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -241,7 +241,7 @@ int opGeoContainAll::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoContained::process(Node* node, MifItem* item) {
+int OperatorGeoContained::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -251,7 +251,7 @@ int opGeoContained::process(Node* node, MifItem* item) {
             "Failed to get mif item geometry info.");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -269,7 +269,7 @@ int opGeoContained::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoContainedAll::process(Node* node, MifItem* item) {
+int OperatorGeoContainedAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -279,7 +279,7 @@ int opGeoContainedAll::process(Node* node, MifItem* item) {
             "Failed to get mif item geometry info.");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -297,7 +297,7 @@ int opGeoContainedAll::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoIntersect::process(Node* node, MifItem* item) {
+int OperatorGeoIntersect::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -309,7 +309,7 @@ int opGeoIntersect::process(Node* node, MifItem* item) {
             "Only contain(ed) functions support point-type mif item!");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -327,7 +327,7 @@ int opGeoIntersect::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoIntersectAll::process(Node* node, MifItem* item) {
+int OperatorGeoIntersectAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -339,7 +339,7 @@ int opGeoIntersectAll::process(Node* node, MifItem* item) {
             "Only contain(ed) functions support point-type mif item!");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -357,7 +357,7 @@ int opGeoIntersectAll::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoInContact::process(Node* node, MifItem* item) {
+int OperatorGeoInContact::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -369,7 +369,7 @@ int opGeoInContact::process(Node* node, MifItem* item) {
             "Only contain(ed) functions support point-type mif item!");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -387,7 +387,7 @@ int opGeoInContact::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoInContactAll::process(Node* node, MifItem* item) {
+int OperatorGeoInContactAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -399,7 +399,7 @@ int opGeoInContactAll::process(Node* node, MifItem* item) {
             "Only contain(ed) functions support point-type mif item!");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -417,7 +417,7 @@ int opGeoInContactAll::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoDeparture::process(Node* node, MifItem* item) {
+int OperatorGeoDeparture::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -429,7 +429,7 @@ int opGeoDeparture::process(Node* node, MifItem* item) {
             "Only contain(ed) functions support point-type mif item!");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -447,7 +447,7 @@ int opGeoDeparture::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opGeoDepartureAll::process(Node* node, MifItem* item) {
+int OperatorGeoDepartureAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -459,7 +459,7 @@ int opGeoDepartureAll::process(Node* node, MifItem* item) {
             "Only contain(ed) functions support point-type mif item!");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
-        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup),
+        CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
                 "Failed to build dynamic group.");
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
@@ -477,14 +477,14 @@ int opGeoDepartureAll::process(Node* node, MifItem* item) {
     return result;
 }
 
-int opAssign::process(Node* node, MifItem* item) {
+int OperatorAssign::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     CHECK_RET(item->assignWithTag(node->tagName, node->value.stringValue),
             "Failed to assign value to tag \"%s\".", node->tagName.c_str());
     return 1;
 }
 
-int opSelfAdd::process(Node* node, MifItem* item) {
+int OperatorSelfAdd::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::stringstream tempStream;
     if (node->leftType == node->rightType && node->leftType == Number) {
