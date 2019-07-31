@@ -36,12 +36,15 @@ public:
     int score() {return score_;}
     int process(Node* node, MifItem* item);
     int find(Operator** newOperatorPtr, const std::string& content,
-            std::pair<size_t, size_t>* range);
+            std::pair<size_t, size_t>* range, std::string* opName);
     bool isSupported(const DataType type) {
-        if (dataTypes_.find(type) == dataTypes_.end()) {
-            return false;
-        } else {
+        if (dataTypes_.find(type) != dataTypes_.end()) {
             return true;
+        } else if (type == Number && dataTypes_.find(String) !=
+                dataTypes_.end()){
+            return true;
+        } else {
+            return false;
         }
     }
 
@@ -66,12 +69,15 @@ public:
     int score() {return score_;}
     int process(Node* node, MifItem* item);
     int find(Operator** newOperatorPtr, const std::string& content,
-            std::pair<size_t, size_t>* range);
+            std::pair<size_t, size_t>* range, std::string* opName);
     bool isSupported(const DataType type) {
-        if (dataTypes_.find(type) == dataTypes_.end()) {
-            return false;
-        } else {
+        if (dataTypes_.find(type) != dataTypes_.end()) {
             return true;
+        } else if (type == Number && dataTypes_.find(String) !=
+                dataTypes_.end()){
+            return true;
+        } else {
+            return false;
         }
     }
 
@@ -96,12 +102,15 @@ public:
     int score() {return score_;}
     int process(Node* node, MifItem* item);
     int find(Operator** newOperatorPtr, const std::string& content,
-            std::pair<size_t, size_t>* range);
+            std::pair<size_t, size_t>* range, std::string* opName);
     bool isSupported(const DataType type) {
-        if (dataTypes_.find(type) == dataTypes_.end()) {
-            return false;
-        } else {
+        if (dataTypes_.find(type) != dataTypes_.end()) {
             return true;
+        } else if (type == Number && dataTypes_.find(String) !=
+                dataTypes_.end()){
+            return true;
+        } else {
+            return false;
         }
     }
 

@@ -5,6 +5,8 @@ namespace condition_assign {
 
 namespace syntax {
 
+std::vector<Operator*> operatorList;
+
 // 下面的顺序与运算符优先级密切相关
 
 // 逻辑运算符的声明
@@ -38,14 +40,15 @@ OPREG_NORMAL(GeoInContact, Condition, 1, "<[>]", GroupType);
 OPREG_NORMAL(GeoInContactAll, Condition, 1, "&<[>]", GroupType);
 OPREG_NORMAL(GeoDeparture, Condition, 1, "<>[]", GroupType);
 OPREG_NORMAL(GeoDepartureAll, Condition, 1, "&<>[]", GroupType);
+// 特殊运算符注册
+OPREG_SPECIAL(Replace, Assign, 1, String);
 // 赋值相关运算符的声明
-OPREG_NORMAL(Assign, Assign, 1, "=", New, Number, String);
 OPREG_NORMAL(SelfAdd, Assign, 1, "+=", New, Number, String);
+OPREG_NORMAL(Assign, Assign, 1, "=", New, Number, String);
 
 // 特殊运算符注册
 OPREG_SPECIAL(CondFunc, Condition, 1, Number, String, GroupType);
 OPREG_SPECIAL(AssignFunc, Assign, 1, Number, String, GroupType);
-OPREG_SPECIAL(Replace, Assign, 1, String);
 
 } // namespace syntax
 

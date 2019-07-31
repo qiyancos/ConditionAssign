@@ -72,6 +72,7 @@ int OperatorEqual::process(Node* node, MifItem* item) {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
+        leftVal = htk::trim(leftVal, "\"");
         return (leftVal == node->value.stringValue);
     }
 }
@@ -87,6 +88,7 @@ int OperatorNotEqual::process(Node* node, MifItem* item) {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
+        leftVal = htk::trim(leftVal, "\"");
         return (leftVal != node->value.stringValue);
     }
 }
@@ -128,7 +130,8 @@ int OperatorContain::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
-    return (node->value.stringValue.find(leftVal) != std::string::npos);
+    leftVal = htk::trim(leftVal, "\"");
+    return (leftVal.find(node->value.stringValue) != std::string::npos);
 }
 
 int OperatorIsPrefix::process(Node* node, MifItem* item) {
@@ -136,6 +139,7 @@ int OperatorIsPrefix::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
+    leftVal = htk::trim(leftVal, "\"");
     return htk::startswith(leftVal, node->value.stringValue);
 }
 
@@ -144,6 +148,7 @@ int OperatorIsSuffix::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
+    leftVal = htk::trim(leftVal, "\"");
     return htk::endswith(leftVal, node->value.stringValue);
 }
 
@@ -156,6 +161,7 @@ int OperatorRegularExpr::process(Node* node, MifItem* item) {
             "Regular expression format not good.");
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
+    leftVal = htk::trim(leftVal, "\"");
     return htk::RegexSearch(leftVal, node->value.stringValue);
 }
 
@@ -167,6 +173,7 @@ int OperatorTagContain::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
+    leftVal = htk::trim(leftVal, "\"");
     if (groupPtr->isDynamic()) {
         Group* dynamicGroup;
         CHECK_RET(groupPtr->buildDynamicGroup(&dynamicGroup, item),
@@ -479,34 +486,47 @@ int OperatorGeoDepartureAll::process(Node* node, MifItem* item) {
 
 int OperatorAssign::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
-    CHECK_RET(item->assignWithTag(node->tagName, node->value.stringValue),
+    std::string newVal = "\"";
+    newVal = node->rightType != Number ? newVal +
+            node->value.stringValue + "\"" : node->value.stringValue;
+    CHECK_RET(item->assignWithTag(node->tagName, newVal),
             "Failed to assign value to tag \"%s\".", node->tagName.c_str());
     return 1;
 }
 
 int OperatorSelfAdd::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
-    std::stringstream tempStream;
+    std::string leftValString;
+    if (node->leftType != New) {
+        CHECK_RET(item->getTagVal(node->tagName, &leftValString),
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
+    }
+    leftValString = htk::trim(leftValString, "\"");
     if (node->leftType == node->rightType && node->leftType == Number) {
         double leftVal;
+        std::string prefix = "";
+        std::stringstream tempStream;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
-        int intLeftVal = static_cast<int>(leftVal + node->value.numberValue);
+        leftVal += node->value.numberValue;
+        int intLeftVal = static_cast<int>(leftVal);
         if (abs(leftVal - intLeftVal) < 1e-8) {
             tempStream << intLeftVal;
         } else {
             tempStream << leftVal;
         }
-    } else {
-        std::string leftVal;
-        if (node->leftType != New) {
-            CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                    "Can not get value of tag \"%s\".", node->tagName.c_str());
+        int lackZeros = leftValString.length() - tempStream.str().length();
+        if (lackZeros > 0) {
+            prefix.append(lackZeros, '0');
         }
-        leftVal += node->value.stringValue;
-        tempStream << leftVal;
+        leftValString = prefix + tempStream.str();
+    } else {
+        leftValString += node->value.stringValue;
+        std::string newVal = "\"";
+        leftValString = node->leftType != Number ? newVal +
+            leftValString + "\"" : leftValString;
     }
-    CHECK_RET(item->assignWithTag(node->tagName, tempStream.str()),
+    CHECK_RET(item->assignWithTag(node->tagName, leftValString),
             "Failed to assign value to tag \"%s\".", node->tagName.c_str());
     return 1;
 }

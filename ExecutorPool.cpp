@@ -28,13 +28,15 @@ static int Executor::mainRunner(Executor* executor) {
         } else if (poolStatus == ExecutorPool::Finished) {
             return 0;
         }
-        if (executor->pool_->resourcePool_->getReadyJob(executor->id_,
-                workingJobPtr)) {
+        int newJob = executor->pool_->resourcePool_->getReadyJob(executor->id_,
+                workingJobPtr);
+        if (newJob > 0) {
+            TEST(executor->id_);
             std::function<int(void*)> jobFunc =
                     (*workingJobPtr)->getJobFunc();
             if (jobFunc((*workingJobPtr)->param_) < 0) {
                 sys_log_println(_ERROR,
-                        "Error occourred while running executor job %s[%d].",
+                        "Error occourred while running executor job %s[%d].\n",
                         "in executor", executor->id_);
                 *(executor->status_) = Executor::Error;
                 executor->pool_->needStatusCheck_.signal();
@@ -43,13 +45,21 @@ static int Executor::mainRunner(Executor* executor) {
                 delete *workingJobPtr;
                 *workingJobPtr = nullptr;
             }
-        } else {
+        } else if (newJob == 0) {
             CHECK_RET(executor->startWaiting(), "Failed to start wait mode.");
+        } else {
+            sys_log_println(_ERROR,
+                    "Error occourred while get ready job in executor[%d].\n",
+                    executor->id_);
+            *(executor->status_) = Executor::Error;
+            executor->pool_->needStatusCheck_.signal();
+            return -1;
         }
     }
 }
 
 int Executor::startWaiting() {
+    TEST(id_);
     CHECK_ARGS(*status_ == Busy, "Executor status should be Busy.");
     *status_ = Idle;
     needReadyJob_->signal();
@@ -138,16 +148,26 @@ int ExecutorPool::init() {
         std::cerr << " cpu cores in this computer." << std::endl;
     }
     resourcePool_ = new ResourcePool();
-    CHECK_RET(resourcePool_->init(params_), "ResourcePool failed to init.");
+    CHECK_RET(resourcePool_->init(params_, &(needReadyJob_)),
+            "ResourcePool failed to init.");
     workingJob_.resize(executorCnt, nullptr);
-    executorStatus_.resize(executorCnt, Executor::Idle);
+    executorStatus_.resize(executorCnt, Executor::Busy);
+#ifdef DEBUG
+    debugStream.push_back(std::ofstream((debugLogDir + ".main").c_str(),
+            std::ofstream::out));
+    debugStream.push_back(std::ofstream((debugLogDir + ".rc").c_str(),
+            std::ofstream::out));
+#endif
+    for (int id = 0; id < executorCnt; id++) {
+        executorWakeup_.push_back(new Semaphore(0));
+#ifdef DEBUG
+        debugStream.push_back(std::ofstream((debugLogDir + "." + 
+                std::to_string(id)).c_str(), std::ofstream::out));
+#endif
+    }
     for (int id = 0; id < executorCnt; id++) {
         executors_.push_back(Executor(id, this));
-        executorWakeup_.push_back(new Semaphore(0));
     }
-    status_ = Idle;
-    // 初始化信号量
-    needReadyJob_.init(1);
     return 0;
 }
 
@@ -172,23 +192,22 @@ int ExecutorPool::execute() {
                 new job_func::ParseConfigFileParam {
                 &(params_.configs[i]), i, resourcePool_}));
     }
-    resourcePool_->candidateQueueLock_.lock();
     for (int i = 0; i < initJobs.size(); i++) {
         resourcePool_->candidateQueue_.push(initJobs[i]);
     }
     // 插入初始化的工作内容
-    resourcePool_->candidateQueueLock_.unlock();
+    status_ = Running;
     resourceConsole_ = new std::thread(resourceController, this);
     for (int id = 0; id < params_.executorNum; id++) {
         executors_[id].thread_ = new std::thread(Executor::mainRunner,
                 &(executors_[id]));
     }
-    executorConsole_ = new std::thread(executorController, this);
-    resourcePool_->newCandidateJob_.signal();
     // 等待所有子线程结束
-    executorConsole_->join();
+    executorController();
+    needReadyJob_.signal();
     resourceConsole_->join();
     for (int id = 0; id < params_.executorNum; id++) {
+        executorWakeup_[id]->signal();
         executors_[id].thread_->join();
     }
     CHECK_ARGS(status_ == Finished, "Main procedure exit with bad status.");
@@ -196,26 +215,28 @@ int ExecutorPool::execute() {
 }
 
 int ExecutorPool::resourceController(ExecutorPool* mainPool) {
+    TEST("rc")
     std::set<int> wakeupExecutorID;
-    bool wakeupByNewCandidateJob = false;
     while (1) {
         wakeupExecutorID.clear();
-        if (!wakeupByNewCandidateJob) {
-            mainPool->needReadyJob_.wait();
-        } else {
-            wakeupByNewCandidateJob = false;
+        TEST("rc")
+        mainPool->needReadyJob_.wait();
+        if (mainPool->status_ == Error || mainPool->status_ == Finished) {
+            return 0;
         }
+        TEST("rc")
         CHECK_RET(mainPool->resourcePool_->selectReadyJob(&wakeupExecutorID),
                 "Failed to select ready job from candidate queue.");
         if (wakeupExecutorID.empty()) {
+            TEST("rc")
             mainPool->needStatusCheck_.signal();
             mainPool->statusCheckOver_.wait();
             if (mainPool->status_ == Finished || mainPool->status_ == Error) {
                 return 0;
             }
-            mainPool->resourcePool_->newCandidateJob_.wait();
-            wakeupByNewCandidateJob = true;
+            TEST("rc")
         } else {
+            TEST("rc")
             for (auto id : wakeupExecutorID) {
                 mainPool->executorWakeup_[id]->signal();
             }
@@ -223,39 +244,51 @@ int ExecutorPool::resourceController(ExecutorPool* mainPool) {
     }
 }
 
-int ExecutorPool::executorController(ExecutorPool* mainPool) {
-    mainPool->status_ = Running;
-    while (mainPool->status_ != Error) {
+void ExecutorPool::executorController() {
+    TEST("main");
+    bool alreadySaved = false;
+    while (status_ != Error) {
+        TEST("main");
+        needStatusCheck_.wait();
+        TEST("main")
         // 判断是否发生了错误
-        for (auto status : mainPool->executorStatus_) {
+        for (auto status : executorStatus_) {
             if (status == Executor::Error) {
-                mainPool->status_ = Error;
-                mainPool->statusCheckOver_.signal();
+                status_ = Error;
+                statusCheckOver_.signal();
                 return -1;
             }
         }
-        {
-            // 判断是否可以结束
-            std::lock_guard<std::mutex> candidateLockGuard(
-                    mainPool->resourcePool_->candidateQueueLock_);
-            if (mainPool->resourcePool_->candidateQueue_.empty() &&
-                    mainPool->resourcePool_->readyJobCnt_ == 0) {
-                bool noWorkingJob = true;
-                for (auto job : mainPool->workingJob_) {
-                    if (job != nullptr) {
-                        noWorkingJob = false;
-                        break;
-                    }
-                }
-                if (noWorkingJob == true) {
-                    mainPool->status_ = Finished;
-                    mainPool->statusCheckOver_.signal();
-                    return 0;
+        // 判断是否可以结束
+        std::lock_guard<std::mutex> candidateLockGuard(
+                resourcePool_->candidateQueueLock_);
+        if (resourcePool_->candidateQueue_.empty() &&
+                resourcePool_->readyJobCnt_ == 0) {
+            TEST("main")
+            bool noWorkingJob = true;
+            for (auto job : workingJob_) {
+                if (job != nullptr) {
+                    noWorkingJob = false;
+                    break;
                 }
             }
+            if (noWorkingJob == true && alreadySaved == false) {
+                TEST("main");
+                for (int i = 0; i < params_.outputs.size(); i++) {
+                    resourcePool_->candidateQueue_.push(
+                            new ExecutorJob(ExecutorJob::SaveLayer,
+                            new job_func::SaveLayerParam {i, resourcePool_}));
+                }
+                alreadySaved = true;
+                needReadyJob_.signal();
+            } else if (noWorkingJob == true && alreadySaved == true) {
+                status_ = Finished;
+                statusCheckOver_.signal();
+                return 0;
+            }
         }
-        mainPool->statusCheckOver_.signal();
-        mainPool->needStatusCheck_.wait();
+        TEST("main")
+        statusCheckOver_.signal();
     }
     return 0;
 }

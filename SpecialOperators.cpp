@@ -32,7 +32,9 @@ int OperatorCondFunc::process(Node* node, MifItem* item) {
 }
 
 int OperatorCondFunc::find(Operator** newOperatorPtr,
-        const std::string& content, std::pair<size_t, size_t>* range) {
+        const std::string& content, std::pair<size_t, size_t>* range,
+        std::string* opName) {
+    *opName = "OperatorCondFunc";
     range->first = content.find("<");
     range->second = content.find(">");
     int length = range->second - range->first - 1;
@@ -69,7 +71,9 @@ int OperatorAssignFunc::process(Node* node, MifItem* item) {
 }
 
 int OperatorAssignFunc::find(Operator** newOperatorPtr,
-        const std::string& content, std::pair<size_t, size_t>* range) {
+        const std::string& content, std::pair<size_t, size_t>* range,
+        std::string* opName) {
+    *opName = "OperatorAssignFunc";
     range->first = content.find("<");
     range->second = content.find(">");
     int length = range->second - range->first - 1;
@@ -110,7 +114,9 @@ int OperatorReplace::process(Node* node, MifItem* item) {
 }
 
 int OperatorReplace::find(Operator** newOperatorPtr,
-        const std::string& content, std::pair<size_t, size_t>* range) {
+        const std::string& content, std::pair<size_t, size_t>* range,
+        std::string* opName) {
+    *opName = "OperatorReplace";
     size_t leftBracketIndex = content.find("[");
     size_t colonIndex = content.find(":");
     size_t rightBracketIndex = content.find("]=");
@@ -124,7 +130,7 @@ int OperatorReplace::find(Operator** newOperatorPtr,
     CHECK_ARGS(startPosLength > 0 && lengthLength > 0,
             "Can not find start position or end position.");
     range->first = leftBracketIndex;
-    range->second = rightBracketIndex;
+    range->second = rightBracketIndex + 2;
     std::string startIndexString = content.substr(leftBracketIndex + 1,
             startPosLength);
     std::string lengthStr = content.substr(colonIndex + 1, lengthLength);

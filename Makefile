@@ -58,11 +58,11 @@ install:
 	cp $(OBJNAME) $(OUTPUT)/bin -rf 2>/dev/null
 	cp ./conf/* $(OUTPUT)/conf -rf 2>/dev/null
 
-$(OUTPUT_OBJ)/%.o	: %.cpp %.h
+$(OUTPUT_OBJ)/%.o	: %.cpp
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH) 	
 
 $(OUTPUT_OBJ)/%.o	: %.c
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH) 		
 	
-$(OUTPUT)/$(EXENAME) : $(OBJ)	
+$(OUTPUT)/$(EXENAME) : $(OBJ)
 	$(GCC) -o $(OUTPUT)/$(EXENAME) $(OBJ) -Xlinker "-(" $(LIB_PATH) $(LDFLAGS) -rdynamic -Xlinker  "-)" 

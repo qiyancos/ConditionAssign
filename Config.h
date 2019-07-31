@@ -73,7 +73,7 @@ using Expression = std::pair<std::string, syntax::Node*>;
 
 // 解析单行配置文件内容并生成对应的ConfigItem
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
-        ResourcePool* resourcePool,
+        ResourcePool* resourcePool, const int layerID,
         std::vector<std::pair<std::string, Group**>*>* newGroups);
 
 // 解析当前组的基本信息

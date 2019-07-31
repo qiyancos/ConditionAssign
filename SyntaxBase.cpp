@@ -8,8 +8,6 @@ namespace condition_assign{
 
 namespace syntax {
 
-std::vector<Operator*> operatorList;
-
 std::string getTypeString(const DataType type) {
     switch(type) {
     case New: return "New";
@@ -20,10 +18,10 @@ std::string getTypeString(const DataType type) {
     }
 }
 
-DataType getDataType(const std::string& data, std::string* stringVal = nullptr,
+DataType getDataType(const std::string data, std::string* stringVal = nullptr,
         double* numberVal = nullptr) {
     const int length = data.length();
-    if (length == 0 || (data[0] == "\"" && data[length - 1] == "\"")) {
+    if (length == 0 || (data[0] == '\"' && data[length - 1] == '\"')) {
         if (stringVal != nullptr) {
             *stringVal = data.substr(1, length - 2);
         }
@@ -47,11 +45,11 @@ bool isType(const std::string& data, T* result) {
     char charTemp;
     T* typeTempPtr = result == nullptr ? &typeTemp : result;
     if (!(streamTemp >> *typeTempPtr)) {
-        return String;
-    } else if (!(streamTemp >> charTemp)) {
-        return String;
+        return false;
+    } else if (streamTemp >> charTemp) {
+        return false;
     }
-    return Number;
+    return true;
 }
 
 template bool isType<int>(const std::string&, int*);

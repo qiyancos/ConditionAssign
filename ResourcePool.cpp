@@ -2,10 +2,12 @@
 
 namespace condition_assign {
 
-int ResourcePool::init(ExecutorPool::Params params) {
+int ResourcePool::init(ExecutorPool::Params params,
+        Semaphore* newCandidateJob) {
+    newCandidateJob_ = newCandidateJob;
     executorCnt_ = params.executorNum;
     targetCnt_ = params.outputs.size();
-    readyQueue_.resize(executorCnt_, std::queue<ExecutorJob*>());
+    readyQueue_.resize(executorCnt_, std::deque<ExecutorJob*>());
     configGroup_.resize(targetCnt_, new ConfigSubGroup());
     inputLayer_ = new MifLayerReadOnly();
     pluginLayersMap_[params.input] = inputLayer_;
@@ -15,6 +17,9 @@ int ResourcePool::init(ExecutorPool::Params params) {
     outputLayers_.resize(targetCnt_, new MifLayerReadWrite());
     for (int layerID = 0; layerID < targetCnt_; layerID++) {
         outputLayersMap_[params.outputs[layerID]] = layerID;
+    }
+    for (int i = 0; i < executorCnt_; i++) {
+        readyQueueLock_.push_back(new std::mutex());
     }
     return 0;
 }
@@ -87,8 +92,8 @@ int ResourcePool::openLayer(const std::string& layerPath,
                 "Failed to open input layer \"%s\".", layerPath.c_str());
         return 0;
     } else if (layerType == Output) {
-        int index = -1;
-        if (layerID == -1) {
+        int index = layerID;
+        if (index == -1) {
             auto mapIterator = outputLayersMap_.find(layerPath);
             CHECK_ARGS(mapIterator != outputLayersMap_.end(),
                     "Trying to open output layer \"%s\" not registered.",
@@ -175,41 +180,82 @@ int ResourcePool::getPluginFullPath(const std::string& layerName,
 
 int ResourcePool::getReadyJob(const int executorID,
         ExecutorJob** jobConsumerPtr) {
-    CHECK_ARGS(!readyQueue_[executorID].empty(),
-            "No ready job found for executor[%d].", executorID);
-    std::lock_guard<std::mutex> readyQueueGuard(readyQueueLock_[executorID]);
+    TEST(executorID);
+    std::lock_guard<std::mutex> readyQueueGuard(
+            *(readyQueueLock_[executorID]));
+    TEST(executorID);
+    if (readyQueue_[executorID].empty()) {
+        TEST(executorID);
+        return 0;
+    }
+    CHECK_ARGS(*jobConsumerPtr == nullptr,
+            "Job consumer already have available job.");
     *jobConsumerPtr = readyQueue_[executorID].front();
     CHECK_ARGS(*jobConsumerPtr != nullptr,
             "No job consumer pointer is provided.");
     readyJobCnt_--;
-    readyQueue_[executorID].pop();
-    return 0;
+    readyQueue_[executorID].pop_front();
+    TEST(executorID);
+    return 1;
 }
 
 int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
+    TEST("rc");
+    std::lock_guard<std::mutex> candidateGuard(candidateQueueLock_);
+    if (candidateQueue_.empty()) {
+        return 0;
+    }
     using vacancy = std::pair<ExecutorJob**, int>;
     std::vector<vacancy> jobVacancies;
-    for (int index = 0; index < readyQueueLock_.size(); index++) {
-        readyQueueLock_[index].lock();
+    for (int index = executorCnt_ - 1; index >= 0; index--) {
+        readyQueueLock_[index]->lock();
     }
+#ifdef DEBUG
+    std::cout << "Before select: ";
+    for (auto que : readyQueue_) {
+        std::cout << que.size() << " ";
+    }
+    std::cout << std::endl;
+#endif
+    TEST("rc");
+    int maxReadySize = (candidateQueue_.size() + readyJobCnt_) /
+            executorCnt_ + 1;
+    maxReadySize = std::min(MAX_READY_QUEUE_SIZE, maxReadySize);
     for (int index; index < executorCnt_; index++) {
-        std::queue<ExecutorJob*>& que = readyQueue_[index];
-        while(que.size() < MAX_READY_QUEUE_SIZE) {
-            que.push(nullptr);
+        std::deque<ExecutorJob*>& que = readyQueue_[index];
+        while(que.size() < maxReadySize) {
+            que.push_back(nullptr);
             jobVacancies.push_back(vacancy(&(que.back()), index));
         }
     }
-    std::lock_guard<std::mutex> candidateGuard(candidateQueueLock_);
+    if (jobVacancies.empty()) {
+        for (int index = 0; index < executorCnt_; index++) {
+            readyQueueLock_[index]->unlock();
+        }
+        return 0;
+    }
     int selected = 0, index = 0;
-    while (selected < jobVacancies.size() && !candidateQueue_.empty()) {
-        *(jobVacancies[selected].first) = candidateQueue_.front();
-        wakeupExecutorID->insert(jobVacancies[selected++].second);
-        readyJobCnt_++;
-        candidateQueue_.pop();
+    while (selected < jobVacancies.size()) {
+        if (candidateQueue_.empty()) {
+            readyQueue_[jobVacancies[selected++].second].pop_back();
+        } else {
+            *(jobVacancies[selected].first) = candidateQueue_.front();
+            wakeupExecutorID->insert(jobVacancies[selected++].second);
+            readyJobCnt_++;
+            candidateQueue_.pop();
+        }
     }
-    for (int index = 0; index < readyQueueLock_.size(); index++) {
-        readyQueueLock_[index].unlock();
+#ifdef DEBUG
+    std::cout << "After select:  ";
+    for (auto que : readyQueue_) {
+        std::cout << que.size() << " ";
     }
+    std::cout << std::endl;
+#endif
+    for (int index = 0; index < executorCnt_; index++) {
+        readyQueueLock_[index]->unlock();
+    }
+    TEST("rc");
     return 0;
 }
 
@@ -238,7 +284,7 @@ ResourcePool::~ResourcePool() {
             if (jobPtr != nullptr) {
                 delete jobPtr;
             }
-            que.pop();
+            que.pop_front();
         }
     }
     while (!candidateQueue_.empty()) {
@@ -247,6 +293,9 @@ ResourcePool::~ResourcePool() {
             delete jobPtr;
         }
         candidateQueue_.pop();
+    }
+    for (std::mutex* lock : readyQueueLock_) {
+        delete lock;
     }
 }
 

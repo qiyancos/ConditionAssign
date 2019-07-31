@@ -34,7 +34,7 @@ enum DataType {New, Number, String, GroupType, Expr};
 // debug使用获取数据类型对应的字符串
 std::string getTypeString(const DataType type);
 // 获取一个字符串的类型
-DataType getDataType(const std::string& data, std::string* stringVal = nullptr,
+DataType getDataType(const std::string data, std::string* stringVal = nullptr,
         double* numberVal = nullptr);
 // 判断一个数值是给定类型
 template<typename T> bool isType(const std::string& data, T* result);
@@ -69,7 +69,7 @@ public:
     virtual bool isSupported(const DataType type) = 0;
     // 找到对应操作符的在当前行范围的函数, 范围是左闭右开的
     virtual int find(Operator** newOperatorPtr, const std::string& content,
-            std::pair<size_t, size_t>* range) = 0;
+            std::pair<size_t, size_t>* range, std::string* opName) = 0;
     // 获取当前运算符的字符串形式
     virtual std::string str() = 0;
     

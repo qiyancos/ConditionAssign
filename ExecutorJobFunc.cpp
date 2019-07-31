@@ -17,12 +17,11 @@ int loadLayer(void* param) {
 int saveLayer(void* param) {
     SaveLayerParam* paramPtr = reinterpret_cast<SaveLayerParam*>(param);
     MifLayer* layer;
-    CHECK_RET(paramPtr->resourcePool->getLayerByName(&layer,
-            ResourcePool::Output, *(paramPtr->layerPath)),
-            "Can not find layer with layer path \"%s\".",
-            paramPtr->layerPath->c_str());
-    CHECK_RET(layer->save(), "Failed to save layer \"%s\".",
-            paramPtr->layerPath->c_str());
+    CHECK_RET(paramPtr->resourcePool->getLayerByIndex(&layer,
+            ResourcePool::Output, paramPtr->layerID),
+            "Can not find output layer[%d].", paramPtr->layerID);
+    CHECK_RET(layer->save(), "Failed to save output layer[%d].",
+            paramPtr->layerID);
     return 0;
 }
 
@@ -43,6 +42,7 @@ int parseConfigFile(void* param) {
     int edgeCount = totalCount / lineCount * lineCount;
     if (totalCount - edgeCount < (lineCount >> 1)) {
         edgeCount -= lineCount;
+        edgeCount = edgeCount < 0 ? 0 : edgeCount;
     }
     std::vector<ExecutorJob*> newJobs;
     while (startIndex < edgeCount) {
@@ -59,7 +59,7 @@ int parseConfigFile(void* param) {
     for (ExecutorJob* job : newJobs) {
         paramPtr->resourcePool->candidateQueue_.push(job);
     }
-    paramPtr->resourcePool->newCandidateJob_.signalAll();
+    paramPtr->resourcePool->newCandidateJob_->signalAll();
     return 0;
 }
 
@@ -75,9 +75,9 @@ int parseConfigLines(void* param) {
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
         CHECK_RET(parser::parseConfigLine((*(paramPtr->fullContent))[index],
-                subGroup, paramPtr->resourcePool, &newGroups),
-                "Failed to parse single line in config file. [%s]",
-                (*(paramPtr->fullContent))[index].c_str());
+                subGroup, paramPtr->resourcePool, paramPtr->layerID,
+                &newGroups), "Failed to parse single line \"%s\" %s",
+                (*(paramPtr->fullContent))[index].c_str(), "in config file.");
         index++;
     }
     std::vector<ExecutorJob*> newJobs;
@@ -87,7 +87,8 @@ int parseConfigLines(void* param) {
                 new ParseGroupParam {groupInfo, paramPtr->resourcePool}));
     }
     std::vector<std::pair<int, int>> rangesInJob;
-    if (subGroup->readyCnt_ += lineCount == paramPtr->fullContent->size()) {
+    subGroup->readyCnt_ += paramPtr->lineCount;
+    if (subGroup->readyCnt_ == paramPtr->fullContent->size()) {
         // 当前配置文件的所有内容均已经解析完毕
         int scoreSum = 0, startIndex = 0, index = 0;
         for (ConfigItem* configItem : subGroup->group_) {
@@ -100,14 +101,13 @@ int parseConfigLines(void* param) {
                         ++index));
                 startIndex = index;
                 scoreSum = 0;
-                if (subGroup->readyCnt_ - startIndex <
-                        MIN_CONFIGITEM_PER_JOB) {
-                    rangesInJob.push_back(std::pair<int, int>(startIndex,
-                            subGroup->readyCnt_ - 1));
-                    break;
-                }
             }
         }
+        if (scoreSum < (MAX_SCORE_SUM_PER_JOB >> 1)) {
+            startIndex = rangesInJob.empty() ? 0 : rangesInJob.back().first;
+        }
+        rangesInJob.push_back(std::pair<int, int>(startIndex,
+                subGroup->readyCnt_));
         delete paramPtr->fullContent;
     }
     MifLayer* srcLayer;
@@ -194,7 +194,7 @@ int parseGroup(void* param) {
         for (ExecutorJob* job : newJobs) {
             paramPtr->resourcePool->candidateQueue_.push(job);
         }
-        paramPtr->resourcePool->newCandidateJob_.signalAll();
+        paramPtr->resourcePool->newCandidateJob_->signalAll();
     }
     return 0;
 }

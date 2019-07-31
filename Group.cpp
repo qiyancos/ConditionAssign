@@ -40,14 +40,14 @@ Group::Type Group::getInputType() {
 }
 
 int Group::setInputType(const std::string& typeStr) {
-    if (typeStr == "POINT" || typeStr.empty()) {
+    if (typeStr == "POINT" || !typeStr.length()) {
         Group::inputType_ = Point;
     } else if (typeStr == "LINE") {
         Group::inputType_ = Line;
     } else if (typeStr == "AREA") {
         Group::inputType_ = Area;
     } else {
-        return -1;
+        CHECK_RET(-1, "Unknown geometry type \"%s\".", typeStr.c_str());
     }
     return 0;
 }

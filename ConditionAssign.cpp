@@ -4,6 +4,11 @@
 
 using namespace condition_assign;
 
+#ifdef DEBUG
+std::string debugLogDir;
+std::vector<std::ofstream> debugStream;
+#endif
+
 int main(int argc, char** argv) {
     setlocale(LC_ALL, "Chinese-simplified");
     if (argc < 9) {
@@ -42,6 +47,9 @@ int main(int argc, char** argv) {
     char date_str[256];
     strftime(date_str, sizeof(date_str), "%Y%m%d", localtime(&start));
     sys_log_path(logDir.c_str(), date_str);
+#ifdef DEBUG
+    debugLogDir = logDir;
+#endif
 
     sys_log_println(_INFORANK, "=====================================\n");
     sys_log_println(_INFORANK, "          [ ConditionAssign ]        \n");
@@ -73,6 +81,7 @@ int main(int argc, char** argv) {
             (end - start));
     sys_log_println(_INFORANK, "=====================================\n\n");
     sys_log_close();
+    setlocale(LC_ALL, "C");
     for (auto regOp : syntax::operatorList) {
         delete regOp;
     }

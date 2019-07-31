@@ -27,9 +27,10 @@ namespace syntax {
         int process(Node* node, MifItem* item); \
         \
         int find(Operator** newOperatorPtr, const std::string& content, \
-                std::pair<size_t, size_t>* range) { \
+                std::pair<size_t, size_t>* range, std::string* opName) { \
             size_t pos = content.find(str_); \
-            if (pos != std::string::npos) { \
+            *opName = "Operator"#Name""; \
+            if (pos == std::string::npos) { \
                 return -1; \
             } else { \
                 range->first = pos; \
@@ -40,10 +41,13 @@ namespace syntax {
         } \
         \
         bool isSupported(const DataType type) { \
-            if (dataTypes_.find(type) == dataTypes_.end()) { \
-                return false; \
-            } else { \
+            if (dataTypes_.find(type) != dataTypes_.end()) { \
                 return true; \
+            } else if (type == Number && dataTypes_.find(String) != \
+                    dataTypes_.end()){ \
+                return true; \
+            } else { \
+                return false; \
             } \
         } \
     \

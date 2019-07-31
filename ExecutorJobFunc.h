@@ -17,8 +17,6 @@ namespace job_func {
 #define MAX_LINE_PER_JOB 100
 // 每个工作项最多负责处理的Node分数最大和
 #define MAX_SCORE_SUM_PER_JOB 1000
-// 每个工作项最少的ConfigItem数量
-#define MIN_CONFIGITEM_PER_JOB 50
 
 // 加载目标Layer函数参数
 struct LoadLayerParam {
@@ -38,7 +36,7 @@ int loadLayer(void* param);
 // 关闭保存目标Layer函数参数
 struct SaveLayerParam {
     // 目标层的路径
-    std::string* layerPath;
+    const int layerID;
     // 资源池指针
     ResourcePool* resourcePool;
 };

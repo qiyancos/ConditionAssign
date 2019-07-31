@@ -9,6 +9,7 @@
 #include <mutex>
 #include <functional>
 #include <queue>
+#include <cmath>
 
 namespace condition_assign {
 
@@ -26,7 +27,7 @@ public:
     ~ResourcePool();
 
     // 初始化
-    int init(ExecutorPool::Params params);
+    int init(ExecutorPool::Params params, Semaphore* newCandidateJob);
     // 根据目标层ID获取对应的ConfigSubGroup
     int getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr);
     // 插入生成好的Group到映射中去
@@ -79,12 +80,12 @@ public:
     // 当前预备队列中任务的数目
     std::atomic<int> readyJobCnt_ {0};
     // 预备队列的写入操作互斥锁
-    std::vector<std::mutex> readyQueueLock_;
+    std::vector<std::mutex*> readyQueueLock_;
     // 准备就绪的工作项队列
-    std::vector<std::queue<ExecutorJob*>> readyQueue_;
+    std::vector<std::deque<ExecutorJob*>> readyQueue_;
 
-    // 该信号量用于确定是否有新的备选工作项
-    Semaphore newCandidateJob_;
+    // 是否有新的备选工作
+    Semaphore* newCandidateJob_;
     // 候选工作项队列的写入互斥锁
     std::mutex candidateQueueLock_;
     // 候选工作项的队列

@@ -148,7 +148,7 @@ private:
     // ExecutorPool的参数信息
     const Params params_;
     // Executor状态管理函数
-    static int executorController(ExecutorPool* mainPool);
+    void executorController();
     // 工作项和资源管理函数
     static int resourceController(ExecutorPool* mainPool);
 };
