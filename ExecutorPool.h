@@ -13,8 +13,6 @@ namespace condition_assign {
 
 // 最大的MifLayer数目，防止爆内存
 #define MAX_MIFLAYERS 32
-// 候选工作队列的数量
-#define MAX_CANDIDATE_SIZE 4
 
 class ResourcePool;
 class ExecutorPool;

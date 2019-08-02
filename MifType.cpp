@@ -115,7 +115,7 @@ int MifLayerReadWrite::getTagType(const std::string& tagName,
         return 0;
     } else {
         std::string tagStringVal;
-        if (getTagVal(tagName, 0, &tagStringVal) < 0) {
+        if (getTagVal(tagName, 0, &tagStringVal, true) < 0) {
             tagTypeCache_[tagName] = syntax::New;
             *type = syntax::New;
             return 0;
@@ -128,7 +128,7 @@ int MifLayerReadWrite::getTagType(const std::string& tagName,
 }
 
 int MifLayerReadWrite::getTagVal(const std::string& tagName,
-        const int index, std::string* val) {
+        const int index, std::string* val, bool reportError = true) {
     int colID;
     if (getTagColID(tagName, &colID, MifLayer::Write) < 0) {
         return -1;
@@ -223,7 +223,7 @@ int MifLayerReadOnly::getTagType(const std::string& tagName,
         return 0;
     } else {
         std::string tagStringVal;
-        if (getTagVal(tagName, 0, &tagStringVal) < 0) {
+        if (getTagVal(tagName, 0, &tagStringVal, false) < 0) {
             tagTypeCache_[tagName] = syntax::New;
             *type = syntax::New;
             return 0;
@@ -236,10 +236,16 @@ int MifLayerReadOnly::getTagType(const std::string& tagName,
 }
 
 int MifLayerReadOnly::getTagVal(const std::string& tagName,
-        const int index, std::string* val) {
+        const int index, std::string* val, bool reportError = true) {
     int colID;
-    CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
-            "Failed to get column index of tag \"%s\".", tagName.c_str());
+    if (reportError) {
+        CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
+                "Failed to get column index of tag \"%s\".", tagName.c_str());
+    } else {
+        if (getTagColID(tagName, &colID, MifLayer::Write) < 0) {
+            return -1;
+        }
+    }
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
     *val = mif_.mid[index][colID];

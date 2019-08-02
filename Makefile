@@ -5,7 +5,7 @@ BOOST=$(THIRD)/boost
 
 GCC=g++
 CPPFLAGS=-g -O2 -std=c++11 -finline-functions -std=gnu++0x\
-		-Wall -W -Wshadow -Wpointer-arith\
+		-Wall -W -Wshadow -Wpointer-arith -DUSE_TIMER\
 		-Wcast-qual -Wwrite-strings -Woverloaded-virtual \
 		-Wno-unused-parameter -Wno-unused-function \
 		-fpermissive -fPIC -DLINUX -D_USE_DOUBLE_POINT_

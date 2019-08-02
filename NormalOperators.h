@@ -14,6 +14,12 @@ namespace syntax {
     const Operator::OperatorType Operator##Name::type_ = Type; \
     int globalOpReg##Name = operatorListInit(new Operator##Name());
 
+#define OPINIT_NORMAL(Name, Type, Score, String, ...) \
+    const std::set<DataType> Operator##Name::dataTypes_ {__VA_ARGS__}; \
+    const std::string Operator##Name::str_ = String; \
+    const int Operator##Name::score_ = Score; \
+    const Operator::OperatorType Operator##Name::type_ = Type; \
+
 // 定义单个运算符
 #define OPDEF(Name) \
     class Operator##Name : public Operator { \

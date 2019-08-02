@@ -31,7 +31,7 @@ public:
             syntax::DataType* type) = 0;
     // 获取当前MifItem的某个字段的内容
     virtual int getTagVal(const std::string& tagName, const int index,
-            std::string* val) = 0;
+            std::string* val, bool reportError = true) = 0;
     // 获取当前MifItem地理坐标信息
     virtual int getGeometry(wsl::Geometry** val, const int index) = 0;
     // 判断当前的MifLayer是不是新打开的
@@ -94,7 +94,7 @@ public:
     int getTagType(const std::string& tagName, syntax::DataType* type);
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const std::string& tagName, const int index,
-            std::string* val);
+            std::string* val, bool reportError = true);
     // 获取当前MifItem的某个字段的类型
     int getGeometry(wsl::Geometry** val, const int index);
 
@@ -126,7 +126,7 @@ public:
     int getTagType(const std::string& tagName, syntax::DataType* type);
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const std::string& tagName, const int index,
-            std::string* val);
+            std::string* val, bool reportError = true);
     // 获取当前MifItem地理坐标信息
     int getGeometry(wsl::Geometry** val, const int index);
     // 判断当前的MifLayer是不是新打开的

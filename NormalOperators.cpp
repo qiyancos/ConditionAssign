@@ -68,6 +68,8 @@ int OperatorEqual::process(Node* node, MifItem* item) {
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
         return floatEqual(leftVal, node->value.numberValue);
+    } else if (node->leftType == New) {
+        return node->value.stringValue.length() == 0;
     } else {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -155,14 +157,11 @@ int OperatorIsSuffix::process(Node* node, MifItem* item) {
 int OperatorRegularExpr::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     std::string leftVal;
-    CHECK_ARGS(node->value.stringValue.substr(0, 2) == "^(",
-            "Regular expression format not good.");
-    CHECK_ARGS(htk::endswith(node->value.stringValue, ")$"),
-            "Regular expression format not good.");
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
     leftVal = htk::trim(leftVal, "\"");
-    return htk::RegexSearch(leftVal, node->value.stringValue);
+    return htk::RegexSearch(leftVal, node->value.stringValue.substr(2,
+            node->value.stringValue.length() - 4));
 }
 
 int OperatorTagContain::process(Node* node, MifItem* item) {

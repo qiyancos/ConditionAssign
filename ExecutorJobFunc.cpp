@@ -35,11 +35,15 @@ int parseConfigFile(void* param, const int executorID) {
     CHECK_ARGS(configFileStream, "Failed to open config file \"%s\".",
             paramPtr->filePath->c_str());
     std::string content;
-    std::vector<std::string>* fullContent = new std::vector<std::string>();
+    std::vector<std::pair<std::string, int>>* fullContent =
+            new std::vector<std::pair<std::string,int>>();
+    int lineNumber = 1;
     while (getline(configFileStream, content)) {
         if (content.length() > 0 && htk::trim(content, " ")[0] != '#') {
-            fullContent->push_back(content);
+            fullContent->push_back(std::pair<std::string, int>(
+                    content, lineNumber));
         }
+        lineNumber++;
     }
     int startIndex = 0;
     int lineCount = MAX_LINE_PER_JOB;
@@ -52,13 +56,15 @@ int parseConfigFile(void* param, const int executorID) {
     std::vector<ExecutorJob*> newJobs;
     while (startIndex < edgeCount) {
         newJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigLines,
-                new ParseConfigLinesParam {fullContent, startIndex,
-                lineCount, paramPtr->layerID, paramPtr->resourcePool}));
+                new ParseConfigLinesParam {paramPtr->filePath, fullContent,
+                startIndex, lineCount, paramPtr->layerID,
+                paramPtr->resourcePool}));
         startIndex += lineCount;
     }
     newJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigLines,
-            new ParseConfigLinesParam {fullContent, edgeCount, totalCount -
-            edgeCount, paramPtr->layerID, paramPtr->resourcePool}));
+            new ParseConfigLinesParam {paramPtr->filePath, fullContent,
+            edgeCount, totalCount - edgeCount,
+            paramPtr->layerID, paramPtr->resourcePool}));
     MifLayer* targetLayer;
     CHECK_RET(paramPtr->resourcePool->getLayerByIndex(&targetLayer,
             ResourcePool::Output, paramPtr->layerID),
@@ -89,10 +95,14 @@ int parseConfigLines(void* param, const int executorID) {
             paramPtr->layerID);
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
-        CHECK_RET(parser::parseConfigLine((*(paramPtr->fullContent))[index],
+        std::pair<std::string, int>& thisLine =
+                (*(paramPtr->fullContent))[index];
+        CHECK_RET(parser::parseConfigLine(thisLine.first,
                 subGroup, paramPtr->resourcePool, paramPtr->layerID,
-                &newGroups), "Failed to parse single line \"%s\" %s",
-                (*(paramPtr->fullContent))[index].c_str(), "in config file.");
+                &newGroups), "%s\"%s\"%s\"%s\" [line: %d]",
+                "Failed to parse single line ",
+                thisLine.first.c_str(), " in config file ",
+                paramPtr->filePath->c_str(), thisLine.second);
         index++;
     }
     std::vector<ExecutorJob*> newJobs;

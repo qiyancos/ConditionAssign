@@ -50,15 +50,19 @@ testNew(){
     echo -n "${SourceLayers[$index]} ${targetLayer} "
     echo -n "${executorCnt} ${logPath} ${ConfPaths[$index]} "
     echo "${PluginLayers[$index]}"
-    timeNew=`(time $root/../bin/ConditionAssign ${Modules[$index]} \
-            ${SourceLayers[$index]} ${SourceGeoTypes[$index]} \
-            ${targetLayer} ${executorCnt} ${logPath} \
-            ${ConfPaths[$index]} ${PluginLayers[$index]}) 2>&1 | \
-            awk '/real/ {print $2}'`
-    #$root/../bin/ConditionAssign ${Modules[$index]} \
-    #        ${SourceLayers[$index]} ${SourceGeoTypes[$index]} \
-    #        ${targetLayer} ${executorCnt} ${logPath} \
-    #        ${ConfPaths[$index]} ${PluginLayers[$index]}
+    if [ ${1}x = -rawx -o ${2}x = -rawx ]
+    then
+        $root/../bin/ConditionAssign ${Modules[$index]} \
+                ${SourceLayers[$index]} ${SourceGeoTypes[$index]} \
+                ${targetLayer} ${executorCnt} ${logPath} \
+                ${ConfPaths[$index]} ${PluginLayers[$index]}
+    else
+        timeNew=`(time $root/../bin/ConditionAssign ${Modules[$index]} \
+                ${SourceLayers[$index]} ${SourceGeoTypes[$index]} \
+                ${targetLayer} ${executorCnt} ${logPath} \
+                ${ConfPaths[$index]} ${PluginLayers[$index]}) 2>&1 | \
+                awk '/real/ {print $2}'`
+    fi
     cat $root/log_New/log_$date.txt
     newMidMd5Sum=$(md5sum $(echo $targetLayer | sed 's/.mif/.mid/') \
             | awk '{print $1}')
@@ -78,14 +82,17 @@ testOld() {
     echo -n "$root/../../ConditionAssign_old/bin/ConditionsAssign "
     echo -n "${SourceLayers[$index]} ${targetLayer} "
     echo "${ConfPaths[$index]} ${logPath} ${executorCnt}"
-    timeOld=`(time \
-            $root/../../ConditionAssign_old/bin/ConditionAssign \
-            ${SourceLayers[$index]} ${targetLayer} \
-            ${confPath} ${logPath} ${executorCnt}) 2>&1 | \
-            awk '/real/ {print $2}'`
-    #$root/../../ConditionAssign_old/bin/ConditionAssign \
-    #        ${SourceLayers[$index]} ${targetLayer} \
-    #        ${confPath} ${logPath} ${executorCnt}
+    if [ ${1}x = -rawx -o ${2}x = -rawx ]
+    then
+        $root/../../ConditionAssign_old/bin/ConditionAssign \
+                ${SourceLayers[$index]} ${targetLayer} \
+                ${confPath} ${logPath} ${executorCnt}
+    else
+        timeOld=`(time $root/../../ConditionAssign_old/bin/ConditionAssign \
+                ${SourceLayers[$index]} ${targetLayer} \
+                ${confPath} ${logPath} ${executorCnt}) 2>&1 | \
+                awk '/real/ {print $2}'`
+    fi
     cat $root/log_Old/log_$date.txt
     oldMidMd5Sum=$(md5sum $(echo $targetLayer | sed 's/.mif/.mid/') \
             | awk '{print $1}')
@@ -103,10 +110,10 @@ do
         echo -n ">> Running test [$layerName]"
         echo " with executor[$executorCnt]"
         if [ ${allowNew}x = 1x ]
-        then testNew
+        then testNew $2 $3
         fi
         if [ -f $root/conf/${layerName}_Old.conf -a ${allowOld}x = 1x ]
-        then testOld
+        then testOld $2 $3
         fi
         if [ ${oldTested}x = 1x -a ${newTested}x = 1x ]
         then

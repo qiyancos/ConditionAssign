@@ -46,8 +46,10 @@ int saveLayer(void* param, const int executorID);
 
 // 配置文件语法解析函数参数
 struct ParseConfigLinesParam {
+    // 配置文件的路径
+    const std::string* filePath;
     // 需要处理的多行Config信息的内容
-    std::vector<std::string>* fullContent;
+    std::vector<std::pair<std::string, int>>* fullContent;
     // 分配的ConfigItem对应的起始索引
     const int startIndex;
     // 分配的ConfigItem对应的起始索引

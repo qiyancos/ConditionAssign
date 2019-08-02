@@ -74,26 +74,19 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
     size_t index = 0, newIndex = 0;
     const char* contentStr = content.c_str();
     int intoString = 0;
+    // intoString 0-无 1-普通双引号字符串中 3-Group内容
     while (index < content.size()) {
         if (intoString) {
             switch(contentStr[index]) {
             case '-':
-                if (intoString = 3 && contentStr[index + 1] == '>') {
+                if (intoString == 3 && contentStr[index + 1] == '>') {
                     *result += "->";
                     newIndex += 2;
                     index += 2;
                     intoString = 0;
-                }
-            case ')':
-                if (intoString = 2 && contentStr[index + 1] == '$') {
-                    *result += ")$";
-                    index += 2;
-                    newIndex += 2;
-                    intoString = 0;
                 } else {
-                    result->append(1, ')');
+                    result->append(1, contentStr[index++]);
                     newIndex++;
-                    index++;
                 }
                 break;
             case '\"':
@@ -138,11 +131,14 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                 result->append(2, '|');
                 break;
             case '!':
-                CHECK_ARGS(opType == syntax::Operator::Condition,
-                        "Operator \"!\" not supported in assign expressions.");
-                delimeters->push_back(Delimeter(newIndex++, Not));
+                if (contentStr[++index] != '=') {
+                    CHECK_ARGS(opType == syntax::Operator::Condition,
+                            "Operator \"!\" not supported in %s",
+                            "assign expressions.");
+                    delimeters->push_back(Delimeter(newIndex, Not));
+                }
+                newIndex++;
                 result->append(1, '!');
-                index++;
                 break;
             case '(':
                 temp = newIndex == 0 ? -1 : (*result)[newIndex - 1];
@@ -159,15 +155,6 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                 delimeters->push_back(Delimeter(newIndex++, RightBracket));
                 result->append(1, ')');
                 index++;
-                break;
-            case '^':
-                CHECK_ARGS(opType == syntax::Operator::Condition,
-                        "Operator \"^\" not supported in assign expressions.");
-                result->append(1, '^');
-                CHECK_ARGS(contentStr[++index] == '(',
-                        "Operator \"^\" not supported.");
-                newIndex++;
-                intoString = 2;
                 break;
             case '\"':
                 intoString = 1;
@@ -194,7 +181,8 @@ int parseExpr(const syntax::Operator::OperatorType opType,
             std::cout << opName << ": Operator matched." << std::endl;
 #endif
             CHECK_ARGS(op->type() == opType,
-                    "[%s] Found operator type not matched.", opName.c_str());
+                    "[%s] Found operator type[Condition/Assign] not matched.",
+                    opName.c_str());
             CHECK_ARGS(range.first > 0,
                     "[%s] No left value provided in expression \"%s\".",
                     opName.c_str(), content.c_str());
@@ -210,7 +198,7 @@ int parseExpr(const syntax::Operator::OperatorType opType,
                 newGroups->push_back(new std::pair<std::string, Group**>(
                         node->value.stringValue, &(node->value.groupPtr)));
             } else if (range.second >= content.size()) {
-                node->leftType = syntax::Number;
+                node->rightType = syntax::Number;
                 node->value.stringValue = "";
                 node->value.numberValue = 0.0f;
             } else {
@@ -362,6 +350,14 @@ int linkExpr(const syntax::Operator::OperatorType opType,
         }
     }
     if (index < content.size() - 1) {
+#ifdef DEBUG_OP
+        std::cout << "Left: " << content.substr(index,
+                content.length() - 1);
+        if (lastDelim) {
+            std::cout << " Last Delim: " << lastDelim->second;
+        }
+        std::cout << std::endl;
+#endif
         configItem->addCondition(new syntax::Node(), &newNode);
         newNode->reduceDepth = reduceDepth;
         exprs->push_back(Expression(content.substr(index,

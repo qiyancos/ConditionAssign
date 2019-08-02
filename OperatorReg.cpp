@@ -9,14 +9,14 @@ std::vector<Operator*> operatorList;
 
 // 下面的顺序与运算符优先级密切相关
 
-// 逻辑运算符的声明
-OPREG_NORMAL(Not, Condition, 1, "!", Expr);
-OPREG_NORMAL(Or, Condition, 1, "||", Expr);
-OPREG_NORMAL(And, Condition, 1, "&&", Expr);
+// 逻辑运算符的声明(因为在parse时生成，所以只初始化，没有注册)
+OPINIT_NORMAL(Not, Condition, 1, "!", Expr);
+OPINIT_NORMAL(Or, Condition, 1, "||", Expr);
+OPINIT_NORMAL(And, Condition, 1, "&&", Expr);
 // 正则匹配运算拥有最高的优先级
 OPREG_NORMAL(RegularExpr, Condition, 1, ":=", String);
 // 比较运算符声明
-OPREG_NORMAL(Equal, Condition, 1, "==", Number, String);
+OPREG_NORMAL(Equal, Condition, 1, "==", New, Number, String);
 OPREG_NORMAL(NotEqual, Condition, 1, "!=", Number, String);
 // 数字大小比较运算声明
 OPREG_NORMAL(LessEqual, Condition, 1, "<=", Number);
