@@ -32,9 +32,9 @@ static int Executor::mainRunner(Executor* executor) {
                 workingJobPtr);
         if (newJob > 0) {
             TEST(executor->id_);
-            std::function<int(void*)> jobFunc =
+            std::function<int(void*, const int)> jobFunc =
                     (*workingJobPtr)->getJobFunc();
-            if (jobFunc((*workingJobPtr)->param_) < 0) {
+            if (jobFunc((*workingJobPtr)->param_, executor->id_) < 0) {
                 sys_log_println(_ERROR,
                         "Error occourred while running executor job %s[%d].\n",
                         "in executor", executor->id_);
@@ -71,18 +71,23 @@ int Executor::startWaiting() {
 ExecutorJob::ExecutorJob(const JobType type, void* param) :
         type_(type), param_(param) {}
 
-std::function<int(void*)> ExecutorJob::getJobFunc(){
+std::function<int(void*, const int)> ExecutorJob::getJobFunc(){
     switch (type_) {
-    case LoadLayer: return std::function<int(void*)>(job_func::loadLayer);
-    case SaveLayer: return std::function<int(void*)>(job_func::saveLayer);
+    case LoadLayer:
+            return std::function<int(void*, const int)>(job_func::loadLayer);
+    case SaveLayer:
+            return std::function<int(void*, const int)>(job_func::saveLayer);
     case ParseConfigLines:
-        return std::function<int(void*)>(job_func::parseConfigLines);
+        return std::function<int(void*, const int)>(
+                job_func::parseConfigLines);
     case ParseConfigFile:
-        return std::function<int(void*)>(job_func::parseConfigFile);
-    case ParseGroup: return std::function<int(void*)>(job_func::parseGroup);
-    case BuildGroup: return std::function<int(void*)>(job_func::buildGroup);
+        return std::function<int(void*, const int)>(job_func::parseConfigFile);
+    case ParseGroup:
+        return std::function<int(void*, const int)>(job_func::parseGroup);
+    case BuildGroup:
+        return std::function<int(void*, const int)>(job_func::buildGroup);
     case ProcessMifItem:
-        return std::function<int(void*)>(job_func::processMifItem);
+        return std::function<int(void*, const int)>(job_func::processMifItem);
     }
 }
 
@@ -153,16 +158,16 @@ int ExecutorPool::init() {
     workingJob_.resize(executorCnt, nullptr);
     executorStatus_.resize(executorCnt, Executor::Busy);
 #ifdef DEBUG
-    debugStream.push_back(std::ofstream((debugLogDir + ".main").c_str(),
+    debugStream.push_back(std::ofstream((debugLogDir + "/main.log").c_str(),
             std::ofstream::out));
-    debugStream.push_back(std::ofstream((debugLogDir + ".rc").c_str(),
+    debugStream.push_back(std::ofstream((debugLogDir + "/rc.log").c_str(),
             std::ofstream::out));
 #endif
     for (int id = 0; id < executorCnt; id++) {
         executorWakeup_.push_back(new Semaphore(0));
 #ifdef DEBUG
-        debugStream.push_back(std::ofstream((debugLogDir + "." + 
-                std::to_string(id)).c_str(), std::ofstream::out));
+        debugStream.push_back(std::ofstream((debugLogDir + "/" +
+                std::to_string(id) + ".log").c_str(), std::ofstream::out));
 #endif
     }
     for (int id = 0; id < executorCnt; id++) {

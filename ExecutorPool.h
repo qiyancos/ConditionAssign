@@ -72,7 +72,7 @@ public:
     };
     
     // 根据工作类型获取对应的执行函数
-    std::function<int(void*)> getJobFunc();
+    std::function<int(void*, const int)> getJobFunc();
     
     // 构造函数，参数是一个结构体
     ExecutorJob(const JobType type, void* param);

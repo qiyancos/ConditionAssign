@@ -60,18 +60,6 @@ int ConfigItem::addAssign(syntax::Node* newNode,
     return 0;
 }
 
-int ConfigItem::getMainConditionNode(syntax::Node** nodePtr) {
-    CHECK_ARGS(!conditions_.empty(), "No main node in an empty config item.");
-    *nodePtr = conditions_.front();
-    return 0;
-}
-
-int ConfigItem::getMainAssignNode(syntax::Node** nodePtr) {
-    CHECK_ARGS(!assigns_.empty(), "No main node in an empty config item.");
-    *nodePtr = assigns_.front();
-    return 0;
-}
-
 ConfigSubGroup::~ConfigSubGroup() {
     for (ConfigItem* item : group_) {
         delete item;
@@ -202,7 +190,7 @@ int parseExpr(const syntax::Operator::OperatorType opType,
     syntax::Operator* newOperator;
     for (syntax::Operator* op : syntax::operatorList) {
         if (op->find(&newOperator, content, &range, &opName) > -1) {
-#ifdef DEBUG
+#ifdef DEBUG_OP
             std::cout << opName << ": Operator matched." << std::endl;
 #endif
             CHECK_ARGS(op->type() == opType,
@@ -210,23 +198,24 @@ int parseExpr(const syntax::Operator::OperatorType opType,
             CHECK_ARGS(range.first > 0,
                     "[%s] No left value provided in expression \"%s\".",
                     opName.c_str(), content.c_str());
-            CHECK_ARGS(range.second < content.size(),
-                    "[%s] No right value provided in expression \"%s\".",
-                    opName.c_str(), content.c_str());
             node->tagName = content.substr(0, range.first);
-            node->value.stringValue = content.substr(range.second,
-                    content.size() - range.second);
-            configItem->addOperator(newOperator, &(node->op));
-            CHECK_RET(srcLayer->getTagType(node->tagName, &(node->leftType)),
-                    "Failed to get data type of tag \"%s\".",
+            CHECK_RET(srcLayer->getTagType(node->tagName,
+                    &(node->leftType)), "Failed to get data type of tag \"%s\".",
                     node->tagName.c_str());
+            configItem->addOperator(newOperator, &(node->op));
             if (op->isSupported(syntax::GroupType)) {
                 CHECK_ARGS(node->value.stringValue.find(")->") !=
                         std::string::npos, "Bad group format.");
                 node->rightType = syntax::GroupType;
                 newGroups->push_back(new std::pair<std::string, Group**>(
                         node->value.stringValue, &(node->value.groupPtr)));
+            } else if (range.second >= content.size()) {
+                node->leftType = syntax::Number;
+                node->value.stringValue = "";
+                node->value.numberValue = 0.0f;
             } else {
+                node->value.stringValue = content.substr(range.second,
+                        content.size() - range.second);
                 node->rightType = syntax::getDataType(node->value.stringValue,
                         &(node->value.stringValue),
                         &(node->value.numberValue));
@@ -258,15 +247,25 @@ int reduceExpr(std::vector<syntax::Node*>* nodeStack, const int reduceDepth) {
     return 0;
 }
 
-int linkExpr(const std::string& content, ConfigItem* configItem,
+int linkExpr(const syntax::Operator::OperatorType opType,
+        const std::string& content, ConfigItem* configItem,
         const std::vector<Delimeter>& delimeters,
         std::vector<Expression>* exprs) {
     int reduceDepth = 0, index = 0;
     syntax::Node* newNode;
     std::vector<syntax::Node*> nodeStack;
     Delimeter* lastDelim = nullptr;
-    for (Delimeter delim : delimeters) {
+    for (int i = 0; i < delimeters.size(); i++) {
+        const Delimeter& delim = delimeters[i];
         // 表明中间存在需要解析的简单表达式
+#ifdef DEBUG_OP
+        std::cout << "Left: " << content.substr(index,
+                content.length() - index);
+        if (lastDelim) {
+            std::cout << " Last Delim: " << lastDelim->second;
+        }
+        std::cout << std::endl;
+#endif
         if (delim.first > index) {
             CHECK_ARGS(delim.second != Not,
                     "Can not connect two conditions with \"!\".");
@@ -293,7 +292,7 @@ int linkExpr(const std::string& content, ConfigItem* configItem,
                 newNode->reduceDepth = reduceDepth;
                 newNode->leftType = syntax::Expr;
                 newNode->rightType = syntax::Expr;
-                newNode->leftNode = nodeStack.front();
+                newNode->leftNode = nodeStack.back();
                 switch (delim.second) {
                 case Or: newNode->op = new syntax::OperatorOr(); break;
                 case And:
@@ -371,6 +370,13 @@ int linkExpr(const std::string& content, ConfigItem* configItem,
         CHECK_RET(reduceExpr(&nodeStack, reduceDepth),
                 "Failed to shift-reduce in depth[%d].", reduceDepth);
     }
+    CHECK_ARGS(nodeStack.size() == 1, "No node or too many nodes left for %s",
+            "main node setting in nodestack");
+    if (opType == syntax::Operator::Condition) {
+        configItem->conditionMainNode_ = nodeStack.front();
+    } else {
+        configItem->assignMainNode_ = nodeStack.front();
+    }
     CHECK_ARGS(reduceDepth == 0, "Lack left or right bracket in \"%s\"",
             content.c_str());
     return 0;
@@ -390,12 +396,14 @@ int parseConditions(const std::string& content, ConfigItem* configItem,
     }
     std::vector<Expression> exprs;
     if (delimeters.size() != 0) {
-        CHECK_RET(linkExpr(newContent, configItem, delimeters, &exprs),
+        CHECK_RET(linkExpr(syntax::Operator::Condition, newContent,
+                configItem, delimeters, &exprs),
                 "Failed split config line into expressions.");
     } else {
         syntax::Node* newNode;
         configItem->addCondition(new syntax::Node(), &newNode);
         exprs.push_back(Expression(newContent, newNode));
+        configItem->conditionMainNode_ = newNode;
     }
     for (auto expr : exprs) {
         CHECK_RET(parseExpr(syntax::Operator::Condition, expr.first,
@@ -407,20 +415,20 @@ int parseConditions(const std::string& content, ConfigItem* configItem,
 
 int parseAssigns(const std::string& content, ConfigItem* configItem,
         ResourcePool* resourcePool, MifLayer* srcLayer) {
-    CHECK_ARGS(content.length() != 0,
-            "Config line without assign expressions will never work.");
     std::vector<Delimeter> delimeters;
     std::string newContent("");
     CHECK_RET(findDelimeter(syntax::Operator::Assign, content, &delimeters,
             &newContent), "Failed to split content with delimeters.");
     std::vector<Expression> exprs;
     if (delimeters.size() != 0) {
-        CHECK_RET(linkExpr(newContent, configItem, delimeters, &exprs),
+        CHECK_RET(linkExpr(syntax::Operator::Assign, newContent, configItem,
+                delimeters, &exprs),
                 "Failed split config line into expressions.");
     } else {
         syntax::Node* newNode;
         configItem->addAssign(new syntax::Node(), &newNode);
         exprs.push_back(Expression(newContent, newNode));
+        configItem->assignMainNode_ = newNode;
     }
     for (auto expr : exprs) {
         std::vector<std::pair<std::string, Group**>*> newGroups;
@@ -441,6 +449,11 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
     CHECK_ARGS(partitions.size() >= 2,
             "Lack of assign expressions for a single line \"%s\".",
             line.c_str());
+    if (partitions[1].length() == 0) {
+        CHECK_WARN(false,
+            "Config line without assign expressions will never work.");
+        return 0;
+    }
     ConfigItem* configItem = new ConfigItem();
     MifLayer* srcLayer;
     CHECK_RET(resourcePool->getLayerByIndex(&srcLayer, ResourcePool::Input),

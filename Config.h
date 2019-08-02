@@ -29,10 +29,12 @@ public:
             syntax::Node** newNodePtr = nullptr);
     // 添加一个核心赋值操作对应的节点指针
     int addAssign(syntax::Node* newNode, syntax::Node** newNodePtr = nullptr);
-    // 获取当前ConfigItem的条件主节点
-    int getMainConditionNode(syntax::Node** nodePtr);
-    // 获取当前ConfigItem的赋值主节点
-    int getMainAssignNode(syntax::Node** nodePtr);
+
+public:
+    // 条件主节点
+    syntax::Node* conditionMainNode_ = nullptr;
+    // 赋值主节点
+    syntax::Node* assignMainNode_ = nullptr;
 
 private:
     // 当前ConfigItem的运算评分

@@ -13,8 +13,8 @@
 
 namespace condition_assign {
 
-// 准备好工作项的队列的最大长s
-#define MAX_READY_QUEUE_SIZE 2
+// 准备好工作项的队列的最大长度
+#define MAX_READY_QUEUE_SIZE 32
 
 class ConfigSubGroup;
 

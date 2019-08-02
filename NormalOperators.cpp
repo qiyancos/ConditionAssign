@@ -11,7 +11,7 @@ int OperatorNot::process(Node* node, MifItem* item) {
     int result;
     CHECK_ARGS(!node->leftNode && node->rightNode,
             "Bad node-tree structure!");
-    CHECK_ARGS(node->op->isSupported(node->leftType),
+    CHECK_ARGS(node->op->isSupported(node->rightType),
             "Unsupported data type.");
     CHECK_RET(result = node->rightNode->op->process(node->rightNode, item),
             "Operator process failed in \"%s %s %s\".",
@@ -503,7 +503,7 @@ int OperatorSelfAdd::process(Node* node, MifItem* item) {
     }
     leftValString = htk::trim(leftValString, "\"");
     if (node->leftType == node->rightType && node->leftType == Number) {
-        double leftVal;
+        double leftVal = 0.0f;
         std::string prefix = "";
         std::stringstream tempStream;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),

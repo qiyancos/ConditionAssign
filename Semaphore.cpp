@@ -1,5 +1,7 @@
 #include "Semaphore.h"
 
+#include <limits.h>
+
 namespace condition_assign {
 
 Semaphore::Semaphore(const int count = 0, const Type type = Normal) {
@@ -34,6 +36,9 @@ void Semaphore::waitOrigin(Param* param) {
                 [&]()->bool{return param->wakeupCnt > 0;});
         --(param->wakeupCnt);
     }
+    if (param->type == OnceForAll) {
+        param->count = INT_MAX;
+    }
 }
 
 void Semaphore::signalOrigin(Param* param) {
@@ -43,9 +48,10 @@ void Semaphore::signalOrigin(Param* param) {
         param->condition.notify_one();
     }
     if (param->type == OnceForAll) {
-        param->waitFunc = emptyFunc;
-        param->signalFunc = emptyFunc;
-        param->signalAllFunc = emptyFunc;
+        param->count = INT_MAX;
+        //param->waitFunc = emptyFunc;
+        //param->signalFunc = emptyFunc;
+        //param->signalAllFunc = emptyFunc;
     }
 }
 
@@ -56,9 +62,10 @@ void Semaphore::signalAllOrigin(Param* param) {
         param->condition.notify_one();
     }
     if (param->type == OnceForAll) {
-        param->waitFunc = emptyFunc;
-        param->signalFunc = emptyFunc;
-        param->signalAllFunc = emptyFunc;
+        param->count = INT_MAX;
+        //param->waitFunc = emptyFunc;
+        //param->signalFunc = emptyFunc;
+        //param->signalAllFunc = emptyFunc;
     }
 }
 

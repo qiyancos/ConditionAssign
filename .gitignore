@@ -34,5 +34,6 @@
 bin
 output
 outputobj
-test/log
+test/log*
+test/data
 *.swp

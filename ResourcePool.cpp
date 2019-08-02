@@ -210,7 +210,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     for (int index = executorCnt_ - 1; index >= 0; index--) {
         readyQueueLock_[index]->lock();
     }
-#ifdef DEBUG
+#ifdef DEBUG_JOB
     std::cout << "Before select: ";
     for (auto que : readyQueue_) {
         std::cout << que.size() << " ";
@@ -218,8 +218,9 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     std::cout << std::endl;
 #endif
     TEST("rc");
-    int maxReadySize = (candidateQueue_.size() + readyJobCnt_) /
-            executorCnt_ + 1;
+    int maxReadySize = candidateQueue_.size() + readyJobCnt_;
+    int avgSize = maxReadySize / executorCnt_;
+    maxReadySize = maxReadySize % executorCnt_ > 0 ? avgSize + 1 : avgSize;
     maxReadySize = std::min(MAX_READY_QUEUE_SIZE, maxReadySize);
     for (int index; index < executorCnt_; index++) {
         std::deque<ExecutorJob*>& que = readyQueue_[index];
@@ -245,7 +246,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
             candidateQueue_.pop();
         }
     }
-#ifdef DEBUG
+#ifdef DEBUG_JOB
     std::cout << "After select:  ";
     for (auto que : readyQueue_) {
         std::cout << que.size() << " ";

@@ -31,7 +31,7 @@ struct LoadLayerParam {
 };
 
 // 加载目标Layer的函数
-int loadLayer(void* param);
+int loadLayer(void* param, const int executorID);
 
 // 关闭保存目标Layer函数参数
 struct SaveLayerParam {
@@ -42,7 +42,7 @@ struct SaveLayerParam {
 };
 
 // 关闭和保存Layer的函数
-int saveLayer(void* param);
+int saveLayer(void* param, const int executorID);
 
 // 配置文件语法解析函数参数
 struct ParseConfigLinesParam {
@@ -59,7 +59,7 @@ struct ParseConfigLinesParam {
 };
 
 // 对多行配置文件的内容进行语法解析的函数
-int parseConfigLines(void* param);
+int parseConfigLines(void* param, const int executorID);
 
 // 配置文件工作项生成函数参数
 struct ParseConfigFileParam {
@@ -72,7 +72,7 @@ struct ParseConfigFileParam {
 };
 
 // 为一个配置文件生成工作项的函数
-int parseConfigFile(void* param);
+int parseConfigFile(void* param, const int executorID);
 
 // 建立数据组函数参数
 struct ParseGroupParam {
@@ -83,7 +83,7 @@ struct ParseGroupParam {
 };
 
 // 建立给定类型的Group类型的函数
-int parseGroup(void* param);
+int parseGroup(void* param, const int executorID);
 
 // 建立数据组函数参数
 struct BuildGroupParam {
@@ -102,7 +102,7 @@ struct BuildGroupParam {
 };
 
 // 建立给定类型的Group类型的函数
-int buildGroup(void* param);
+int buildGroup(void* param, const int executorID);
 
 // 对Mif进行条件赋值的参数
 struct ProcessMifItemParam {
@@ -121,7 +121,7 @@ struct ProcessMifItemParam {
 };
 
 // 对多个Mif元素执行条件赋值操作的函数
-int processMifItem(void* param);
+int processMifItem(void* param, const int executorID);
 
 } // namespace job_func
 

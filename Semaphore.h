@@ -4,6 +4,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
+#include <atomic>
 
 namespace condition_assign {
 
@@ -24,11 +25,11 @@ public:
         std::condition_variable condition;
 
         // 等待信号的到来
-        std::function<void(Param*)> waitFunc = waitOrigin;
+        std::atomic<void(*)(Param*)> waitFunc {waitOrigin};
         // 发出信号，开启等待的线程
-        std::function<void(Param*)> signalFunc = signalOrigin;
+        std::atomic<void(*)(Param*)> signalFunc {signalOrigin};
         // 发出信号，开启等待的线程
-        std::function<void(Param*)> signalAllFunc = signalOrigin;
+        std::atomic<void(*)(Param*)> signalAllFunc {signalOrigin};
     };
 
     // 初始化函数

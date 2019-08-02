@@ -86,11 +86,9 @@ int calculateScore(const std::vector<Node*>& nodeVec) {
 
 int satisfyConditions(const ConfigItem& configItem, MifItem* item) {
     int result;
-    syntax::Node* mainNode;
-    CHECK_RET(configItem.getMainConditionNode(&mainNode),
-            "Failed to get main node of conditions.");
-    if (mainNode == nullptr) return 1;
-    CHECK_ARGS(mainNode->op != nullptr, "Found main node without operator.");
+    syntax::Node* mainNode = configItem.conditionMainNode_;
+    CHECK_ARGS(mainNode, "Failed to get main node of conditions.");
+    CHECK_ARGS(mainNode->op, "Found main node without operator.");
     CHECK_RET(result = mainNode->op->process(mainNode, item),
             "Operator process failed in \"%s %s %s\".",
             mainNode->tagName.c_str(), mainNode->op->str().c_str(),
@@ -100,9 +98,8 @@ int satisfyConditions(const ConfigItem& configItem, MifItem* item) {
 
 int applyAssigns(const ConfigItem& configItem, MifItem* item) {
     int result;
-    syntax::Node* mainNode;
-    CHECK_RET(configItem.getMainAssignNode(&mainNode),
-            "Failed to get main node of conditions.");
+    syntax::Node* mainNode = configItem.assignMainNode_;
+    CHECK_ARGS(mainNode, "Failed to get main node of assign expressions.");
     CHECK_ARGS(mainNode->op != nullptr, "Found main node without operator.");
     CHECK_RET(mainNode->op->process(mainNode, item),
             "Operator process failed in \"%s %s %s\".",

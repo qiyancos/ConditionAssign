@@ -20,6 +20,10 @@ Create on: 2018/08/27
 #include <locale>
 #include <iostream>
 
+#ifdef TEST
+#include <chrono>
+#endif
+
 #ifdef DEBUG
 #include <time.h>
 #include <unistd.h>
@@ -53,6 +57,13 @@ namespace condition_assign {
     } \
 }
 
+#define CHECK_WARN(expr, info, ...) { \
+    if (!(expr)) { \
+        sys_log_println(_WARN, (std::string(__FILE__) + "[%d]: " + info + \
+                " In [%s].\n").c_str(), __LINE__, ##__VA_ARGS__, __func__); \
+    } \
+}
+
 #define CHECK_ARGS(expr, info, ...) { \
     if (!(expr)) { \
         sys_log_println(_ERROR, (std::string(__FILE__) + "[%d]: " + info + \
@@ -61,7 +72,40 @@ namespace condition_assign {
     } \
 }
 
+#ifdef TEST
+
+#define TIMER() \
+    timer newTimer(__func__, __FILE__, __LINE__);
+
+class timer {
+public:
+    timer(const std::string funcName, const std::string fileName,
+            const int lineCnt) : funcName_(funcName), fileName_(fileName),
+            lineCnt_(lineCnt) {
+        start_ = std::chrono::system_clock::now();
+    }
+
+    ~timer() {
+        end_ = std::chrono::system_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+                end_ - start_);
+        std::cout << "[" << funcName_ << "-" << lineCnt_ << "] In (";
+        std::cout << funcName_ << ") Total time: ";
+        std::cout << static_cast<double>(duration.count());
+        std::cout << " Micro Second." << std::endl;
+    }
+
+private:
+    const std::string funcName_, fileName_;
+    const int lineCnt_;
+    std::chrono::system_clock::time_point start_;
+    std::chrono::system_clock::time_point end_;
+};
+
+#endif
+
 #ifdef DEBUG
+
 inline int getDebugIndex(const std::string content) {
     if (content == "main") {
         return 0;

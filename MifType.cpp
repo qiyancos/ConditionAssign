@@ -17,7 +17,6 @@ MifLayer::~MifLayer() {
 
 int MifLayer::newMifItem(const int index, MifItem** newItemPtr,
         MifLayer* targetLayer) {
-    ready_.wait();
     CHECK_ARGS(index > -1 && index < mifSize_,
             "Mif item index[%d] out of bound.", index);
     std::lock_guard<std::mutex> cacheGuard(itemCacheLock_);
@@ -81,7 +80,6 @@ int MifLayerReadWrite::save(std::string layerPath = "") {
 
 int MifLayerReadWrite::newItemWithTag(MifLayer* input, const int index,
         const std::string& tagName, const std::string& val) {
-    ready_.wait();
     mifLock_.lock();
     mif_.mid.push_back(input->mif_.mid[index]);
     mif_.data.geo_vec.push_back(input->mif_.data.geo_vec[index] == NULL ?
@@ -96,7 +94,6 @@ int MifLayerReadWrite::newItemWithTag(MifLayer* input, const int index,
 
 int MifLayerReadWrite::assignWithTag(const std::string& tagName,
         const int index, const std::string& val) {
-    ready_.wait();
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index of tag \"%s\" for write.",
@@ -110,7 +107,6 @@ int MifLayerReadWrite::assignWithTag(const std::string& tagName,
 
 int MifLayerReadWrite::getTagType(const std::string& tagName,
         syntax::DataType* type) {
-    ready_.wait();
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
@@ -133,7 +129,6 @@ int MifLayerReadWrite::getTagType(const std::string& tagName,
 
 int MifLayerReadWrite::getTagVal(const std::string& tagName,
         const int index, std::string* val) {
-    ready_.wait();
     int colID;
     if (getTagColID(tagName, &colID, MifLayer::Write) < 0) {
         return -1;
@@ -146,7 +141,6 @@ int MifLayerReadWrite::getTagVal(const std::string& tagName,
 }
 
 int MifLayerReadWrite::getGeometry(wsl::Geometry** val, const int index) {
-    ready_.wait();
     CHECK_ARGS(index < mifSize_ && index >= 0,
             "Index[%d] out of bound.", index);
     std::lock_guard<std::mutex> mifGuard(mifLock_);
@@ -156,7 +150,6 @@ int MifLayerReadWrite::getGeometry(wsl::Geometry** val, const int index) {
 
 int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
         AccessType accessType) {
-    ready_.wait();
     std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
     auto colCacheIterator = tagColCache_.find(tagName);
     if (colCacheIterator != tagColCache_.end()) {
@@ -174,7 +167,7 @@ int MifLayerReadWrite::getTagColID(const std::string& tagName, int* colID,
             if (accessType == Read) {
                 return -1;
             } else {
-                mif_.add_column(tagName, "Char(64)");
+                mif_.add_column(tagName, "char(64)");
                 colIterator = mif_.header.col_name_map.find(lowerTagName);
                 CHECK_RET(colIterator != mif_.header.col_name_map.end(),
                         "Create new column \"%s\" failed!", tagName.c_str());
@@ -222,7 +215,6 @@ int MifLayerReadOnly::assignWithTag(const std::string& tagName,
 
 int MifLayerReadOnly::getTagType(const std::string& tagName,
         syntax::DataType* type) {
-    ready_.wait();
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
@@ -245,7 +237,6 @@ int MifLayerReadOnly::getTagType(const std::string& tagName,
 
 int MifLayerReadOnly::getTagVal(const std::string& tagName,
         const int index, std::string* val) {
-    ready_.wait();
     int colID;
     CHECK_RET(getTagColID(tagName, &colID, MifLayer::Write),
             "Failed to get column index of tag \"%s\".", tagName.c_str());
@@ -256,7 +247,6 @@ int MifLayerReadOnly::getTagVal(const std::string& tagName,
 }
 
 int MifLayerReadOnly::getGeometry(wsl::Geometry** val, const int index) {
-    ready_.wait();
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
     *val = mif_.data.geo_vec[index];
@@ -265,7 +255,6 @@ int MifLayerReadOnly::getGeometry(wsl::Geometry** val, const int index) {
 
 int MifLayerReadOnly::getTagColID(const std::string& tagName, int* colID,
         AccessType accessType) {
-    ready_.wait();
     std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
     auto colCacheIterator = tagColCache_.find(tagName);
     if (colCacheIterator != tagColCache_.end()) {
