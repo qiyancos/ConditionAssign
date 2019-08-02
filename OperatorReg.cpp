@@ -29,6 +29,10 @@ OPREG_NORMAL(IsPrefix, Condition, 1, "%=", String);
 OPREG_NORMAL(IsSuffix, Condition, 1, "=%", String);
 // Tag包含运算声明
 OPREG_NORMAL(TagContain, Condition, 1, "=<", GroupType);
+// 尽量提升Assign等级加快解析匹配速度
+// 赋值相关运算符的声明
+OPREG_NORMAL(SelfAdd, Assign, 1, "+=", New, Number, String);
+OPREG_NORMAL(Assign, Assign, 1, "=", New, Number, String);
 // 地理关系运算声明
 OPREG_NORMAL(GeoContain, Condition, 1, "<[]>", GroupType);
 OPREG_NORMAL(GeoContainAll, Condition, 1, "&<[]>", GroupType);
@@ -42,9 +46,6 @@ OPREG_NORMAL(GeoDeparture, Condition, 1, "<>[]", GroupType);
 OPREG_NORMAL(GeoDepartureAll, Condition, 1, "&<>[]", GroupType);
 // 特殊运算符注册
 OPREG_SPECIAL(Replace, Assign, 1, String);
-// 赋值相关运算符的声明
-OPREG_NORMAL(SelfAdd, Assign, 1, "+=", New, Number, String);
-OPREG_NORMAL(Assign, Assign, 1, "=", New, Number, String);
 
 // 特殊运算符注册
 OPREG_SPECIAL(CondFunc, Condition, 1, Number, String, GroupType);

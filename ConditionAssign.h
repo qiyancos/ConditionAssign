@@ -20,9 +20,9 @@ Create on: 2018/08/27
 #include <locale>
 #include <iostream>
 
-#ifdef TEST
+#ifdef USE_TIMER
 #include <chrono>
-#endif
+#endif  // USE_TIMER
 
 #ifdef DEBUG
 #include <time.h>
@@ -31,12 +31,14 @@ Create on: 2018/08/27
 #include <sstream>
 #include <utility>
 #include <fstream>
+
 extern std::vector<std::ofstream> debugStream;
 extern std::string debugLogDir;
-#endif
+#endif // DEBUG
 
 namespace condition_assign {
 
+// 下面定义了四个检查函数
 #define CHECK_EXIT(expr, info, ...) { \
     int errCode = expr; \
     if (errCode < 0) { \
@@ -72,7 +74,8 @@ namespace condition_assign {
     } \
 }
 
-#ifdef TEST
+// 计时测试使用的宏，计算构造和析构间的时间（微秒）
+#ifdef USE_TIMER
 
 #define TIMER() \
     timer newTimer(__func__, __FILE__, __LINE__);
@@ -102,8 +105,9 @@ private:
     std::chrono::system_clock::time_point end_;
 };
 
-#endif
+#endif // USE_TIMER
 
+// 多线程debug相关的宏
 #ifdef DEBUG
 
 inline int getDebugIndex(const std::string content) {
@@ -132,9 +136,12 @@ inline int getDebugIndex(const int id) {
     streamOut << nowTime->tm_min << ":" << nowTime->tm_sec << "]."; \
     streamOut << std::endl; \
 }
-#else
+
+#else // DEBUG
+
 #define TEST(String)
-#endif
+
+#endif // DEBUG
 
 } // namespace condition_assign
 

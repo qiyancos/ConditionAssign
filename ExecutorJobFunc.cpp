@@ -222,8 +222,9 @@ int buildGroup(void* param, const int executorID) {
     TEST(executorID);
     BuildGroupParam* paramPtr = reinterpret_cast<BuildGroupParam*>(param);
     if (paramPtr->startIndex == -1) {
-        paramPtr->typeGroup->init(*(paramPtr->itemGroup),
-                paramPtr->typeGroup->info_->tagName_);
+        CHECK_RET(paramPtr->typeGroup->init(*(paramPtr->itemGroup),
+                paramPtr->typeGroup->info_->tagName_),
+                "Failed to init type group from item group.");
         CHECK_ARGS(!paramPtr->typeGroup->info_,
                 "Type group should not have group info while building.");
         paramPtr->typeGroup->ready_.signalAll();
