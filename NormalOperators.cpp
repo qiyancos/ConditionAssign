@@ -3,6 +3,9 @@
 #include "MifType.h"
 #include "Group.h"
 
+#include <regex>
+#include <exception>
+
 namespace condition_assign{
 
 namespace syntax {
@@ -160,8 +163,15 @@ int OperatorRegularExpr::process(Node* node, MifItem* item) {
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Can not get value of tag \"%s\".", node->tagName.c_str());
     leftVal = htk::trim(leftVal, "\"");
-    return htk::RegexSearch(leftVal, node->value.stringValue.substr(2,
-            node->value.stringValue.length() - 4));
+    const std::string regularExpr = node->value.stringValue;
+    try {
+        const std::regex pattern(regularExpr);
+        return std::regex_search(leftVal, pattern);
+    } catch (const std::exception& except) {
+        CHECK_RET(-1, "Failed to %s \"%s\" in \"%s\". Return info: %s.",
+                "search regular expression", regularExpr.c_str(),
+                leftVal.c_str(), except.what());
+    }
 }
 
 int OperatorTagContain::process(Node* node, MifItem* item) {
