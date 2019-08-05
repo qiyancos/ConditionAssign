@@ -36,4 +36,5 @@ output
 outputobj
 test/log*
 test/data
+conf/*.conf
 *.swp

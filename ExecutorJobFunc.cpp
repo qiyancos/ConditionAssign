@@ -271,6 +271,7 @@ int buildGroup(void* param, const int executorID) {
 }
 
 int processMifItem(void* param, const int executorID) {
+    TIMER();
     TEST(executorID);
     ProcessMifItemParam* paramPtr =
             reinterpret_cast<ProcessMifItemParam*>(param);
@@ -298,6 +299,7 @@ int processMifItem(void* param, const int executorID) {
 #endif
             CHECK_RET(applyAssigns(*configItem, workingItem),
                     "Failed apply assign expr to mif item.");
+            break;
         }
     }
     return 0;
