@@ -86,8 +86,8 @@ std::function<int(void*, const int)> ExecutorJob::getJobFunc(){
         return std::function<int(void*, const int)>(job_func::parseGroup);
     case BuildGroup:
         return std::function<int(void*, const int)>(job_func::buildGroup);
-    case ProcessMifItem:
-        return std::function<int(void*, const int)>(job_func::processMifItem);
+    case ProcessMifItems:
+        return std::function<int(void*, const int)>(job_func::processMifItems);
     }
 }
 
@@ -111,8 +111,8 @@ ExecutorJob::~ExecutorJob() {
     case BuildGroup:
         delete reinterpret_cast<job_func::BuildGroupParam*>(param_);
         break;
-    case ProcessMifItem:
-        delete reinterpret_cast<job_func::ProcessMifItemParam*>(param_);
+    case ProcessMifItems:
+        delete reinterpret_cast<job_func::ProcessMifItemsParam*>(param_);
         break;
     }
 }

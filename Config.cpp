@@ -61,8 +61,8 @@ int ConfigItem::addAssign(syntax::Node* newNode,
 }
 
 ConfigSubGroup::~ConfigSubGroup() {
-    for (ConfigItem* item : group_) {
-        delete item;
+    for (auto itemPair : group_) {
+        delete itemPair.second;
     }
 }
 
@@ -439,7 +439,7 @@ int parseAssigns(const std::string& content, ConfigItem* configItem,
 }
 
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
-        ResourcePool* resourcePool, const int layerID,
+        const int index, ResourcePool* resourcePool, const int layerID,
         std::vector<std::pair<std::string, Group**>*>* newGroups) {
     std::vector<std::string> partitions = htk::split(line, "\t");
     CHECK_ARGS(partitions.size() >= 2,
@@ -467,8 +467,7 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
     CHECK_RET(parseAssigns(partitions[1], configItem, resourcePool,
             targetLayer), "Failed to parse assign expressions \"%s\".",
             partitions[1].c_str());
-    std::lock_guard<std::mutex> groupGuard(subGroup->groupLock_);
-    subGroup->group_.push_back(configItem);
+    subGroup->group_[index].second = configItem;
     return 0;
 }
 

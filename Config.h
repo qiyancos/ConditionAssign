@@ -51,11 +51,11 @@ class ConfigSubGroup {
 public:
     // 当前子组完成解析的ConfigItem数量
     std::atomic<int> readyCnt_ {0};
-    // 子组的锁
-    std::mutex groupLock_;
     // 多有ConfigItem的组
-    std::vector<ConfigItem*> group_;
-    
+    std::vector<std::pair<int, ConfigItem*>> group_;
+    // 对应的对应的文件路径
+    std::string* filePath_;
+
     // 构造函数
     ConfigSubGroup() = default;
     // 析构函数
@@ -75,7 +75,7 @@ using Expression = std::pair<std::string, syntax::Node*>;
 
 // 解析单行配置文件内容并生成对应的ConfigItem
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
-        ResourcePool* resourcePool, const int layerID,
+        const int index, ResourcePool* resourcePool, const int layerID,
         std::vector<std::pair<std::string, Group**>*>* newGroups);
 
 // 解析当前组的基本信息

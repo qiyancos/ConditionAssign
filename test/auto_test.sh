@@ -62,8 +62,8 @@ testNew(){
                 ${targetLayer} ${executorCnt} ${logPath} \
                 ${ConfPaths[$index]} ${PluginLayers[$index]}) 2>&1 | \
                 awk '/real/ {print $2}'`
+        cat $root/log_New/log_$date.txt
     fi
-    cat $root/log_New/log_$date.txt
     newMidMd5Sum=$(md5sum $(echo $targetLayer | sed 's/.mif/.mid/') \
             | awk '{print $1}')
     newMifMd5Sum=$(md5sum $targetLayer | awk '{print $1}')
@@ -92,8 +92,8 @@ testOld() {
                 ${SourceLayers[$index]} ${targetLayer} \
                 ${confPath} ${logPath} ${executorCnt}) 2>&1 | \
                 awk '/real/ {print $2}'`
+        cat $root/log_Old/log_$date.txt
     fi
-    cat $root/log_Old/log_$date.txt
     oldMidMd5Sum=$(md5sum $(echo $targetLayer | sed 's/.mif/.mid/') \
             | awk '{print $1}')
     oldMifMd5Sum=$(md5sum $targetLayer | awk '{print $1}')

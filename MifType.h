@@ -15,6 +15,8 @@ public:
     enum AccessType {Read, Write};
     // 获取当前layer的大小
     int size() {return mifSize_;}
+    // 判断当前Layer是否拥有ItemCache
+    bool withItemCache() {return false;}
     // 依据给定的路径打开Layer
     virtual int open(const std::string& layerPath,
             MifLayer* input = nullptr) = 0;

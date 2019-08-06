@@ -13,10 +13,12 @@ namespace condition_assign {
 
 namespace job_func {
 
-// 每个工作项最多负责解析
-#define MAX_LINE_PER_JOB 100
+// 每个工作项最多负责解析的config行数
+#define MAX_LINE_PER_JOB 128
+// 每个工作项最多处理的item个数
+#define MAX_ITEM_PER_JOB 256
 // 每个工作项最多负责处理的Node分数最大和
-#define MAX_SCORE_SUM_PER_JOB 1000
+#define MAX_SCORE_SUM_PER_JOB 1024
 
 // 加载目标Layer函数参数
 struct LoadLayerParam {
@@ -54,6 +56,8 @@ struct ParseConfigLinesParam {
     const int startIndex;
     // 分配的ConfigItem对应的起始索引
     const int lineCount;
+    // 处理所在的子config组
+    ConfigSubGroup* subGroup;
     // 目标层的ID
     int layerID;
     // 资源池指针
@@ -107,23 +111,21 @@ struct BuildGroupParam {
 int buildGroup(void* param, const int executorID);
 
 // 对Mif进行条件赋值的参数
-struct ProcessMifItemParam {
-    // 需要处理的MifItem索引
-    int mifItemIndex;
+struct ProcessMifItemsParam {
     // 当前处理的输入Layer
     MifLayer* srcLayer;
     // 当前处理的目标Layer
     MifLayer* targetLayer;
     // 处理的Config所在组指针
     ConfigSubGroup* subGroup;
-    // 匹配的ConfigItem在子组中起始索引
+    // 匹配的MifItem在子组中起始索引
     const int startIndex;
     // 当前工作需要匹配的item数量
     int itemCount;
 };
 
 // 对多个Mif元素执行条件赋值操作的函数
-int processMifItem(void* param, const int executorID);
+int processMifItems(void* param, const int executorID);
 
 } // namespace job_func
 

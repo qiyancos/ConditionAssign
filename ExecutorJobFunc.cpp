@@ -31,6 +31,13 @@ int parseConfigFile(void* param, const int executorID) {
     TEST(executorID);
     ParseConfigFileParam* paramPtr =
             reinterpret_cast<ParseConfigFileParam*>(param);
+    // 设置Config子组
+    ConfigSubGroup* subGroup;
+    CHECK_RET(paramPtr->resourcePool->getConfigSubGroup(paramPtr->layerID,
+            &subGroup), "Failed to get config sub group for layer[%d]",
+            paramPtr->layerID);
+    // 打开并逐行读取配置文件
+    subGroup->filePath_ = paramPtr->filePath;
     std::ifstream configFileStream(paramPtr->filePath->c_str());
     CHECK_ARGS(configFileStream, "Failed to open config file \"%s\".",
             paramPtr->filePath->c_str());
@@ -42,9 +49,12 @@ int parseConfigFile(void* param, const int executorID) {
         if (content.length() > 0 && htk::trim(content, " ")[0] != '#') {
             fullContent->push_back(std::pair<std::string, int>(
                     content, lineNumber));
+            subGroup->group_.push_back(std::pair<int, ConfigItem*>(lineNumber,
+                    nullptr));
         }
         lineNumber++;
     }
+    // 任务划分
     int startIndex = 0;
     int lineCount = MAX_LINE_PER_JOB;
     int totalCount = fullContent->size() ;
@@ -57,13 +67,13 @@ int parseConfigFile(void* param, const int executorID) {
     while (startIndex < edgeCount) {
         newJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigLines,
                 new ParseConfigLinesParam {paramPtr->filePath, fullContent,
-                startIndex, lineCount, paramPtr->layerID,
+                startIndex, lineCount, subGroup, paramPtr->layerID,
                 paramPtr->resourcePool}));
         startIndex += lineCount;
     }
     newJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigLines,
             new ParseConfigLinesParam {paramPtr->filePath, fullContent,
-            edgeCount, totalCount - edgeCount,
+            edgeCount, totalCount - edgeCount, subGroup,
             paramPtr->layerID, paramPtr->resourcePool}));
     MifLayer* targetLayer;
     CHECK_RET(paramPtr->resourcePool->getLayerByIndex(&targetLayer,
@@ -89,16 +99,13 @@ int parseConfigLines(void* param, const int executorID) {
             reinterpret_cast<ParseConfigLinesParam*>(param);
     int index = paramPtr->startIndex;
     int lineCount = paramPtr->lineCount;
-    ConfigSubGroup* subGroup;
-    CHECK_RET(paramPtr->resourcePool->getConfigSubGroup(paramPtr->layerID,
-            &subGroup), "Failed to get config sub group for layer[%d]",
-            paramPtr->layerID);
+    ConfigSubGroup* subGroup = paramPtr->subGroup;
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
         std::pair<std::string, int>& thisLine =
                 (*(paramPtr->fullContent))[index];
         CHECK_RET(parser::parseConfigLine(thisLine.first,
-                subGroup, paramPtr->resourcePool, paramPtr->layerID,
+                subGroup, index, paramPtr->resourcePool, paramPtr->layerID,
                 &newGroups), "%s\"%s\"%s\"%s\" [line: %d]",
                 "Failed to parse single line ",
                 thisLine.first.c_str(), " in config file ",
@@ -113,44 +120,32 @@ int parseConfigLines(void* param, const int executorID) {
     }
     std::vector<std::pair<int, int>> rangesInJob;
     subGroup->readyCnt_ += paramPtr->lineCount;
+    // 当前配置文件的所有内容均已经解析完毕
     if (subGroup->readyCnt_ == paramPtr->fullContent->size()) {
-        // 当前配置文件的所有内容均已经解析完毕
-        int scoreSum = 0, startIndex = 0, index = 0;
-        for (ConfigItem* configItem : subGroup->group_) {
-            int itemScore = 0;
-            CHECK_RET(itemScore = configItem->score(),
-                    "Failed to get config item's score.");
-            scoreSum += itemScore;
-            if (scoreSum > MAX_SCORE_SUM_PER_JOB) {
-                rangesInJob.push_back(std::pair<int, int>(startIndex,
-                        ++index));
-                startIndex = index;
-                scoreSum = 0;
-            }
+        MifLayer* srcLayer;
+        CHECK_RET(paramPtr->resourcePool->getLayerByIndex(&srcLayer,
+                ResourcePool::Input), "Failed to get input mif layer.");
+        MifLayer* targetLayer;
+        CHECK_RET(paramPtr->resourcePool->getLayerByIndex(&targetLayer,
+                ResourcePool::Output, paramPtr->layerID),
+                "Failed to get output mif_layer-%d.", paramPtr->layerID);
+        int startIndex = 0;
+        int itemCount = MAX_ITEM_PER_JOB;
+        int totalCount = srcLayer->size() ;
+        int edgeCount = totalCount / itemCount * itemCount;
+        if (totalCount - edgeCount < (itemCount >> 1)) {
+            edgeCount -= itemCount;
+            edgeCount = edgeCount < 0 ? 0 : edgeCount;
         }
-        if (scoreSum < (MAX_SCORE_SUM_PER_JOB >> 1)) {
-            startIndex = rangesInJob.empty() ? 0 : rangesInJob.back().first;
+        while (startIndex < edgeCount) {
+            newJobs.push_back(new ExecutorJob(ExecutorJob::ProcessMifItems,
+                    new ProcessMifItemsParam {srcLayer, targetLayer,
+                    subGroup, startIndex, itemCount}));
+            startIndex += itemCount;
         }
-        rangesInJob.push_back(std::pair<int, int>(startIndex,
-                subGroup->group_.size()));
-        delete paramPtr->fullContent;
-    } else {
-        return 0;
-    }
-    MifLayer* srcLayer;
-    MifLayer* targetLayer;
-    CHECK_RET(paramPtr->resourcePool->getLayerByIndex(&srcLayer,
-            ResourcePool::Input), "Failed to get input mif layer.");
-    CHECK_RET(paramPtr->resourcePool->getLayerByIndex(&targetLayer,
-            ResourcePool::Output, paramPtr->layerID),
-            "Failed to get output mif_layer-%d.", paramPtr->layerID);
-    int itemCount = targetLayer->size();
-    for (std::pair<int, int> range : rangesInJob) {
-        for (int index = 0; index < itemCount; index++) {
-            newJobs.push_back(new ExecutorJob(ExecutorJob::ProcessMifItem,
-                    new ProcessMifItemParam {index, srcLayer, targetLayer,
-                    subGroup, range.first, range.second - range.first}));
-        }
+        newJobs.push_back(new ExecutorJob(ExecutorJob::ProcessMifItems,
+                new ProcessMifItemsParam {srcLayer, targetLayer,
+                subGroup, edgeCount, totalCount - edgeCount}));
     }
     std::lock_guard<std::mutex> candidateQueueGuard(
             paramPtr->resourcePool->candidateQueueLock_);
@@ -270,36 +265,53 @@ int buildGroup(void* param, const int executorID) {
     return 0;
 }
 
-int processMifItem(void* param, const int executorID) {
-    TIMER();
+int processMifItems(void* param, const int executorID) {
+    // TIMER();
     TEST(executorID);
-    ProcessMifItemParam* paramPtr =
-            reinterpret_cast<ProcessMifItemParam*>(param);
+    ProcessMifItemsParam* paramPtr =
+            reinterpret_cast<ProcessMifItemsParam*>(param);
     MifItem* workingItem;
-#ifdef DEBUG_OP
-    std::cout << ">>Process Mif Item: " << paramPtr->mifItemIndex
-            << std::endl;
-#endif
-    CHECK_RET(paramPtr->srcLayer->newMifItem(paramPtr->mifItemIndex,
-            &workingItem, paramPtr->targetLayer),
-            "Failed to create new mif item while processing mif item.");
-    std::vector<ConfigItem*>& subGroup = paramPtr->subGroup->group_;
-    int configIndex = paramPtr->startIndex;
-    int result = 0;
+    int itemIndex = paramPtr->startIndex;
+    std::vector<std::pair<int, ConfigItem*>>& configItemGroup =
+            paramPtr->subGroup->group_;
+    const int totalConfigCount = configItemGroup.size();
     while (paramPtr->itemCount--) {
 #ifdef DEBUG_OP
-        std::cout << "--Process Config Item: " << configIndex << std::endl;
+        std::cout << ">>Process Mif Item: " << itemIndex << std::endl;
 #endif
-        ConfigItem* configItem = subGroup[configIndex++];
-        result = satisfyConditions(*configItem, workingItem);
-        CHECK_RET(result, "Failed to check conditions in mif item.");
-        if (result) {
+        if (paramPtr->srcLayer->withItemCache()) {
+            CHECK_RET(paramPtr->srcLayer->newMifItem(itemIndex++,
+                    &workingItem, paramPtr->targetLayer),
+                    "Failed to create new mif item while %s",
+                    "processing mif item.");
+        } else {
+            workingItem = new MifItem(itemIndex++, paramPtr->srcLayer,
+                    paramPtr->targetLayer);
+        }
+        for (int configIndex = 0; configIndex < totalConfigCount;
+                configIndex++) {
+            int result = 0;
 #ifdef DEBUG_OP
-            std::cout << "++Match!" << std::endl;
+            std::cout << "--Process Config Item: " << configIndex << std::endl;
 #endif
-            CHECK_RET(applyAssigns(*configItem, workingItem),
-                    "Failed apply assign expr to mif item.");
-            break;
+            ConfigItem* configItem = configItemGroup[configIndex].second;
+            if (!configItem) continue;
+            result = satisfyConditions(*configItem, workingItem);
+            CHECK_RET(result, "Failed to %s \"%s\"[line: %d].",
+                    "check conditions from config file",
+                    paramPtr->subGroup->filePath_->c_str(),
+                    configItemGroup[configIndex].first);
+            if (result) {
+#ifdef DEBUG_OP
+                std::cout << "++Match!" << std::endl;
+#endif
+                CHECK_RET(applyAssigns(*configItem, workingItem),
+                        "Failed apply assign expr to mif item.");
+                break;
+            }
+        }
+        if (!paramPtr->srcLayer->withItemCache()) {
+            delete workingItem;
         }
     }
     return 0;

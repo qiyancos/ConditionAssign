@@ -66,7 +66,7 @@ public:
         // 建立给定类型的Group类型
         BuildGroup,
         // 对多个Mif元素执行条件赋值操作
-        ProcessMifItem
+        ProcessMifItems
     };
     
     // 根据工作类型获取对应的执行函数
@@ -132,9 +132,6 @@ public:
     Semaphore statusCheckOver_;
     // 运行资源的统一管控结构
     ResourcePool* resourcePool_;
-
-    // 执行池状态锁
-    std::mutex statusLock_;
     // 当前执行器池的主状态
     Status status_;
 
