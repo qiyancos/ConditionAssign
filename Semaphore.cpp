@@ -7,13 +7,13 @@ namespace condition_assign {
 Semaphore::Semaphore(const int count = 0, const Type type = Normal) {
     param_.type = type;
     param_.count = count;
-    param_.wakeupCnt = 0;
+    param_.wakeupCount = 0;
 }
 
 int Semaphore::init(const int count = 0, const Type type = Normal) {
     param_.type = type;
     param_.count = count;
-    param_.wakeupCnt = 0;
+    param_.wakeupCount = 0;
     return 0;
 }
 
@@ -33,8 +33,8 @@ void Semaphore::waitOrigin(Param* param) {
     std::unique_lock<std::mutex> lock(param->lock);
     if (--(param->count) < 0) {
         param->condition.wait(lock,
-                [&]()->bool{return param->wakeupCnt > 0;});
-        --(param->wakeupCnt);
+                [&]()->bool{return param->wakeupCount > 0;});
+        --(param->wakeupCount);
     }
     if (param->type == OnceForAll) {
         param->count = INT_MAX;
@@ -44,7 +44,7 @@ void Semaphore::waitOrigin(Param* param) {
 void Semaphore::signalOrigin(Param* param) {
     std::lock_guard<std::mutex> lock(param->lock);
     if (++(param->count) <= 0) {
-        ++(param->wakeupCnt);
+        ++(param->wakeupCount);
         param->condition.notify_one();
     }
     if (param->type == OnceForAll) {
@@ -58,7 +58,7 @@ void Semaphore::signalOrigin(Param* param) {
 void Semaphore::signalAllOrigin(Param* param) {
     std::lock_guard<std::mutex> lock {param->lock};
     while (++(param->count) <= 0) {
-        ++(param->wakeupCnt);
+        ++(param->wakeupCount);
         param->condition.notify_one();
     }
     if (param->type == OnceForAll) {

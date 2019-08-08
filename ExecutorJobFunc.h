@@ -27,7 +27,9 @@ struct LoadLayerParam {
     // 目标层的路径
     std::string* layerPath;
     // 目标层的ID
-    int layerID;
+    const int layerID;
+    // 源目标层的ID
+    const int srcLayerID;
     // 资源池指针
     ResourcePool* resourcePool;
 };
@@ -46,27 +48,6 @@ struct SaveLayerParam {
 // 关闭和保存Layer的函数
 int saveLayer(void* param, const int executorID);
 
-// 配置文件语法解析函数参数
-struct ParseConfigLinesParam {
-    // 配置文件的路径
-    const std::string* filePath;
-    // 需要处理的多行Config信息的内容
-    std::vector<std::pair<std::string, int>>* fullContent;
-    // 分配的ConfigItem对应的起始索引
-    const int startIndex;
-    // 分配的ConfigItem对应的起始索引
-    const int lineCount;
-    // 处理所在的子config组
-    ConfigSubGroup* subGroup;
-    // 目标层的ID
-    int layerID;
-    // 资源池指针
-    ResourcePool* resourcePool;
-};
-
-// 对多行配置文件的内容进行语法解析的函数
-int parseConfigLines(void* param, const int executorID);
-
 // 配置文件工作项生成函数参数
 struct ParseConfigFileParam {
     // 配置文件的路径
@@ -79,6 +60,25 @@ struct ParseConfigFileParam {
 
 // 为一个配置文件生成工作项的函数
 int parseConfigFile(void* param, const int executorID);
+
+// 配置文件语法解析函数参数
+struct ParseConfigLinesParam {
+    // 配置文件的路径
+    const std::string* filePath;
+    // 需要处理的多行Config信息的内容
+    std::vector<std::pair<std::string, int>>* fullContent;
+    // 分配的ConfigItem对应的起始索引
+    const int startIndex;
+    // 分配的ConfigItem对应的起始索引
+    const int lineCount;
+    // 处理所在的子config组
+    ConfigSubGroup* subGroup;
+    // 资源池指针
+    ResourcePool* resourcePool;
+};
+
+// 对多行配置文件的内容进行语法解析的函数
+int parseConfigLines(void* param, const int executorID);
 
 // 建立数据组函数参数
 struct ParseGroupParam {

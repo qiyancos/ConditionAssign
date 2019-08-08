@@ -20,24 +20,25 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    std::string maxExecutor, logDir, inputLayer, inputGeoType;
-    std::vector<std::string> confFiles, outputLayers, pluginLayers;
+    std::string maxExecutor, logDir;
+    std::vector<std::string> inputLayers, configFiles, inputGeoTypes,
+            outputLayers, pluginLayers;
     conf_helper::ConfArgParser argParser(argc, argv);
 
     CHECK_EXIT(argParser.findArgByName("MaxExecutor", &maxExecutor),
             "Can not find argument MaxExecutor!");
     CHECK_EXIT(argParser.findArgByName("LogPath", &logDir),
             "Can not find argument LogPath!");
-    CHECK_EXIT(argParser.findArgByName("ConfPath", &confFiles),
+    CHECK_EXIT(argParser.findArgByName("ConfPath", &configFiles),
             "Can not find argument ConfPath!");
-    CHECK_EXIT(argParser.findArgByName("SourceLayer", &inputLayer),
+    CHECK_EXIT(argParser.findArgByName("SourceLayer", &inputLayers),
             "Can not find argument SourceLayer!");
     CHECK_EXIT(argParser.findArgByName("TargetLayer", &outputLayers),
             "Can not find argument TargetLayers!");
     CHECK_EXIT(argParser.findArgByName("PluginLayer", &pluginLayers),
             "Can not find argument PluginLayers!");
-    CHECK_EXIT(argParser.findArgByName("SourceGeoType", &inputGeoType),
-            "Can not find argument SourceGeoType!");
+    CHECK_EXIT(argParser.findArgByName("InputGeoType", &inputGeoTypes),
+            "Can not find argument InputGeoTypes!");
     int executorNum = atoi(maxExecutor.c_str());
 
     time_t start = 0, end = 0;
@@ -53,7 +54,14 @@ int main(int argc, char** argv) {
 
     sys_log_println(_INFORANK, "=====================================\n");
     sys_log_println(_INFORANK, "          [ ConditionAssign ]        \n");
-    sys_log_println(_INFORANK, "-- InputLayer: [%s]\n", inputLayer.c_str());
+    for (int index = 0; index < inputLayers.size(); index++) {
+        sys_log_println(_INFORANK, "-- InputLayers: [%d]-[%s]\n",
+                index + 1, inputLayers[index].c_str());
+    }
+    for (int index = 0; index < configFiles.size(); index++) {
+        sys_log_println(_INFORANK, "-- ConfigPath: [%d]-[%s]\n",
+                index + 1, configFiles[index].c_str());
+    }
     for (int index = 0; index < outputLayers.size(); index++) {
         sys_log_println(_INFORANK, "-- OutputLayers: [%d]-[%s]\n",
                 index + 1, outputLayers[index].c_str());
@@ -63,11 +71,11 @@ int main(int argc, char** argv) {
 
     ExecutorPool::Params poolParams;
     poolParams.executorNum = executorNum;
-    poolParams.input = inputLayer;
-    poolParams.geoType = inputGeoType;
+    poolParams.input = inputLayers;
     poolParams.outputs = outputLayers;
     poolParams.plugins = pluginLayers;
-    poolParams.configs = confFiles;
+    poolParams.geoTypes = inputGeoTypes;
+    poolParams.configs = configFiles;
     
     ExecutorPool mainPool(poolParams);
     CHECK_RET(mainPool.init(), "ExecutorPool failed to init.");

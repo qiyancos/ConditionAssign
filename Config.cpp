@@ -60,9 +60,46 @@ int ConfigItem::addAssign(syntax::Node* newNode,
     return 0;
 }
 
-ConfigSubGroup::~ConfigSubGroup() {
-    for (auto itemPair : group_) {
-        delete itemPair.second;
+int ConfigGroup::init(const int totalCount, const int targetCount,
+        const std::vector<Semaphore*>& dependencySignals,
+        const std::vector<std::vector<int>>& dependency) {
+    CHECK_ARGS(dependencySignals.size() == targetCount && dependency.size() ==
+            targetCount, "Dependency infomation data size not match.");
+    totalCount_ = totalCount;
+    group_.resize(targetCount);
+    if (totalCount == 1) {
+        group_[0].group_ = new std::vector<std::pair<int, ConfigItem*>>();
+        group_[0].id_ = 0;
+        for (int i = 1; i < targetCount; i++) {
+            group_[i].group_ = group[0].group_;
+            group_[i].id_ = i;
+        }
+    } else {
+        for (int i = 0; i < targetCount; i++) {
+            group_[i].group_ = new std::vector<std::pair<int, ConfigItem*>>();
+            group_[i].id_ = i;
+        }
+    }
+    for (int i = 0; i < targetCount; i++) {
+        CHECK_ARGS(dependency[i].size() == 3,
+                "Lack of information for building config subgroup.");
+        group_[i].srcLayerID = dependency[i][1];
+        group_[i].targetLayerID = dependency[i][2];
+        group_[i].wait_ = dependency[i][0] == -1 ? dependencySignals.back() :
+                dependencySignals[dependency[i][0]];
+        group_[i].ready_ = dependencySignals[i];
+    }
+    return 0;
+}
+
+ConfigGroup::~ConfigGroup() {
+    for (int i = 0; i < totalCount; i++) {
+        for (ConfigItem* item : group_[i].group_) {
+            if (item != nullptr) {
+                delete item;
+            }
+        }
+        delete group_[i].group_;
     }
 }
 
@@ -439,7 +476,7 @@ int parseAssigns(const std::string& content, ConfigItem* configItem,
 }
 
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
-        const int index, ResourcePool* resourcePool, const int layerID,
+        const int index, ResourcePool* resourcePool,
         std::vector<std::pair<std::string, Group**>*>* newGroups) {
     std::vector<std::string> partitions = htk::split(line, "\t");
     CHECK_ARGS(partitions.size() >= 2,
@@ -460,7 +497,8 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
             partitions[0].c_str());
     MifLayer* targetLayer;
     CHECK_RET(resourcePool->getLayerByIndex(&targetLayer, ResourcePool::Output,
-            layerID), "Failed to get output layer[%d].", layerID);
+            subGroup->targetLayerID_), "Failed to get output layer[%d].",
+            subGroup->targetLayerID);
     if (targetLayer->isNew()) {
         targetLayer = srcLayer;
     }
@@ -562,9 +600,9 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         } else {
             typeGroup->second = new TagGroup();
         }
-        int matchCnt = resourcePool->findInsertGroup(staticItemGroupKey,
+        int matchCount = resourcePool->findInsertGroup(staticItemGroupKey,
                 &(itemGroup->second), typeGroupKey, &(typeGroup->second));
-        switch (matchCnt) {
+        switch (matchCount) {
         case 0:
             itemGroup->second->info_ = new Group::GroupInfo();
             itemGroup->second->info_->layerName_ = layerName;
@@ -605,7 +643,7 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
             oldStaticGroup->parseDone_.wait();
             itemGroup->second->info_ = oldStaticGroup->info_->copy();
             itemGroup->second->setLayer(oldStaticGroup->getLayer());
-            itemGroup->second->info_->checkedCnt_ = 0;
+            itemGroup->second->info_->checkedCount_ = 0;
         } else {
             itemGroup->second->info_ = new Group::GroupInfo();
             itemGroup->second->info_->layerName_ = layerName;

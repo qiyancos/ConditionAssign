@@ -50,16 +50,45 @@ private:
 class ConfigSubGroup {
 public:
     // 当前子组完成解析的ConfigItem数量
-    std::atomic<int> readyCnt_ {0};
+    std::atomic<int> readyCount_ {0};
     // 多有ConfigItem的组
-    std::vector<std::pair<int, ConfigItem*>> group_;
+    std::vector<std::pair<int, ConfigItem*>>* group_;
     // 对应的对应的文件路径
     std::string* filePath_;
+    // 当前ConfigSubGroup解析需要等待的信号量
+    Semaphore* wait_ = nullptr;
+    // 当前ConfigSubGroup解析完毕的信号量
+    Semaphore* ready_ = nullptr;
+    // 对应的源LayerID
+    int srcLayerID_ = -1;
+    // 对应的目标LayerID
+    int targetLayerID_ = -1;
+    // 当前子组的ID
+    int id_;
 
+public:
     // 构造函数
     ConfigSubGroup() = default;
     // 析构函数
-    ~ConfigSubGroup();
+    ~ConfigSubGroup() = default;
+};
+
+class ConfigGroup {
+public:
+    // 需要解析的配置文件个数
+    int totalCount_;
+    // 配置文件对应的Vector
+    std::vector<ConfigSubGroup> group_;
+
+public:
+    // 初始化函数
+    int init(const int totalCount, const int targetCount,
+            const std::vector<Semaphore*>& dependencySignals,
+            const std::vector<std::vector<int>>& dependencyInfo);
+    // 构造函数
+    ConfigGroup() = default;
+    // 析构函数
+    ~ConfigGroup();
 };
 
 class ResourcePool;
@@ -75,7 +104,7 @@ using Expression = std::pair<std::string, syntax::Node*>;
 
 // 解析单行配置文件内容并生成对应的ConfigItem
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
-        const int index, ResourcePool* resourcePool, const int layerID,
+        const int index, ResourcePool* resourcePool,
         std::vector<std::pair<std::string, Group**>*>* newGroups);
 
 // 解析当前组的基本信息

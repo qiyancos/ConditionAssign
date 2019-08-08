@@ -83,8 +83,8 @@ namespace condition_assign {
 class timer {
 public:
     timer(const std::string funcName, const std::string fileName,
-            const int lineCnt) : funcName_(funcName), fileName_(fileName),
-            lineCnt_(lineCnt) {
+            const int lineCount) : funcName_(funcName), fileName_(fileName),
+            lineCount_(lineCount) {
         start_ = std::chrono::system_clock::now();
     }
 
@@ -92,7 +92,7 @@ public:
         end_ = std::chrono::system_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
                 end_ - start_);
-        std::cout << "[" << funcName_ << "-" << lineCnt_ << "] In (";
+        std::cout << "[" << funcName_ << "-" << lineCount_ << "] In (";
         std::cout << funcName_ << ") Total time: ";
         std::cout << static_cast<double>(duration.count());
         std::cout << " Micro Second." << std::endl;
@@ -100,7 +100,7 @@ public:
 
 private:
     const std::string funcName_, fileName_;
-    const int lineCnt_;
+    const int lineCount_;
     std::chrono::system_clock::time_point start_;
     std::chrono::system_clock::time_point end_;
 };

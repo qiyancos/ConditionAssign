@@ -5,8 +5,6 @@
 
 namespace condition_assign {
 
-Group::Type Group::inputType_ = Group::Item;
-
 Group::Group(const Type type, const bool dynamic = false) :
         groupType_(type), dynamic_(dynamic) {
     parseDone_.init(0, Semaphore::OnceForAll);
@@ -33,23 +31,6 @@ Group::GroupInfo* Group::GroupInfo::copy() {
     newInfo->newTagName_ = newTagName_;
     newInfo->tagName_ = tagName_;
     return newInfo;
-}
-
-Group::Type Group::getInputType() {
-    return Group::inputType_;
-}
-
-int Group::setInputType(const std::string& typeStr) {
-    if (typeStr == "POINT" || !typeStr.length()) {
-        Group::inputType_ = Point;
-    } else if (typeStr == "LINE") {
-        Group::inputType_ = Line;
-    } else if (typeStr == "AREA") {
-        Group::inputType_ = Area;
-    } else {
-        CHECK_RET(-1, "Unknown geometry type \"%s\".", typeStr.c_str());
-    }
-    return 0;
 }
 
 Group::Type Group::getGroupType() {
@@ -80,43 +61,53 @@ int Group::checkAllContain(const std::string& src, bool* result) {
     CHECK_RET(-1, "Check all contain for tag not supported.");
 }
 
-int Group::checkOneContain(wsl::Geometry* src, bool* result) {
+int Group::checkOneContain(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check one contain for geometry not supported.");
 }
 
-int Group::checkAllContain(wsl::Geometry* src, bool* result) {
+int Group::checkAllContain(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check all contain for geometry not supported.");
 }
 
-int Group::checkOneContained(wsl::Geometry* src, bool* result) {
+int Group::checkOneContained(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check one contained for geometry not supported.");
 }
 
-int Group::checkAllContained(wsl::Geometry* src, bool* result) {
+int Group::checkAllContained(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check all contained for geometry not supported.");
 }
 
-int Group::checkOneIntersect(wsl::Geometry* src, bool* result) {
+int Group::checkOneIntersect(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check one intersect for geometry not supported.");
 }
 
-int Group::checkAllIntersect(wsl::Geometry* src, bool* result) {
+int Group::checkAllIntersect(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check all intersect for geometry not supported.");
 }
 
-int Group::checkOneInContact(wsl::Geometry* src, bool* result) {
+int Group::checkOneInContact(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check one in contact  for geometry not supported.");
 }
 
-int Group::checkAllInContact(wsl::Geometry* src, bool* result) {
+int Group::checkAllInContact(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check all in contact for geometry not supported.");
 }
 
-int Group::checkOneDeparture(wsl::Geometry* src, bool* result) {
+int Group::checkOneDeparture(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check one departure for geometry not supported.");
 }
 
-int Group::checkAllDeparture(wsl::Geometry* src, bool* result) {
+int Group::checkAllDeparture(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     CHECK_RET(-1, "Check all departure for geometry not supported.");
 }
 
@@ -253,12 +244,13 @@ int PointGroup::addElement(wsl::Geometry* newElement) {
     return 0;
 }
 
-int PointGroup::checkOneContain(wsl::Geometry* src, bool* result) {
+int PointGroup::checkOneContain(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Point) {
+    if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Point>* targetPoint : group_) {
@@ -269,7 +261,7 @@ int PointGroup::checkOneContain(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Line) {
+    } else if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Point>* targetPoint : group_) {
@@ -280,7 +272,7 @@ int PointGroup::checkOneContain(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Point>* targetPoint : group_) {
@@ -296,12 +288,13 @@ int PointGroup::checkOneContain(wsl::Geometry* src, bool* result) {
     }
 }
 
-int PointGroup::checkAllContain(wsl::Geometry* src, bool* result) {
+int PointGroup::checkAllContain(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Point) {
+    if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Point>* targetPoint : group_) {
@@ -312,7 +305,7 @@ int PointGroup::checkAllContain(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Line) {
+    } else if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Point>* targetPoint : group_) {
@@ -323,7 +316,7 @@ int PointGroup::checkAllContain(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Point>* targetPoint : group_) {
@@ -339,12 +332,13 @@ int PointGroup::checkAllContain(wsl::Geometry* src, bool* result) {
     }
 }
 
-int PointGroup::checkOneContained(wsl::Geometry* src, bool* result) {
+int PointGroup::checkOneContained(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Point) {
+    if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Point>* targetPoint : group_) {
@@ -360,12 +354,13 @@ int PointGroup::checkOneContained(wsl::Geometry* src, bool* result) {
     }
 }
 
-int PointGroup::checkAllContained(wsl::Geometry* src, bool* result) {
+int PointGroup::checkAllContained(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Point) {
+    if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Point>* targetPoint : group_) {
@@ -407,12 +402,13 @@ int LineGroup::addElement(wsl::Geometry* newElement) {
 }
 
 
-int LineGroup::checkOneContain(wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneContain(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         // 实际上线与线之间的包含关系是不合理的
         // 但是我们这里保留功能，但不建议使用
         wsl::Feature<wsl::Line>* srcLine =
@@ -425,7 +421,7 @@ int LineGroup::checkOneContain(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -441,12 +437,13 @@ int LineGroup::checkOneContain(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllContain(wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllContain(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         // 实际上线与线之间的包含关系是不合理的
         // 但是我们这里保留功能，但不建议使用
         wsl::Feature<wsl::Line>* srcLine =
@@ -459,7 +456,7 @@ int LineGroup::checkAllContain(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -475,12 +472,13 @@ int LineGroup::checkAllContain(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkOneContained(wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneContained(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         // 实际上线与线之间的包含关系是不合理的
         // 但是我们这里保留功能，但不建议使用
         wsl::Feature<wsl::Line>* srcLine =
@@ -493,7 +491,7 @@ int LineGroup::checkOneContained(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Point) {
+    } else if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -509,12 +507,13 @@ int LineGroup::checkOneContained(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllContained(wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllContained(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         // 实际上线与线之间的包含关系是不合理的
         // 但是我们这里保留功能，但不建议使用
         wsl::Feature<wsl::Line>* srcLine =
@@ -527,7 +526,7 @@ int LineGroup::checkAllContained(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Point) {
+    } else if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -543,12 +542,13 @@ int LineGroup::checkAllContained(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkOneIntersect(wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneIntersect(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -559,7 +559,7 @@ int LineGroup::checkOneIntersect(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -575,12 +575,13 @@ int LineGroup::checkOneIntersect(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllIntersect(wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllIntersect(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -591,7 +592,7 @@ int LineGroup::checkAllIntersect(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -607,12 +608,13 @@ int LineGroup::checkAllIntersect(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkOneInContact(wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneInContact(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         // 实际上线与线之间的包含关系是不合理的
         // 但是我们这里保留功能，但不建议使用
         wsl::Feature<wsl::Line>* srcLine =
@@ -626,7 +628,7 @@ int LineGroup::checkOneInContact(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -643,12 +645,13 @@ int LineGroup::checkOneInContact(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllInContact(wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllInContact(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         // 实际上线与线之间的包含关系是不合理的
         // 但是我们这里保留功能，但不建议使用
         wsl::Feature<wsl::Line>* srcLine =
@@ -662,7 +665,7 @@ int LineGroup::checkAllInContact(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -679,12 +682,13 @@ int LineGroup::checkAllInContact(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
+int LineGroup::checkOneDeparture(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Point) {
+    if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -695,7 +699,7 @@ int LineGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Line) {
+    } else if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -706,7 +710,7 @@ int LineGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -722,12 +726,13 @@ int LineGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
     }
 }
 
-int LineGroup::checkAllDeparture(wsl::Geometry* src, bool* result) {
+int LineGroup::checkAllDeparture(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Point) {
+    if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -738,7 +743,7 @@ int LineGroup::checkAllDeparture(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Line) {
+    } else if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -749,7 +754,7 @@ int LineGroup::checkAllDeparture(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Line>* targetLine : group_) {
@@ -791,12 +796,13 @@ int AreaGroup::addElement(wsl::Geometry* newElement) {
     return 0;
 }
 
-int AreaGroup::checkOneContain(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneContain(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Area) {
+    if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -812,12 +818,13 @@ int AreaGroup::checkOneContain(wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllContain(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllContain(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Area) {
+    if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -833,12 +840,13 @@ int AreaGroup::checkAllContain(wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkOneContained(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneContained(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Area) {
+    if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -849,7 +857,7 @@ int AreaGroup::checkOneContained(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Line) {
+    } else if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -860,7 +868,7 @@ int AreaGroup::checkOneContained(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Point) {
+    } else if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -876,12 +884,13 @@ int AreaGroup::checkOneContained(wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllContained(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllContained(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Area) {
+    if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -892,7 +901,7 @@ int AreaGroup::checkAllContained(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Line) {
+    } else if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -903,7 +912,7 @@ int AreaGroup::checkAllContained(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Point) {
+    } else if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -919,12 +928,13 @@ int AreaGroup::checkAllContained(wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkOneIntersect(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneIntersect(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -935,7 +945,7 @@ int AreaGroup::checkOneIntersect(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -951,12 +961,13 @@ int AreaGroup::checkOneIntersect(wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllIntersect(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllIntersect(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -967,7 +978,7 @@ int AreaGroup::checkAllIntersect(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -983,12 +994,13 @@ int AreaGroup::checkAllIntersect(wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkOneInContact(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneInContact(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1000,7 +1012,7 @@ int AreaGroup::checkOneInContact(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1017,12 +1029,13 @@ int AreaGroup::checkOneInContact(wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllInContact(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllInContact(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Line) {
+    if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1034,7 +1047,7 @@ int AreaGroup::checkAllInContact(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1052,12 +1065,13 @@ int AreaGroup::checkAllInContact(wsl::Geometry* src, bool* result) {
 }
 
 
-int AreaGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkOneDeparture(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Point) {
+    if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1068,7 +1082,7 @@ int AreaGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Line) {
+    } else if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1079,7 +1093,7 @@ int AreaGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
         }
         *result = false;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1095,12 +1109,13 @@ int AreaGroup::checkOneDeparture(wsl::Geometry* src, bool* result) {
     }
 }
 
-int AreaGroup::checkAllDeparture(wsl::Geometry* src, bool* result) {
+int AreaGroup::checkAllDeparture(const Type inputType, wsl::Geometry* src,
+        bool* result) {
     if (group_.size() == 0) {
         *result = false;
         return 0;
     }
-    if (Group::inputType_ == Point) {
+    if (inputType == Point) {
         wsl::Feature<wsl::Point>* srcPoint =
                 reinterpret_cast<wsl::Feature<wsl::Point>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1111,7 +1126,7 @@ int AreaGroup::checkAllDeparture(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Line) {
+    } else if (inputType == Line) {
         wsl::Feature<wsl::Line>* srcLine =
                 reinterpret_cast<wsl::Feature<wsl::Line>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {
@@ -1122,7 +1137,7 @@ int AreaGroup::checkAllDeparture(wsl::Geometry* src, bool* result) {
         }
         *result = true;
         return 0;
-    } else if (Group::inputType_ == Area) {
+    } else if (inputType == Area) {
         wsl::Feature<wsl::Polygon>* srcArea =
                 reinterpret_cast<wsl::Feature<wsl::Polygon>*>(src);
         for (wsl::Feature<wsl::Polygon>* targetArea : group_) {

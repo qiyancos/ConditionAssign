@@ -11,9 +11,6 @@
 
 namespace condition_assign {
 
-// 最大的MifLayer数目，防止爆内存
-#define MAX_MIFLAYERS 32
-
 class ResourcePool;
 class ExecutorPool;
 
@@ -89,20 +86,31 @@ private:
 class ExecutorPool {
 public:
     enum Status {Running, Idle, Finished, Error};
+    // layer的信息
+    struct LayerInfo {
+        // 是否是一个InputLayer以及对应的索引
+        int inputIndex = -1;
+        // 是否是一个OutputLayer以及对应的索引
+        int outputIndex = -1;
+        // 是否是一个PluginLayer以及对应的索引
+        int pluginIndex = -1;
+        // 当前Layer对应的ID
+        int layerID;
+    };
     // ExecutorPool的参数结构体
     struct Params {
         // ExecutorPool中Executor的数目上限
         int executorNum;
         // 输入Layer的完整路径
-        std::string input;
-        // 输入Layer的地理结构类型
-        std::string geoType;
+        std::vector<std::string> inputs;
+        // 输入Layer对应的地理类型
+        std::vector<std::string> geoTypes;
+        // 使用的所有配置文件的完整路径
+        std::vector<std::string> configs;
         // 输出Layer的完整路径
         std::vector<std::string> outputs;
         // 外挂Layer的完整路径
         std::vector<std::string> plugins;
-        // 使用的所有配置文件的完整路径
-        std::vector<std::string> configs;
     };
 
     // 执行初始化操作，然后交给executorController
@@ -136,6 +144,8 @@ public:
     Status status_;
 
 private:
+    // 记录layer的信息，用于初始化loadLayer任务
+    std::map<std::string, LayerInfo> layerInfo_;
     // 状态管理线程
     std::thread* executorConsole_ = nullptr;
     // 资源管理线程

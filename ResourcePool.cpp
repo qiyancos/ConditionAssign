@@ -2,31 +2,174 @@
 
 namespace condition_assign {
 
-int ResourcePool::init(ExecutorPool::Params params,
-        Semaphore* newCandidateJob) {
+int ResourcePool::init(const ExecutorPool::Params& params,
+        Semaphore* newCandidateJob,
+        std::map<std::string, ExecutorPool::LayerInfo>* layerInfo) {
+    std::set<std::string> needCacheLayers;
+    initRunningModel(params, &needCacheLayers);
+    // 初始化Layer
+    std::map<std::string, ExecutorPool::LayerInfo>& layerList = *layerInfo;
+    int index = 0;
+    for (const std::string& output : params.outputs) {
+        if (layerList.find(output) == layerList.end()) {
+            layerList[output] = LayerInfo();
+        }
+        layerList[output].outputIndex = index++;
+    }
+    for (const std::string& input : params.inputs) {
+        if (layerList.find(input) == layerList.end()) {
+            layerList[input] = LayerInfo();
+        }
+        layerList[input].inputIndex = index++;
+    }
+    for (const std::string& plugin :  params.plugins) {
+        if (layerList.find(plugin) == layerList.end()) {
+            layerList[plugin] = LayerInfo();
+        }
+        layerList[plugin].outputIndex = index++;
+    }
+    auto needCacheEnd = needCacheLayers.end();
+    index = 0;
+    for (auto layerIterator : layerList) {
+        layers_.push_back(new MifLayerNormal(needCacheLayers.find(
+                layerIterator.first) != needCacheEnd));
+        if (layerIterator.second.inputIndex != -1) {
+            CHECK_RET(layers_.back().setGeoType(params.geoTypes[
+                    layerIterator.second.inputIndex]),
+                    "Failed to set geometry type for layer \"%s\".",
+                    layerIterator.first);
+        }
+        layerList.second.layerID = index;
+        if (layerIterator.second.pluginIndex != -1) {
+            pluginLayersMap_[layerIterator.first] = index++;
+        } else {
+            portLayersMap_[layerIterator.first] = index++;
+        }
+    }
+    // 其他内容的初始化
     newCandidateJob_ = newCandidateJob;
-    executorCnt_ = params.executorNum;
-    targetCnt_ = params.outputs.size();
-    readyQueue_.resize(executorCnt_, std::deque<ExecutorJob*>());
-    configGroup_.resize(targetCnt_, new ConfigSubGroup());
-    inputLayer_ = new MifLayerReadOnly();
-    pluginLayersMap_[params.input] = inputLayer_;
-    for (std::string layerPath : params.plugins) {
-        pluginLayersMap_[layerPath] = new MifLayerReadWrite();
-    }
-    outputLayers_.resize(targetCnt_, new MifLayerReadWrite());
-    for (int layerID = 0; layerID < targetCnt_; layerID++) {
-        outputLayersMap_[params.outputs[layerID]] = layerID;
-    }
-    for (int i = 0; i < executorCnt_; i++) {
+    executorCount_ = params.executorNum;
+    targetCount_ = params.outputs.size();
+    readyQueue_.resize(executorCount_, std::deque<ExecutorJob*>());
+    for (int i = 0; i < executorCount_; i++) {
         readyQueueLock_.push_back(new std::mutex());
+        dependencySignals_.push_back(new Semaphore(0, Semaphore::OnceForAll));
     }
+    dependencySignals_[executorCount_ - 1]->signalAll();
+    CHECK_RET(initConfigGroup(params, layerList),
+            "Failed to init config group.");
+    return 0;
+}
+
+int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
+        std::set<std::string>* needCacheLayers) {
+    // 初始化计数
+    std::map<std::string, std::set<int>> layerIndex;
+    std::map<std::string, std::set<int>> layerInputIndex;
+    bool needWarnOutputAsInput = params.inputs.size() > 1;
+    std::string* inputLayer = &(params.inputs[0]);
+    std::string* temp;
+    for (int i = 0; i < params.inputs.size(); i++) {
+        temp = &(params.inputs[i]);
+        if (layerCount.find(*temp) == layerCount.end()) {
+            layerCount[*temp] = std::set<int> {i};
+        } else {
+            layerCount[*temp].insert(i);
+        }
+    }
+    layerInputIndex = layerIndex;
+    std::set<std::string> outputLayers;
+    for (int i = 0; i < params.outputs.size(); i++) {
+        temp = &(params.outputs[i]);
+        // 检查是否存在一个Layer同时作为input和不与之对应的output的情况
+        if (needWarnOutputAsInput && layerInputIndex.find(*temp) !=
+                layerInputIndex.end()) {
+            const std::set<int>& inputIndex = layerInputIndex[*temp];
+            CHECK_WARN(inputIndex.size() == 1 && inputIndex.find(i) !=
+                    inputIndex.end(), "Found layer \"%s\" %s %s %s",
+                    indexIterator.c_str(), "set as input and output layer",
+                    "not in the same processing group simultaneously,",
+                    "result might be unpredictable.");
+        }
+        // 对于一个Layer同时作为多个outputLayer的情况做出警告
+        if (outputLayers.find(*temp) != outputLayers.end()) {
+            CHECK_WARN(!needWarnOutputAsInput && *temp == *inputLayer,
+                    "Found layer \"%s\" set as %s",
+                    temp->c_str(), "multiple output layers.");
+        } else {
+            outputLayers.insert(*temp);
+        }
+        if (layerCount.find(*temp) == layerCount.end()) {
+            layerCount[*temp] = std::set<int> {i};
+        } else {
+            layerCount[*temp].insert(i);
+        }
+    }
+    // 是否需要ItemCache
+    for (auto indexIterator : layerIndex) {
+        if (indexIterator.second.size() > 1) {
+            needCacheLayers->insert(indexIterator.first);
+        }
+    }
+    if (!needWarnOutputAsInput && params.outputs.size() > 1) {
+        needCacheLayers->insert(params.inputs[0]);
+    }
+    return 0;
+}
+
+int ResourcePool::initConfigGroup(const ExecutorPool::Params& params,
+        const std::map<std::string, ExecutorPool::LayerInfo>* layerList) {
+    // 基于输入类型初始化ConfigGroup
+    std::vector<std::vector<int>> layerDependency;
+#ifdef USE_COMPLICATE_DEPENDENCY
+    // 依赖关系的检查
+    std::map<std::string, int> lastIndex;
+    int inputLastIndex = -1;
+    int anotherLastIndex;
+    bool isInputLayer;
+    if (!needWarnOutputAsInput) {
+        for (int i = 0; i < params.outputs.size(); i++) {
+            temp = &(params.outputs[i]);
+            anotherLastIndex = -1;
+            isInputlayer = *temp == *inputLayer;
+            if (!isInputLayer && lastIndex.find(*temp) != lastIndex.end()) {
+                anotherLastIndex = lastIndex[*temp];
+            }
+            layerDependency.push_back(std::vector<int>(1,
+                    std::max(anotherLastIndex, inputLastIndex)));
+            lastIndex[*temp] = i;
+            inputLastIndex = isInputLayer ? i : inputLastIndex;
+        }
+    }
+#else
+    // 全部设置为强依赖
+    if (!needWarnOutputAsInput) {
+        for(int i = 0; i < params.outputs.size(); i++) {
+            layerDependency.push_back(std::vector<int>(1, i - 1));
+        }
+    }
+#endif
+    int srcLayerID = layerList[params.inputs[0]].layerID;
+    bool singleInput = params.inputs.size() == 1;
+    for (int i = 0; i < targetCount_; i++) {
+        if (singleInput) {
+            layerDependency[i].second.push_back(srcLayerID);
+        } else {
+            layerDependency[i].second.push_back(
+                    layerList[params.inputs[i]].layerID);
+        }
+        layerDependency[i].second.push_back(
+                layerList[params.outputs[i]].layerID);
+    }
+    CHECK_RET(configGroup_.init(params.configs.size(), targetCount_,
+            dependencySignals_, layerDependency),
+            "Failed to init config group");
     return 0;
 }
 
 int ResourcePool::getConfigSubGroup(int targetID,
         ConfigSubGroup** subGroupPtr) {
-    CHECK_ARGS(targetID < targetCnt_, "Invalid target ID [%d].", targetID);
+    CHECK_ARGS(targetID < targetCount_, "Invalid target ID [%d].", targetID);
     *subGroupPtr = configGroup_[targetID];
     return 0;
 }
@@ -86,48 +229,44 @@ int ResourcePool::findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
 }
 
 int ResourcePool::openLayer(const std::string& layerPath,
-        const LayerType layerType, const int layerID = -1) {
-    if (layerType == Input) {
-        CHECK_RET(inputLayer_->open(layerPath),
-                "Failed to open input layer \"%s\".", layerPath.c_str());
-        return 0;
-    } else if (layerType == Output) {
-        int index = layerID;
-        if (index == -1) {
-            auto mapIterator = outputLayersMap_.find(layerPath);
-            CHECK_ARGS(mapIterator != outputLayersMap_.end(),
-                    "Trying to open output layer \"%s\" not registered.",
-                    layerPath.c_str());
-            index = mapIterator->second;
+        const LayerType layerType, const int inputLayerID,
+        const int layerID = -1) {
+    CHECK_ARGS(layerID > -1 && layerID < layers_.size(),
+            "Layer ID [%d] out of bound.", layerID);
+    CHECK_ARGS(inputLayerID > -1 && inputLayerID < layers_.size(),
+            "Input layer ID [%d] out of bound.", inputLayerID);
+    if (layerType == Output) {
+        if (access(layerPath.c_str(), 0) < 0) {
+            delete layers_[layerID];
+            layers_[layerID] = new MifLayerNew();
         }
-        CHECK_RET(outputLayers_[index]->open(layerPath, inputLayer_),
+        CHECK_RET(layers_[layerID]->open(layerPath, layers_[inputLayerID]),
                 "Failed to open output layer \"%s\".", layerPath.c_str());
-        return 0;
     } else {
-        auto mapIterator = pluginLayersMap_.find(layerPath);
-        if (mapIterator != pluginLayersMap_.end()) {
-            return 0;
-        }
-        CHECK_RET(mapIterator->second->open(layerPath),
-                "Failed to open plugin layer \"%s\".", layerPath.c_str());
-        return 0;
+        CHECK_RET(layers_[layerID]->open(layerPath),
+                "Failed to open output layer \"%s\".", layerPath.c_str());
     }
+    return 0;
 }
 
 int ResourcePool::getLayerByName(MifLayer** layerPtr,
         const LayerType layerType, const std::string& layerPath,
         int* targetID = nullptr) {
-    if (layerType == Input) {
-        // 我们建议使用getLayerByIndex而不是该函数获取输入层指针
-        CHECK_ARGS(!targetID, "Can not get target ID for input layer.");
-        *layerPtr = inputLayer_;
-    } else if (layerType == Output) {
-        auto mapIterator = outputLayersMap_.find(layerPath);
-        CHECK_ARGS(mapIterator != outputLayersMap_.end(),
-                "Can not find output layer named as \"%s\".",
-                layerPath.c_str());
-        *targetID = mapIterator->second;
-        *layerPtr = outputLayers_[mapIterator->second];
+    if (layerType != Plugin) {
+        auto mapIterator = portLayersMap_.find(layerPath);
+        if (layerType == Input) {
+            CHECK_ARGS(mapIterator != portLayersMap_.end(),
+                    "Can not find output layer named as \"%s\".",
+                    layerPath.c_str());
+        } else {
+            CHECK_ARGS(mapIterator != portLayersMap_.end(),
+                    "Can not find input layer named as \"%s\".",
+                    layerPath.c_str());
+        }
+        if (targetID) {
+            *targetID = mapIterator->second;
+        }
+        *layerPtr = layers_[mapIterator->second];
         return 0;
     } else {
         auto mapIterator = pluginLayersMap_.find(layerPath);
@@ -136,46 +275,38 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
             CHECK_RET(getPluginFullPath(layerPath, &completeLayerPath),
                 "Can not find plugin layer named as \"%s\".",
                 layerPath.c_str());
-            *layerPtr = pluginLayersMap_[completeLayerPath];
+            int layerID = pluginLayersMap_[completeLayerPath];
+            if (targetID) {
+                *targetID = layerID;
+            }
+            *layerPtr = layers_[layerID];
         } else {
-            *layerPtr = mapIterator->second;
+            if (targetID) {
+                *targetID = mapIterator->second;
+            }
+            *layerPtr = layers_[mapIterator->second];
         }
         return 0;
     }
 }
 
 int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
-        const LayerType layerType, const int targetID = -1) {
-    if (layerType == Input) {
-        CHECK_ARGS(targetID == -1,
-                "Can not find input layer with target ID [%d].", targetID);
-        *layerPtr = inputLayer_;
-        return 0;
-    } else if (layerType == Output) {
-        CHECK_ARGS(targetID > -1 && targetID < targetCnt_,
+        const LayerType layerType, const int targetID) {
+    CHECK_ARGS(targetID > -1 && targetID < layers_.size(),
                 "Invalid targetID [%d].", targetID);
-        *layerPtr = outputLayers_[targetID];
-        return 0;
-    } else {
-        CHECK_ARGS(false, "Plugin layer cannot be found with layer ID.");
-    }
+    *layerPtr = layers_[targetID];
+    return 0;
 }
 
 int ResourcePool::getPluginFullPath(const std::string& layerName,
         std::string* fullPath) {
-    auto mapIterator = pluginLayersMap_.find(layerName);
-    if (mapIterator == pluginLayersMap_.end()) {
-        for (auto mapIteratorTemp : pluginLayersMap_) {
-            if (mapIteratorTemp.first.find(layerName) != std::string::npos) {
-                *fullPath = mapIteratorTemp.first;
-                return 0;
-            }
+    for (auto mapIteratorTemp : pluginLayersMap_) {
+        if (mapIteratorTemp.first.find(layerName) != std::string::npos) {
+            *fullPath = mapIteratorTemp.first;
+            return 0;
         }
-        return -1;
-    } else {
-        *fullPath = mapIterator->first;
-        return 0;
     }
+    return -1;
 }
 
 int ResourcePool::getReadyJob(const int executorID,
@@ -193,7 +324,7 @@ int ResourcePool::getReadyJob(const int executorID,
     *jobConsumerPtr = readyQueue_[executorID].front();
     CHECK_ARGS(*jobConsumerPtr != nullptr,
             "No job consumer pointer is provided.");
-    readyJobCnt_--;
+    readyJobCount_--;
     readyQueue_[executorID].pop_front();
     TEST(executorID);
     return 1;
@@ -207,7 +338,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     }
     using vacancy = std::pair<ExecutorJob**, int>;
     std::vector<vacancy> jobVacancies;
-    for (int index = executorCnt_ - 1; index >= 0; index--) {
+    for (int index = executorCount_ - 1; index >= 0; index--) {
         readyQueueLock_[index]->lock();
     }
 #ifdef DEBUG_JOB
@@ -218,11 +349,11 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     std::cout << std::endl;
 #endif
     TEST("rc");
-    int maxReadySize = candidateQueue_.size() + readyJobCnt_;
-    int avgSize = maxReadySize / executorCnt_;
-    maxReadySize = maxReadySize % executorCnt_ > 0 ? avgSize + 1 : avgSize;
+    int maxReadySize = candidateQueue_.size() + readyJobCount_;
+    int avgSize = maxReadySize / executorCount_;
+    maxReadySize = maxReadySize % executorCount_ > 0 ? avgSize + 1 : avgSize;
     maxReadySize = std::min(MAX_READY_QUEUE_SIZE, maxReadySize);
-    for (int index; index < executorCnt_; index++) {
+    for (int index; index < executorCount_; index++) {
         std::deque<ExecutorJob*>& que = readyQueue_[index];
         while(que.size() < maxReadySize) {
             que.push_back(nullptr);
@@ -230,7 +361,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
         }
     }
     if (jobVacancies.empty()) {
-        for (int index = 0; index < executorCnt_; index++) {
+        for (int index = 0; index < executorCount_; index++) {
             readyQueueLock_[index]->unlock();
         }
         return 0;
@@ -242,7 +373,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
         } else {
             *(jobVacancies[selected].first) = candidateQueue_.front();
             wakeupExecutorID->insert(jobVacancies[selected++].second);
-            readyJobCnt_++;
+            readyJobCount_++;
             candidateQueue_.pop();
         }
     }
@@ -253,7 +384,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     }
     std::cout << std::endl;
 #endif
-    for (int index = 0; index < executorCnt_; index++) {
+    for (int index = 0; index < executorCount_; index++) {
         readyQueueLock_[index]->unlock();
     }
     TEST("rc");
@@ -261,20 +392,12 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
 }
 
 ResourcePool::~ResourcePool() {
-    for (auto configSubGroupPtr : configGroup_) {
-        if (configSubGroupPtr != nullptr) {
-            delete configSubGroupPtr;
-        }
-    }
     for (auto groupMapIterator : groupMap_) {
         if (groupMapIterator.second != nullptr) {
             delete groupMapIterator.second;
         }
     }
-    for (auto mapIterator : pluginLayersMap_) {
-        delete mapIterator.second;
-    }
-    for (auto layerPtr : outputLayers_) {
+    for (auto layerPtr : layers_) {
         if (layerPtr != nullptr) {
             delete layerPtr;
         }
@@ -297,6 +420,9 @@ ResourcePool::~ResourcePool() {
     }
     for (std::mutex* lock : readyQueueLock_) {
         delete lock;
+    }
+    for (Semaphore* semaphore : sependencySignals_) {
+        delete semaphore;
     }
 }
 

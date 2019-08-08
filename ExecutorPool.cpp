@@ -137,40 +137,45 @@ ExecutorPool::~ExecutorPool() {
 }
 
 int ExecutorPool::init() {
-    CHECK_ARGS(params_.outputs.size() == params_.configs.size(),
-            "Config-file's count[%d] %s [%d].", params_.outputs.size(),
-            "does not match the count of output layers",
-            params_.configs.size());
-    CHECK_RET(Group::setInputType(params_.geoType),
-            "Failed to set input layer's geometry type.");
-    int totalMifLayerCount = params_.outputs.size() +
-            params_.plugins.size() + 1;
-    CHECK_ARGS(totalMifLayerCount <= MAX_MIFLAYERS,
-            "Too many mif layers[%d] to be opened.", totalMifLayerCount);
-    int executorCnt = params_.executorNum;
-    if (executorCnt > std::thread::hardware_concurrency()) {
+    if (params_.inputs.size() > 1) {
+        CHECK_ARGS(params_.outputs.size() == params_.inputs.size(),
+                "Input layers' count[%d] %s [%d].", params_.inputs.size(),
+                "does not match the count of output layers",
+                params_.outputs.size());
+    } else if (params_.outputs.size() == 1 && params_.configs.size() > 1) {
+        std::string outputLayer = params.outputs[0];
+        params_.outputs.resize(params_.configs.size(), outputLayer);
+    }
+    if (params_.configs.size() > 1) {
+        CHECK_ARGS(params_.outputs.size() == params_.configs.size(),
+                "Config files' count[%d] %s [%d].", params_.configs.size(),
+                "does not match the count of output layers",
+                params_.outputs.size());
+    }
+    int executorCount = params_.executorNum;
+    if (executorCount > std::thread::hardware_concurrency()) {
         std::cerr << "Warning: thread number is greater than the";
         std::cerr << " cpu cores in this computer." << std::endl;
     }
     resourcePool_ = new ResourcePool();
-    CHECK_RET(resourcePool_->init(params_, &(needReadyJob_)),
+    CHECK_RET(resourcePool_->init(params_, &(needReadyJob_), &layerInfo_),
             "ResourcePool failed to init.");
-    workingJob_.resize(executorCnt, nullptr);
-    executorStatus_.resize(executorCnt, Executor::Busy);
+    workingJob_.resize(executorCount, nullptr);
+    executorStatus_.resize(executorCount, Executor::Busy);
 #ifdef DEBUG
     debugStream.push_back(std::ofstream((debugLogDir + "/main.log").c_str(),
             std::ofstream::out));
     debugStream.push_back(std::ofstream((debugLogDir + "/rc.log").c_str(),
             std::ofstream::out));
 #endif
-    for (int id = 0; id < executorCnt; id++) {
+    for (int id = 0; id < executorCount; id++) {
         executorWakeup_.push_back(new Semaphore(0));
 #ifdef DEBUG
         debugStream.push_back(std::ofstream((debugLogDir + "/" +
                 std::to_string(id) + ".log").c_str(), std::ofstream::out));
 #endif
     }
-    for (int id = 0; id < executorCnt; id++) {
+    for (int id = 0; id < executorCount; id++) {
         executors_.push_back(Executor(id, this));
     }
     return 0;
@@ -179,18 +184,31 @@ int ExecutorPool::init() {
 int ExecutorPool::execute() {
     // 初始化工作内容
     std::vector<ExecutorJob*> initJobs;
-    initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
-            new job_func::LoadLayerParam {ResourcePool::Input,
-            &(params_.input), -1, resourcePool_}));
-    for (int i = 0; i < params_.outputs.size(); i++) {
-        initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
-                new job_func::LoadLayerParam {ResourcePool::Output,
-                &(params_.outputs[i]), i, resourcePool_}));
+    int inputLayerID = -1;
+    if (params_.inputs.size() == 1) {
+        inputLayerID = layerInfo.find(params_.inputs[0]).second.layerID;
     }
-    for (int i = 0; i < params_.plugins.size(); i++) {
-        initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
-                new job_func::LoadLayerParam {ResourcePool::Plugin,
-                &(params_.plugins[i]), i, resourcePool_}));
+    for (auto layerInfo : layerInfo_) {
+        const LayerInfo& info = layerInfo.second;
+        if (info.outputIndex != -1) {
+            int srcLayerID = inputLayerID == -1 ? layerInfo_.find(
+                    params_.inputs[info.outputIndex]).second.layerID :
+                    inputLayerID;
+            initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
+                    new job_func::LoadLayerParam {ResourcePool::Output,
+                    &(params_,outputs[info.outputIndex]), info.layerID,
+                    srcLayerID, resourcePool_}));
+        } else if (info.inputIndex != -1) {
+            initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
+                    new job_func::LoadLayerParam {ResourcePool::Input,
+                    &(params_.inputs[info.inputIndex]), info.layerID,
+                    -1, resourcePool_}));
+        } else {
+            initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
+                    new job_func::LoadLayerParam {ResourcePool::Plugin,
+                    &(params_.plugins[info.pluginIndex]), info.layerID,
+                    -1, resourcePool_}));
+        }
     }
     for (int i = 0; i < params_.configs.size(); i++) {
         initJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigFile,
@@ -268,7 +286,7 @@ void ExecutorPool::executorController() {
         std::lock_guard<std::mutex> candidateLockGuard(
                 resourcePool_->candidateQueueLock_);
         if (resourcePool_->candidateQueue_.empty() &&
-                resourcePool_->readyJobCnt_ == 0) {
+                resourcePool_->readyJobCount_ == 0) {
             TEST("main")
             bool noWorkingJob = true;
             for (auto job : workingJob_) {
@@ -279,10 +297,13 @@ void ExecutorPool::executorController() {
             }
             if (noWorkingJob == true && alreadySaved == false) {
                 TEST("main");
-                for (int i = 0; i < params_.outputs.size(); i++) {
-                    resourcePool_->candidateQueue_.push(
-                            new ExecutorJob(ExecutorJob::SaveLayer,
-                            new job_func::SaveLayerParam {i, resourcePool_}));
+                for (auto layerInfo : layerInfo_) {
+                    if (layerInfo.second.outputIndex != -1) {
+                        resourcePool_->candidateQueue_.push(
+                                new ExecutorJob(ExecutorJob::SaveLayer,
+                                new job_func::SaveLayerParam {
+                                layerInfo.second.layerID, resourcePool_}));
+                    }
                 }
                 alreadySaved = true;
                 needReadyJob_.signal();

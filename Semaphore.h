@@ -18,7 +18,7 @@ public:
         // 等待线程计数
         int count;
         // 唤醒状态
-        int wakeupCnt;
+        int wakeupCount;
         // 互斥锁
         std::mutex lock;
         // 信号量用于通知
