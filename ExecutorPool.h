@@ -89,13 +89,11 @@ public:
     // layer的信息
     struct LayerInfo {
         // 是否是一个InputLayer以及对应的索引
-        int inputIndex = -1;
+        std::vector<int> inputIndexes;
         // 是否是一个OutputLayer以及对应的索引
-        int outputIndex = -1;
+        std::vector<int> outputIndexes;
         // 是否是一个PluginLayer以及对应的索引
-        int pluginIndex = -1;
-        // 当前Layer对应的ID
-        int layerID;
+        std::vector<int> pluginIndexes;
     };
     // ExecutorPool的参数结构体
     struct Params {

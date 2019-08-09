@@ -5,34 +5,131 @@ namespace condition_assign {
 int ResourcePool::init(const ExecutorPool::Params& params,
         Semaphore* newCandidateJob,
         std::map<std::string, ExecutorPool::LayerInfo>* layerInfo) {
-    std::set<std::string> needCacheLayers;
-    initRunningModel(params, &needCacheLayers);
+    inputSize_ = params.inputs.size();
+    configSize_ = params.configs.size();
+    outputSize_ = params.outputs.size();
     // 初始化Layer
-    std::map<std::string, ExecutorPool::LayerInfo>& layerList = *layerInfo;
+    CHECK_RET(initRunningModel(params, layerInfo),
+            "Failed to init layers based on current running model.");
+    // 其他内容的初始化
+    newCandidateJob_ = newCandidateJob;
+    executorCount_ = params.executorNum;
+    targetCount_ = params.outputs.size();
+    readyQueue_.resize(executorCount_, std::deque<ExecutorJob*>());
+    for (int i = 0; i < executorCount_; i++) {
+        readyQueueLock_.push_back(new std::mutex());
+        dependencySignals_.push_back(new Semaphore(0, Semaphore::OnceForAll));
+    }
+    // 初始化串行场景依赖信号量和配置文件信息
+    dependencySignals_[executorCount_ - 1]->signalAll();
+    CHECK_RET(initConfigGroup(params, layerList),
+            "Failed to init config group.");
+    return 0;
+}
+
+int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
+        std::map<std::string, ExecutorPool::LayerInfo>* layerInfo) {
     int index = 0;
-    for (const std::string& output : params.outputs) {
-        if (layerList.find(output) == layerList.end()) {
-            layerList[output] = LayerInfo();
-        }
-        layerList[output].outputIndex = index++;
-    }
+    int sharedID = 0;
+    int uniqueID = 0;
+    std::map<std::string, int> readOnlyLayers;
+    std::map<std::string, int> outputLayers;
     for (const std::string& input : params.inputs) {
-        if (layerList.find(input) == layerList.end()) {
-            layerList[input] = LayerInfo();
+        if (layerInfo->find(input) == layerList.end()) {
+            (*layerInfo)[input] = ExecutorPool::LayerInfo();
         }
-        layerList[input].inputIndex = index++;
+        if (readOnlyLayers[input] != readOnlyLayers.end()) {
+            layers_.push_back(new MifLayerNormal(input));
+            idMapping_[uniqueID] = sharedID++;
+        } else {
+            idMapping_[uniqueID] = readOnlyLayers[input];
+        }
+        if (inputSize_ > 1) {
+            readOnlyLayers[input] = idMapping_[uniqueID];
+        }
+        uniqueID++;
+        (*layerInfo)[input].inputIndexes.push_back(index++);
     }
-    for (const std::string& plugin :  params.plugins) {
-        if (layerList.find(plugin) == layerList.end()) {
-            layerList[plugin] = LayerInfo();
+    index = 0;
+    for (const std::string& plugin : params.plugins) {
+        if (layerInfo->find(plugin) == layerList.end()) {
+            (*layerInfo)[plugin] = ExecutorPool::LayerInfo();
         }
-        layerList[plugin].outputIndex = index++;
+        if (readOnlyLayers[plugin] != readOnlyLayers.end()) {
+            layers_.push_back(new MifLayerNormal(plugin));
+            idMapping_[uniqueID] = sharedID++;
+        } else {
+            idMapping_[uniqueID] = readOnlyLayers[plugin];
+        }
+        readOnlyLayers[plugin] = idMapping_[uniqueID++];
+        (*layerInfo)[plugin].pluginIndexes.push_back(index++);
+    }
+    index = 0;
+    if (inputSize > 1) {
+        for (const std::string& output : params.outputs) {
+            if (layerInfo->find(output) == layerList.end()) {
+                (*layerInfo)[output] = ExecutorPool::LayerInfo();
+            }
+            // 没有注册当前输出层
+            if (outputLayers.find(output) == outputLayers.end()) {
+                if (htk::endswith(output, "*NEW*")) {
+                    MifLayer* copySrcLayer = layers_[idMapping_[index]];
+                    layers_.push_back(new MifLayerNew(output.substr(0,
+                            output.size() - 5), copySrcLayer));
+                    idMapping_[uniqueID] = sharedID++;
+                } else {
+                    std::string input = params.inputs[index];
+                    if (layerInfo[input].inputIndexes == 1 &&
+                            layerInfo[input].inputIndexes[0] == index) {
+                        idMapping_[uniqueID] = idMapping_[index];
+                    } else {
+                        MifLayer* copySrcLayer = layers_[idMapping_[index]];
+                        layers_.push_back(new MifLayerNormal(output,
+                                copySrcLayer));
+                        idMapping_[uniqueID] = sharedID++;
+                    }
+                }
+            // 已经注册了当前输出层
+            } else {
+                idMapping_[uniqueID] = outputLayers[output];
+            }
+            outputLayers[output] = idMapping_[uniqueID++];
+            (*layerInfo)[output].outputIndexes.push_back(index++);
+        }
+    } else {
+        for (const std::string& output : params.outputs) {
+            if (layerInfo->find(output) == layerList.end()) {
+                (*layerInfo)[output] = ExecutorPool::LayerInfo();
+            }
+            // 没有注册当前输出层
+            if (outputLayers.find(output) == outputLayers.end()) {
+                if (htk::endswith(output, "*NEW*")) {
+                    MifLayer* copySrcLayer = layers_[idMapping_[0]];
+                    layers_.push_back(new MifLayerNew(output.substr(0,
+                            output.size() - 5), copySrcLayer));
+                    idMapping_[uniqueID] = sharedID++;
+                } else {
+                    std::string input = params.inputs[0];
+                        MifLayer* copySrcLayer = layers_[idMapping_[index]];
+                        layers_.push_back(new MifLayerNormal(output,
+                                copySrcLayer));
+                        idMapping_[uniqueID] = sharedID++;
+                    }
+                }
+            // 已经注册了当前输出层
+            } else {
+                idMapping_[uniqueID] = outputLayers[output];
+            }
+            outputLayers[output] = idMapping_[uniqueID++];
+            (*layerInfo)[output].outputIndexes.push_back(index++);
+        }
     }
     auto needCacheEnd = needCacheLayers.end();
     index = 0;
     for (auto layerIterator : layerList) {
         layers_.push_back(new MifLayerNormal(needCacheLayers.find(
                 layerIterator.first) != needCacheEnd));
+        // 设置输入层的地理类型
         if (layerIterator.second.inputIndex != -1) {
             CHECK_RET(layers_.back().setGeoType(params.geoTypes[
                     layerIterator.second.inputIndex]),
@@ -45,74 +142,6 @@ int ResourcePool::init(const ExecutorPool::Params& params,
         } else {
             portLayersMap_[layerIterator.first] = index++;
         }
-    }
-    // 其他内容的初始化
-    newCandidateJob_ = newCandidateJob;
-    executorCount_ = params.executorNum;
-    targetCount_ = params.outputs.size();
-    readyQueue_.resize(executorCount_, std::deque<ExecutorJob*>());
-    for (int i = 0; i < executorCount_; i++) {
-        readyQueueLock_.push_back(new std::mutex());
-        dependencySignals_.push_back(new Semaphore(0, Semaphore::OnceForAll));
-    }
-    dependencySignals_[executorCount_ - 1]->signalAll();
-    CHECK_RET(initConfigGroup(params, layerList),
-            "Failed to init config group.");
-    return 0;
-}
-
-int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
-        std::set<std::string>* needCacheLayers) {
-    // 初始化计数
-    std::map<std::string, std::set<int>> layerIndex;
-    std::map<std::string, std::set<int>> layerInputIndex;
-    bool needWarnOutputAsInput = params.inputs.size() > 1;
-    std::string* inputLayer = &(params.inputs[0]);
-    std::string* temp;
-    for (int i = 0; i < params.inputs.size(); i++) {
-        temp = &(params.inputs[i]);
-        if (layerCount.find(*temp) == layerCount.end()) {
-            layerCount[*temp] = std::set<int> {i};
-        } else {
-            layerCount[*temp].insert(i);
-        }
-    }
-    layerInputIndex = layerIndex;
-    std::set<std::string> outputLayers;
-    for (int i = 0; i < params.outputs.size(); i++) {
-        temp = &(params.outputs[i]);
-        // 检查是否存在一个Layer同时作为input和不与之对应的output的情况
-        if (needWarnOutputAsInput && layerInputIndex.find(*temp) !=
-                layerInputIndex.end()) {
-            const std::set<int>& inputIndex = layerInputIndex[*temp];
-            CHECK_WARN(inputIndex.size() == 1 && inputIndex.find(i) !=
-                    inputIndex.end(), "Found layer \"%s\" %s %s %s",
-                    indexIterator.c_str(), "set as input and output layer",
-                    "not in the same processing group simultaneously,",
-                    "result might be unpredictable.");
-        }
-        // 对于一个Layer同时作为多个outputLayer的情况做出警告
-        if (outputLayers.find(*temp) != outputLayers.end()) {
-            CHECK_WARN(!needWarnOutputAsInput && *temp == *inputLayer,
-                    "Found layer \"%s\" set as %s",
-                    temp->c_str(), "multiple output layers.");
-        } else {
-            outputLayers.insert(*temp);
-        }
-        if (layerCount.find(*temp) == layerCount.end()) {
-            layerCount[*temp] = std::set<int> {i};
-        } else {
-            layerCount[*temp].insert(i);
-        }
-    }
-    // 是否需要ItemCache
-    for (auto indexIterator : layerIndex) {
-        if (indexIterator.second.size() > 1) {
-            needCacheLayers->insert(indexIterator.first);
-        }
-    }
-    if (!needWarnOutputAsInput && params.outputs.size() > 1) {
-        needCacheLayers->insert(params.inputs[0]);
     }
     return 0;
 }

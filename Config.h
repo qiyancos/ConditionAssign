@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #include "SyntaxBase.h"
+#include "Semaphore.h"
 
 #include <atomic>
 #include <mutex>

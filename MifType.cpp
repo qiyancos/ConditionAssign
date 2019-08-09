@@ -49,19 +49,15 @@ Group::Type MifLayer::getGeoType() {
 
 MifLayerNew::MifLayerNew() : MifLayer(false) {}
 
-int MifLayerNew::open(const std::string& layerPath,
-        MifLayer* input = nullptr) {
-    CHECK_ARGS(layerPath.length() != 0, "Can not open with empty layer path.");
-    CHECK_ARGS(layerPath_.length() == 0,
-            "Trying to reopen mif layer with old path \"%s\" %s \"%s\".",
-            layerPath_.c_str(), "and new path", layerPath.c_str());
-    CHECK_ARGS(input != nullptr,
+int MifLayerNew::open() {
+    CHECK_ARGS(layerPath_.length() != 0,
+            "Can not open mif layer with uninitiated layer path.");
+    CHECK_ARGS(copySrcLayer_ != nullptr,
             "Can not find input layer for header copy");
-    layerPath_ = layerPath;
-    input->ready_.wait();
+    copySrcLayer_->ready_.wait();
     std::lock_guard<std::mutex> mifGuard(mifLock_);
-    mif_.header = input->mif_.header;
-    mif_.header.coordsys = input->mif_.header.COORDSYS_LL;
+    mif_.header = copySrcLayer_->mif_.header;
+    mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
     ready_.signalAll();
     newLayer_ = true;
     return 0;
@@ -93,9 +89,9 @@ int MifLayerNew::assignWithTag(const std::string& tagName,
             "Failed to get column id of tag \"%s\".", tagName.c_str());
     colID = colCacheIterator->second;
     std::lock_guard<std::mutex> mifGuard(mifLock_);
-    mif_.mid.push_back(input->mif_.mid[index]);
-    mif_.data.geo_vec.push_back(input->mif_.data.geo_vec[index] == NULL ?
-            NULL : input->mif_.data.geo_vec[index]->clone());
+    mif_.mid.push_back(copySrcLayer_->mif_.mid[index]);
+    mif_.data.geo_vec.push_back(copySrcLayer_->mif_.data.geo_vec[index] ==
+            NULL ? NULL : copySrcLayer_->mif_.data.geo_vec[index]->clone());
     mif_.mid[mifSize][colID] = val;
     mifSize_++;
     return 0;
@@ -137,7 +133,7 @@ int MifLayerNew::getTagType(const std::string& tagName,
             }
         }
         std::lock_guard<std::mutex> mifGuard(mifLock_);
-        std::string tagStringVal = mif_.mid[0][colID];
+        std::string tagStringVal = copySrcLayer_->mif_.mid[0][colID];
         *type = syntax::getDataType(tagStringVal);
         tagTypeCache_[tagName] = *type;
         return 0;
@@ -168,16 +164,11 @@ int MifLayerNew::getGeometry(wsl::Geometry** val, const int index) {
 
 MifLayerNormal::MifLayerNormal(const bool withCache) : MifLayer(withCache) {}
 
-int MifLayerNormal::open(const std::string& layerPath,
-        MifLayer* input = nullptr) {
-    CHECK_ARGS(layerPath.length() != 0,
-            "Can not open with empty layer path.");
-    CHECK_ARGS(layerPath_.length() == 0,
-            "Trying to reopen mif layer with old path \"%s\" %s \"%s\".",
-            layerPath_.c_str(), "and new path", layerPath.c_str());
+int MifLayerNormal::open() {
+    CHECK_ARGS(layerPath_.length() != 0,
+            "Can not open mif layer with uninitiated layer path.");
     CHECK_RET(access(layerPath.c_str(), R_OK),
             "File \"%s\" exists but not readable.", layerPath.c_str());
-    layerPath_ = layerPath;
     CHECK_RET(wgt::mif_to_wsbl(layerPath, mif_),
             "Error occurred while openning mif layer \"%s\".",
             layerPath.c_str());

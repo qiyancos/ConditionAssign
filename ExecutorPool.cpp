@@ -137,14 +137,20 @@ ExecutorPool::~ExecutorPool() {
 }
 
 int ExecutorPool::init() {
-    if (params_.inputs.size() > 1) {
-        CHECK_ARGS(params_.outputs.size() == params_.inputs.size(),
-                "Input layers' count[%d] %s [%d].", params_.inputs.size(),
-                "does not match the count of output layers",
-                params_.outputs.size());
-    } else if (params_.outputs.size() == 1 && params_.configs.size() > 1) {
-        std::string outputLayer = params.outputs[0];
-        params_.outputs.resize(params_.configs.size(), outputLayer);
+    int inputSize = params_.inputs.size();
+    int configSize = params_.configs.size();
+    int outputSize = params_.outputs.size();
+    CHECK_ARGS(outputSize < inputSize, "Input layers' count[%d] %s [%d].",
+            inputSize, "can not be larger than the count of output layers",
+            outputSize);
+    if (inputSize > 1 && configSize == 1) {
+        params_.configs.resize(outputSize, params_.configs[0]);
+    } else if (inputSize == 1) {
+        if (outputSize == 1 && configSize > 1) {
+            params_.outputs.resize(configSize, params_.outputs[0]);
+        } else if (outputSize() > 1 && configSize == 1) {
+            params_.configs.resize(outputSize, params_.configs[0]);
+        }
     }
     if (params_.configs.size() > 1) {
         CHECK_ARGS(params_.outputs.size() == params_.configs.size(),
@@ -153,10 +159,9 @@ int ExecutorPool::init() {
                 params_.outputs.size());
     }
     int executorCount = params_.executorNum;
-    if (executorCount > std::thread::hardware_concurrency()) {
-        std::cerr << "Warning: thread number is greater than the";
-        std::cerr << " cpu cores in this computer." << std::endl;
-    }
+    CHECK_WARN(executorCount <= std::thread::hardware_concurrency(),
+        "Warning: thread number is greater than the %s",
+        "cpu logic cores in this computer.");
     resourcePool_ = new ResourcePool();
     CHECK_RET(resourcePool_->init(params_, &(needReadyJob_), &layerInfo_),
             "ResourcePool failed to init.");
@@ -184,41 +189,31 @@ int ExecutorPool::init() {
 int ExecutorPool::execute() {
     // 初始化工作内容
     std::vector<ExecutorJob*> initJobs;
-    int inputLayerID = -1;
-    if (params_.inputs.size() == 1) {
-        inputLayerID = layerInfo.find(params_.inputs[0]).second.layerID;
+    int totalLayersCount;
+    CHECK_ARGS(totalLayersCount = resourcePool_.getLayersCount() > 0,
+            "No mif layer available for loading.");
+    for (int sharedID = 0; sharedID < totalLayersCount; sharedID++) {
+        initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
+                new job_func::LoadLayerParam {sharedID, resourcePool_}));
     }
-    for (auto layerInfo : layerInfo_) {
-        const LayerInfo& info = layerInfo.second;
-        if (info.outputIndex != -1) {
-            int srcLayerID = inputLayerID == -1 ? layerInfo_.find(
-                    params_.inputs[info.outputIndex]).second.layerID :
-                    inputLayerID;
-            initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
-                    new job_func::LoadLayerParam {ResourcePool::Output,
-                    &(params_,outputs[info.outputIndex]), info.layerID,
-                    srcLayerID, resourcePool_}));
-        } else if (info.inputIndex != -1) {
-            initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
-                    new job_func::LoadLayerParam {ResourcePool::Input,
-                    &(params_.inputs[info.inputIndex]), info.layerID,
-                    -1, resourcePool_}));
+    std::map<std::string, std::vector<int>> configFiles;
+    for (int i = 0; i < params_.configs.size(); i++) {
+        if (configFiles.find(params_.configs[i]) == configFiles.end()) {
+            configFiles[params_.configs[i]] = std::vector<int>(1, i);
         } else {
-            initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
-                    new job_func::LoadLayerParam {ResourcePool::Plugin,
-                    &(params_.plugins[info.pluginIndex]), info.layerID,
-                    -1, resourcePool_}));
+            configFiles[params_.configs[i]].push_back(i);
         }
     }
-    for (int i = 0; i < params_.configs.size(); i++) {
+    for (auto mapIterator : configFiles) {
         initJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigFile,
-                new job_func::ParseConfigFileParam {
-                &(params_.configs[i]), i, resourcePool_}));
+                new job_func::ParseConfigFileParam {mapIterator.second,
+                &(params_.configs[mapIterator.second[0]]), resourcePool_}));
     }
+    // 插入初始化的工作内容
     for (int i = 0; i < initJobs.size(); i++) {
         resourcePool_->candidateQueue_.push(initJobs[i]);
     }
-    // 插入初始化的工作内容
+    // 生成运行线程
     status_ = Running;
     resourceConsole_ = new std::thread(resourceController, this);
     for (int id = 0; id < params_.executorNum; id++) {
@@ -269,7 +264,6 @@ int ExecutorPool::resourceController(ExecutorPool* mainPool) {
 
 void ExecutorPool::executorController() {
     TEST("main");
-    bool alreadySaved = false;
     while (status_ != Error) {
         TEST("main");
         needStatusCheck_.wait();
@@ -295,19 +289,7 @@ void ExecutorPool::executorController() {
                     break;
                 }
             }
-            if (noWorkingJob == true && alreadySaved == false) {
-                TEST("main");
-                for (auto layerInfo : layerInfo_) {
-                    if (layerInfo.second.outputIndex != -1) {
-                        resourcePool_->candidateQueue_.push(
-                                new ExecutorJob(ExecutorJob::SaveLayer,
-                                new job_func::SaveLayerParam {
-                                layerInfo.second.layerID, resourcePool_}));
-                    }
-                }
-                alreadySaved = true;
-                needReadyJob_.signal();
-            } else if (noWorkingJob == true && alreadySaved == true) {
+            if (noWorkingJob == true) {
                 status_ = Finished;
                 statusCheckOver_.signal();
                 return 0;

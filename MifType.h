@@ -3,6 +3,7 @@
 
 #include "Semaphore.h"
 #include "SyntaxBase.h"
+#include "Group.h"
 
 #include <vector>
 #include <map>
@@ -33,6 +34,8 @@ public:
     int size() {return mifSize_;}
     // 判断当前Layer是否拥有ItemCache
     bool withItemCache() {return withCache_;}
+    // 设置当前的Layer是否需要ItemCache
+    int setWithItemCache(const bool withCache);
     // 依据给定的路径打开Layer
     virtual int open(const std::string& layerPath,
             MifLayer* input = nullptr) = 0;
@@ -60,7 +63,7 @@ public:
     Group::Type getGeoType();
     
     // 构造函数
-    MifLayer(const bool withCache);
+    MifLayer(const std::string& layerPath, MifLayer* copySrcLayer = nullptr);
     // 虚析构函数
     virtual ~MifLayer();
 
@@ -69,6 +72,8 @@ public:
     wgt::MIF mif_;
     // 当前MifLayer是否打开
     Semaphore ready_;
+    // 复制载入对应的MifLayer
+    MifLayer* copySrcLayer_ = nullptr;
 
 protected:
     // 当前的Layer是否需要itemCache
@@ -143,8 +148,6 @@ public:
 private:
     // mif数据锁
     std::mutex mifLock_;
-    // 当前MifLayer是否是一个新增图层
-    bool newLayer_ = false;
 };
 
 class MifItem {

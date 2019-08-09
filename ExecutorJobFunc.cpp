@@ -50,7 +50,7 @@ int parseConfigFile(void* param, const int executorID) {
         if (content.length() > 0 && htk::trim(content, " ")[0] != '#') {
             fullContent->push_back(std::pair<std::string, int>(
                     content, lineNumber));
-            subGroup->group_.push_back(std::pair<int, ConfigItem*>(lineNumber,
+            subGroup->group_->push_back(std::pair<int, ConfigItem*>(lineNumber,
                     nullptr));
         }
         lineNumber++;
@@ -68,14 +68,12 @@ int parseConfigFile(void* param, const int executorID) {
     while (startIndex < edgeCount) {
         newJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigLines,
                 new ParseConfigLinesParam {paramPtr->filePath, fullContent,
-                startIndex, lineCount, subGroup, paramPtr->layerID,
-                resourcePool}));
+                startIndex, lineCount, subGroup, resourcePool}));
         startIndex += lineCount;
     }
     newJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigLines,
             new ParseConfigLinesParam {paramPtr->filePath, fullContent,
-            edgeCount, totalCount - edgeCount, subGroup,
-            paramPtr->layerID, resourcePool}));
+            edgeCount, totalCount - edgeCount, subGroup, resourcePool}));
     MifLayer* targetLayer;
     CHECK_RET(resourcePool->getLayerByIndex(&targetLayer,
             ResourcePool::Output, paramPtr->layerID),

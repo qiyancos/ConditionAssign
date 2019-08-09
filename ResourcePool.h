@@ -21,6 +21,7 @@ namespace condition_assign {
 #define MAX_MIFLAYERS 32
 
 class ConfigSubGroup;
+class ConfigGroup;
 
 class ResourcePool {
 public:
@@ -32,8 +33,10 @@ public:
 
     // 初始化
     int init(ExecutorPool::Params params, Semaphore* newCandidateJob);
+    
     // 根据目标层ID获取对应的ConfigSubGroup
     int getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr);
+    
     // 插入生成好的Group到映射中去
     int insertGroup(const int key, Group* newGroup);
     // 根据group的key获取
@@ -41,17 +44,22 @@ public:
     // 根据group的key获取并插入Group(与解析匹配的功能)
     int findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
             const int typeGroupKey = -1, Group** typeGroupPtr = nullptr);
+    
+    // 获取Layer实体的个数
+    int getLayersCount();
     // 打开指定的Layer
-    int openLayer(const std::string& layerPath, const LayerType layerType,
-            const inputLayerID, const int layerID = -1);
+    int openLayer(const int sharedID);
     // 根据路径名或者部分路径名查找对应Layer的索引
     int getLayerByName(MifLayer** layerPtr, const LayerType layerType,
-            const std::string& layerPath, int* layerID = nullptr);
-    // 获取某一个Layer的指针
-    int getLayerByIndex(MifLayer** layerPtr, const LayerType layerType,
-            const int layerID = -1);
+            const std::string& layerPath, int* sharedID = nullptr);
+    // 根据UniqueID获取某一个Layer的指针
+    int getLayerByUniqueID(MifLayer** layerPtr, const LayerType layerType,
+            const int uniqueID);
+    // 根据SharedID获取某一个Layer的指针
+    int getLayerBySharedID(MifLayer** layerPtr, const int sharedID);
     // 获取外挂表的文件路径全名
     int getPluginFullPath(const std::string& layerName, std::string* fullPath);
+    
     // 获取一个可以运行的工作项
     int getReadyJob(const int threadID, ExecutorJob** jobConsumerPtr);
     // 从备选工作队列中选择准备好的工作项放到准备队列
@@ -67,8 +75,12 @@ private:
             const std::map<std::string, ExecutorPool::LayerInfo>& layerList);
 
 private:
+    // 输入层的实际个数
+    int inputSize_;
+    // 配置文件的实际个数
+    int configSize_;
     // 当前工作的目标层数目
-    int targetCount_;
+    int outputSize_;
     // 当前的执行器数量
     int executorCount_;
     
@@ -80,12 +92,19 @@ private:
     // 用于缓存Group查找的映射
     std::map<int, Group*> groupMap_;
 
+    // UniqueID到sharedID的映射
+    std::vector<int> idMapping_;
     // 外挂表数据
     std::map<std::string, int> pluginLayersMap_;
-    // 输入输出层数据路径到索引的映射
-    std::map<std::string, int> portLayersMap_;
+    // 输入层数据路径到索引的映射
+    std::map<std::string, int> inputLayersMap_;
+    // 输出层数据路径到索引的映射
+    std::map<std::string, int> outputLayersMap_;
     // 所有MifLayer数据
     std::vector<MifLayer*> layers_;
+
+    // 信号量组，和依赖检查有直接关系
+    std::vector<Semaphore*> dependencySignals_;
 
 public:
     // 当前预备队列中任务的数目
@@ -106,8 +125,6 @@ public:
     std::vector<std::vector<ExecutorJob*>> jobCache_;
     // 当前ParseGroup工作项的数目
     std::atomic<int> parseGroupJobCount_ {0};
-    // 信号量组，和依赖检查有直接关系
-    std::vector<Semaphore*> dependencySignals_;
 };
 
 } // namespace condition_assign
