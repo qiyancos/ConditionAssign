@@ -132,7 +132,7 @@ int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
     if (size_ == 0) {
         MifItem* workingItem;
         for (int index = 0; index < layer_->size(); index++) {
-            CHECK_RET(layer_->newMifItem(index, &workingItem, nullptr),
+            CHECK_RET(layer_->newMifItem(index, nullptr, &workingItem),
                     "Failed to create working mif item for plugin layer.");
             if (satisfyConditions(*(info_->configItem_), workingItem)) {
                 std::string newTagVal;
@@ -147,7 +147,7 @@ int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
     } else {
         MifItem* workingItem;
         for (int index : group_) {
-            CHECK_RET(layer_->newMifItem(index, &workingItem, nullptr),
+            CHECK_RET(layer_->newMifItem(index, nullptr, &workingItem),
                     "Failed to create working mif item for plugin layer.");
             if (satisfyConditions(*(info_->configItem_), workingItem)) {
                 std::string newTagVal;

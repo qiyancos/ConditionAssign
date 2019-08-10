@@ -67,16 +67,27 @@ public:
     int selectReadyJob(std::set<int>* wakeupExecutorID);
 
 private:
+    // layer的信息
+    struct LayerInfo {
+        // 是否是一个InputLayer以及对应的索引
+        std::vector<int> inputIndexes;
+        // 是否是一个OutputLayer以及对应的索引
+        std::vector<int> outputIndexes;
+        // 是否是一个PluginLayer以及对应的索引
+        std::vector<int> pluginIndexes;
+    };
+
+private:
     // 根据输入模型设置依赖关系和Layer属性
     int initRunningModel(const ExecutorPool::Params& params,
-            std::map<std::string, ExecutorPool::LayerInfo>* layerInfo);
+            std::map<std::string, LayerInfo>* layerInfo);
     // 初始化Layer的属性信息
-    int initLayers(const ExecotorPool::Params& params,
+    int initLayers(const ExecutorPool::Params& params,
             const std::map<std::string, int>& readOnlyLayers,
-            const std::map<std::string, ExecutorPool::LayerInfo>& layerInfo);
+            const std::map<std::string, LayerInfo>& layerInfo);
     // 初始化ConfigGroup
     int initConfigGroup(const ExecutorPool::Params& params,
-            const std::map<std::string, ExecutorPool::LayerInfo>& layerInfo);
+            const std::map<std::string, LayerInfo>& layerInfo);
 
 private:
     // 配置文件的实际个数

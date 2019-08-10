@@ -4,7 +4,7 @@
 
 namespace condition_assign {
 
-namespace job_func {
+namespace job {
 
 int LoadLayerJob::process(const int executorID) {
     TEST(executorID);
@@ -19,28 +19,46 @@ int LoadLayerJob::process(const int executorID) {
 int SaveLayerJob::process(const int executorID) {
     TEST(executorID);
     MifLayer* layer;
-    CHECK_RET(paramPtr->resourcePool->getLayerBySharedID(&layer, sharedID_),
+    CHECK_RET(resourcePool_->getLayerBySharedID(&layer, sharedID_),
             "Failed to get output layer of shared id[%d].", sharedID_);
     CHECK_RET(layer->save(savePath_),
             "Failed to save output layer[%d] to path \"%s\".",
-            sahredID_, savePath_.c_str());
+            sharedID_, savePath_.c_str());
     return 0;
 }
 
 int ParseConfigFileJob::process(const int executorID) {
     TEST(executorID);
     // 设置Config子组
+    std::vector<MifLayer*>* targetLayers = new std::vector<MifLayer*>();
+    std::vector<MifLayer*>* srcLayers = new std::vector<MifLayer*>();
+    std::vector<ConfigSubGroup*>* subGroups =
+            new std::vector<ConfigSubGroup*>();
+    MifLayer* layer;
     ConfigSubGroup* subGroup;
-    CHECK_RET(resourcePool_->getConfigSubGroup(configIndex_, &subGroup),
-            "Failed to get config sub group for layer[%d]", configIndex_);
+    for (int configIndex : configIndexes_) {
+        // 初始化subGroup的路径信息
+        CHECK_RET(resourcePool_->getConfigSubGroup(configIndex, &subGroup),
+                "Failed to get config sub group for layer[%d]", configIndex_);
+        subGroup->filePath_ = &(filePath_);
+        CHECK_RET(resourcePool_->getOutputFullPath(subGroup->id_,
+                &(subGroup->savePath_)), "Failed to get target %s \"%s\".",
+                "layer path of config file", filePath_.c_str());
+        subGroups->push_back(subGroup);
+        // 获取对应的inputlayer和outputLayer
+        CHECK_RET(resourcePool_->getLayerBySharedID(&layer,
+                subGroup->srcLayerID_), "Failed to get %s[%d].",
+                "input layer bind with this config file", configIndex);
+        srcLayers->push_back(layer);
+        CHECK_RET(resourcePool_->getLayerBySharedID(&layer,
+                subGroup->targetLayerID), "Failed to get %s[%d].",
+                "output layer bind with this config file", configIndex);
+        targetLayers->push_back(targetLayer);
+    }
     // 打开并逐行读取配置文件
-    subGroup->filePath_ = &(filePath_);
-    CHECK_RET(resourcePool_->getOutputFullPath(subGroup->id_,
-            &(subGroup->savePath_)), "Failed to get target layer %s \"%s\".",
-            "path of config file", filePath_.c_str());
-    std::ifstream configFileStream(filePath.c_str());
+    std::ifstream configFileStream(filePath_.c_str());
     CHECK_ARGS(configFileStream, "Failed to open config file \"%s\".",
-            filePath.c_str());
+            filePath_.c_str());
     std::string content;
     std::vector<std::pair<std::string, int>>* fullContent =
             new std::vector<std::pair<std::string,int>>();
@@ -49,7 +67,7 @@ int ParseConfigFileJob::process(const int executorID) {
         if (content.length() > 0 && htk::trim(content, " ")[0] != '#') {
             fullContent->push_back(std::pair<std::string, int>(
                     content, lineNumber));
-            subGroup->group_->push_back(std::pair<int, ConfigItem*>(lineNumber,
+            subGroup_->group_->push_back(std::pair<int, ConfigItem*>(lineNumber,
                     nullptr));
         }
         lineNumber++;
@@ -66,25 +84,23 @@ int ParseConfigFileJob::process(const int executorID) {
     std::vector<ExecutorJob*> newJobs;
     while (startIndex < edgeCount) {
         newJobs.push_back(new ParseConfigLinesJob(filePath_, fullContent,
-                startIndex, lineCount, subGroup, resourcePool_));
+                startIndex, lineCount, subGroups, srcLayers,
+                targetLayers, resourcePool_));
         startIndex += lineCount;
     }
     newJobs.push_back(new ParseConfigLinesJob(filePath_, fullContent,
-            edgeCount, totalCount - edgeCount, subGroup, resourcePool_));
-    MifLayer* targetLayer;
-    CHECK_RET(resourcePool_->getLayerByIndex(&targetLayer,
-            ResourcePool::Output, configIndex_), "Failed to get layer %s[%d].",
-            "bind with this config file", configIndex_);
+            edgeCount, totalCount - edgeCount, subGroups, srcLayers,
+            targetLayers, resourcePool_));
     // 在串行模式下需要执行copyLoad
     if (!ExecutorPool::runParallel_) {
-        targetLayer->copyLoad();
+        targetLayers[0]->copyLoad();
     }
-    MifLayer* srcLayer;
-    CHECK_RET(resourcePool_->getLayerByIndex(&srcLayer, ResourcePool::Input,
-            configIndex_), "Failed to get intput layer %s[%d].",
-            "bind with this config file", configIndex_);
-    srcLayer->ready_.wait();
-    targetLayer->ready_.wait();
+    for (MifLayer* srcLayer : *targetLayers) {
+        srcLayer->ready_.wait();
+    }
+    for (MifLayer* targetLayer : *targetLayers) {
+        targetLayer->ready_.wait();
+    }
     std::lock_guard<std::mutex> lockGuard(resourcePool_->candidateQueueLock_);
     for (ExecutorJob* job : newJobs) {
         resourcePool_->candidateQueue_.push(job);
@@ -97,15 +113,16 @@ int ParseConfigLinesJob::process(const int executorID) {
     TEST(executorID);
     int index = startIndex_;
     int lineCount = lineCount;
+    ConfigSubGroup* subGroup = subGroups_[0];
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
         std::pair<std::string, int>& thisLine =
                 (*fullContent_)[index];
-        CHECK_RET(parser::parseConfigLine(thisLine.first,
-                subGroup_, index, resourcePool_, &newGroups),
+        CHECK_RET(parser::parseConfigLine(thisLine.first, subGroup,
+                srcLayers_, targetLayers_, index, resourcePool_, &newGroups),
                 "Failed to parse single line \"%s\"%s\"%s\" [line: %d]",
                 thisLine.first.c_str(), " in config file ",
-                filePath.c_str(), thisLine.second);
+                filePath_.c_str(), thisLine.second);
         index++;
     }
     std::vector<ExecutorJob*> newJobs;
@@ -117,41 +134,46 @@ int ParseConfigLinesJob::process(const int executorID) {
     resourcePool_->jobCacheLock_.lock();
     resourcePool_->parseGroupJobCount_ += newJobs.size();
     // 当前配置文件的所有内容均已经解析完毕
-    if (subGroup_->readyCount_ + lineCount_ == fullContent_->size()) {
-        MifLayer* srcLayer;
-        CHECK_RET(resourcePool_->getLayerBySharedID(&srcLayer,
-                subGroup_->srcLayerID_), "Failed to get %s[%d].",
-                "input mif layer with shared id", subGroup_->srcLayerID_);
-        MifLayer* targetLayer;
-        CHECK_RET(resourcePool_->getLayerBySharedID(&targetLayer,
-                subGroup_->targetLayerID_), "Failed to get %s[%d].",
-                "output mif layer with shared id", subGroup->targetLayerID_);
-        int startIndex = 0;
-        int itemCount = MAX_ITEM_PER_JOB;
-        int totalCount = srcLayer->size() ;
-        int edgeCount = totalCount / itemCount * itemCount;
-        if (totalCount - edgeCount < (itemCount >> 1)) {
-            edgeCount -= itemCount;
-            edgeCount = edgeCount < 0 ? 0 : edgeCount;
+    if (subGroup->readyCount_ + lineCount_ == fullContent_->size()) {
+        MifLayer* srcLayer, targetLayer;
+        ConfigSubGroup* subGroupNow;
+        for (int index = 0; index < subGroups_.size(); index++) {
+            srcLayer = srcLayers_[index];
+            targetLayer = targetLayers_[index];
+            subGroupNow = subGroups_[index];
+            int startIndex = 0;
+            int itemCount = MAX_ITEM_PER_JOB;
+            int totalCount = srcLayer->size() ;
+            int edgeCount = totalCount / itemCount * itemCount;
+            if (totalCount - edgeCount < (itemCount >> 1)) {
+                edgeCount -= itemCount;
+                edgeCount = edgeCount < 0 ? 0 : edgeCount;
+            }
+            while (startIndex < edgeCount) {
+                resourcePool_->jobCache_[subGroupNow->id_].push_back(
+                        new ProcessMifItemsJob(srcLayer, targetLayer,
+                        subGroupNow, startIndex, itemCount, resourcePool_));
+                startIndex += itemCount;
+            }
+            resourcePool_->jobCache_[subGroupNow->id_].push_back(
+                    new ProcessMifItemsJob(srcLayer, targetLayer,
+                    subGroupNow, edgeCount, totalCount - edgeCount,
+                    resourcePool_));
         }
-        while (startIndex < edgeCount) {
-            resourcePool_->jobCache_[subGroup_->id_].push_back(
-                    ProcessMifItemsJob(srcLayer, targetLayer,
-                    subGroup_, startIndex, itemCount));
-            startIndex += itemCount;
-        }
-        resourcePool_->jobCache_[subGroup_->id_].push_back(
-                ProcessMifItemsJob(srcLayer, targetLayer,
-                subGroup_, edgeCount, totalCount - edgeCount));
+        // 判断是否可以转移ProcessMifItemJob
         if (resourcePool_->parseGroupJobCount_ == 0) {
             for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
-                newJobs.insert(newJobs.end(), resourcePool_->jobCache_.begin(),
-                        resourcePool_->jobCache_.end());
+                newJobs.insert(newJobs.end(),
+                        resourcePool_->jobCache_[i].begin(),
+                        resourcePool_->jobCache_[i].end());
                 resourcePool_->jobCache_.clear();
             }
         }
+        delete targetLayers_;
+        delete srcLayers_;
+        delete subGroups_;
     }
-    subGroup_->readyCount_ += lineCount_;
+    subGroup->readyCount_ += lineCount_;
     resourcePool_->jobCacheLock_.unlock();
     std::lock_guard<std::mutex> candidateQueueGuard(
             resourcePool_->candidateQueueLock_);
@@ -187,7 +209,7 @@ int ParseGroupJob::process(const int executorID) {
             CHECK_ARGS(typeGroup.first > 0,
                     "Type group found but item group not found.");
             MifLayer* pluginLayer;
-            CHECK_RET(resourcePool->getLayerByName(&pluginLayer,
+            CHECK_RET(resourcePool_->getLayerByName(&pluginLayer,
                     ResourcePool::Plugin, itemGroup.second->info_->layerName_),
                     "Failed to found plugin layer \"%s\"",
                     itemGroup.second->info_->layerName_.c_str());
@@ -205,13 +227,13 @@ int ParseGroupJob::process(const int executorID) {
                         itemCount, resourcePool_));
                 startIndex += itemCount;
             }
-            newJobs.push_back(new BuildGroup(pluginLayer, itemGroup.second,
+            newJobs.push_back(new BuildGroupJob(pluginLayer, itemGroup.second,
                 typeGroup.second, edgeCount, totalCount -edgeCount,
                 resourcePool_));
             newJobs.push_back(new BuildGroupJob(pluginLayer, itemGroup.second,
                     typeGroup.second, -1, 0, resourcePool_));
         } else if (typeGroup.first > -1) {
-            newJobs.push_back(new BuildGroup(nullptr, itemGroup.second,
+            newJobs.push_back(new BuildGroupJob(nullptr, itemGroup.second,
                     typeGroup.second, -1, 0, resourcePool_));
         }
         std::lock_guard<std::mutex> candidateGuard(
@@ -243,7 +265,7 @@ int BuildGroupJob::process(const int executorID) {
         MifItem* workingItem;
         while (totalCount--) {
 #ifdef USE_MIFITEM_CACHE
-            CHECK_RET(pluginLayer_->newMifItem(index, &workingItem, nullptr),
+            CHECK_RET(pluginLayer_->newMifItem(index, nullptr, &workingItem),
                     "Failed to create new mif item while building group.");
 #else
             workingItem = new MifItem(index, pluginLayer_, nullptr);
@@ -260,18 +282,18 @@ int BuildGroupJob::process(const int executorID) {
             index++;
         }
         groupInfo->checkedCount_ += totalCount;
-        if (groupInfo->checkedCount_ == paramPtr->pluginLayer->size()) {
+        if (groupInfo->checkedCount_ == pluginLayer_->size()) {
             delete groupInfo;
-            paramPtr->itemGroup->info_ = nullptr;
-            paramPtr->itemGroup->ready_.signalAll();
+            itemGroup_->info_ = nullptr;
+            itemGroup_->ready_.signalAll();
         }
     }
     std::lock_guard<std::mutex> jobCacheGuard(resourcePool_->jobCacheLock_);
     if (resourcePool_->parseGroupJobCount_ == 0) {
         std::vector<ExecutorJob*> newJobs;
         for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
-            newJobs.insert(newJobs.end(), resourcePool_->jobCache_.begin(),
-                    resourcePool_->jobCache_.end());
+            newJobs.insert(newJobs.end(), resourcePool_->jobCache_[i].begin(),
+                    resourcePool_->jobCache_[i].end());
             resourcePool_->jobCache_.clear();
         }
         if (!newJobs.empty()) {
@@ -293,7 +315,7 @@ int ProcessMifItemsJob::process(const int executorID) {
     int itemIndex = startIndex_;
     int itemCount = itemCount_;
     std::vector<std::pair<int, ConfigItem*>>& configItemGroup =
-            subGroup_->group_;
+            *(subGroup_->group_);
     const int totalConfigCount = configItemGroup.size();
     while (itemCount--) {
 #ifdef DEBUG_OP
@@ -301,8 +323,8 @@ int ProcessMifItemsJob::process(const int executorID) {
 #endif
 #ifdef USE_MIFITEM_CACHE
         if (srcLayer_->withItemCache()) {
-            CHECK_RET(srcLayer_->newMifItem(itemIndex++, &workingItem,
-                    targetLayer_), "Failed to create %s",
+            CHECK_RET(srcLayer_->newMifItem(itemIndex++, targetLayer_,
+                    &workingItem), "Failed to create %s",
                     "new mif item while processing mif item.");
         } else {
             workingItem = new MifItem(itemIndex++, srcLayer_, targetLayer_);
@@ -342,13 +364,14 @@ int ProcessMifItemsJob::process(const int executorID) {
         if (subGroup_->readyCount_ + itemCount_ == srcLayer_->size()) {
             std::vector<ExecutorJob*> newJobs;
             if (!ExecutorPool::runParallel_ && 
-                    !(resourcePool_->parseConfgFileJobs_.empty()) {
-                newJobs.push_back(resourcePool->parseConfigFileJobs_.front());
-                resourcePool->parseConfigFileJobs_.pop();
+                    !(resourcePool_->parseConfigFileJobs_.empty())) {
+                newJobs.push_back(resourcePool_->parseConfigFileJobs_.front());
+                resourcePool_->parseConfigFileJobs_.pop();
             }
-            if (*(subGroup_->finishedFileCount_) + 1 >= subGroup_->savePoint_) {
+            if (*(subGroup_->finishedFileCount_) + 1 >=
+                    subGroup_->savePoint_) {
                 newJobs.push_back(new SaveLayerJob(subGroup_->targetLayerID_,
-                        subGroup_->savePath_, resourcePool_));
+                        *(subGroup_->savePath_), resourcePool_));
             }
             std::lock_guard<std::mutex> candidateQueueGuard(
                     resourcePool_->candidateQueueLock_);
@@ -365,6 +388,6 @@ int ProcessMifItemsJob::process(const int executorID) {
     return 0;
 }
 
-} // namespace job_func
+} // namespace job
 
 } // namespace condition_assign

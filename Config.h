@@ -12,6 +12,8 @@
 
 namespace condition_assign {
 
+class ResourcePool;
+
 // 单行ConditionAssign对应的结构
 class ConfigItem {
 public:
@@ -62,9 +64,9 @@ public:
     int targetLayerID_ = -1;
     
     // 当前的目标Layer的保存位置
-    int savePoint = -1;
+    int savePoint_ = -1;
     // 对应的目标Layer存储路径
-    std::string savePath_;
+    std::string* savePath_;
     // 解析文件数
     std::atomic<int>* finishedFileCount_;
     // 当前子组的ID
@@ -88,7 +90,7 @@ public:
 
 public:
     // 初始化函数
-    int init(const int totalCount, const int targetCount,
+    int init(const int totalCount, const std::vector<int>& subGroupMap,
             const std::vector<int>& savePoints, ResourcePool* resourcePool);
     // 构造函数
     ConfigGroup() = default;
@@ -109,6 +111,8 @@ using Expression = std::pair<std::string, syntax::Node*>;
 
 // 解析单行配置文件内容并生成对应的ConfigItem
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
+        std::vector<MifLayer*>* srcLayers,
+        std::vector<MifLayer*>* targetLayers,
         const int index, ResourcePool* resourcePool,
         std::vector<std::pair<std::string, Group**>*>* newGroups);
 

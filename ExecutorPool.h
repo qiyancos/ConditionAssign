@@ -59,15 +59,6 @@ public:
 class ExecutorPool {
 public:
     enum Status {Running, Idle, Finished, Error};
-    // layer的信息
-    struct LayerInfo {
-        // 是否是一个InputLayer以及对应的索引
-        std::vector<int> inputIndexes;
-        // 是否是一个OutputLayer以及对应的索引
-        std::vector<int> outputIndexes;
-        // 是否是一个PluginLayer以及对应的索引
-        std::vector<int> pluginIndexes;
-    };
     // ExecutorPool的参数结构体
     struct Params {
         // ExecutorPool中Executor的数目上限
@@ -118,8 +109,6 @@ public:
     static bool runParallel_;
 
 private:
-    // 记录layer的信息，用于初始化loadLayer任务
-    std::map<std::string, LayerInfo> layerInfo_;
     // 状态管理线程
     std::thread* executorConsole_ = nullptr;
     // 资源管理线程

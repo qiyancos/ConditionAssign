@@ -42,8 +42,8 @@ private:
 class SaveLayerJob : public ExecutorJob {
 public:
     // 构造函数
-    SaveLayerJob(const int layerIndex, const std::string& savePath,
-            ResourcePool* resourcePool) : layerIndex_(layerIndex),
+    SaveLayerJob(const int sharedID, const std::string& savePath,
+            ResourcePool* resourcePool) : sharedID_(sharedID),
             savePath_(savePath), resourcePool_(resourcePool) {}
     // 析构函数
     ~SaveLayerJob() = default;
@@ -52,7 +52,7 @@ public:
 
 private:
     // 目标层的路径
-    const int layerIndex_;
+    const int sharedID_;
     // 保存的目标路径
     const std::string& savePath_;
     // 资源池指针
@@ -63,8 +63,9 @@ private:
 class ParseConfigFileJob : public ExecutorJob {
 public:
     // 构造函数
-    ParseConfigFileJob(const int configIndex, const std::string& filPath,
-            ResourcePool* resourcePool) : configIndex_(configIndex),
+    ParseConfigFileJob(const std::vector<int>& configIndex,
+            const std::string& filePath, ResourcePool* resourcePool) :
+            configIndex_(configIndex),
             filePath_(filePath), resourcePool_(resourcePool) {}
     // 析构函数
     ~ParseConfigFileJob() = default;
@@ -73,7 +74,7 @@ public:
 
 private:
     // 目标层的ID
-    const int configIndex_;
+    const std::vector<int> configIndexes_;
     // 配置文件的路径
     const std::string& filePath_;
     // 资源池指针
@@ -87,10 +88,14 @@ public:
     // 构造函数
     ParseConfigLinesJob(const std::string& filePath, FullContent* fullContent,
             const int startIndex, const int lineCount,
-            ConfigSubGroup* subGroup, ResourcePool* resourcePool) :
-            filePath_(filePath), fullContent_(fullContent),
-            startIndex_(startIndex), lineCount_(lineCount),
-            subGroup_(subGroup), resourcePool_(resourcePool) {}
+            std::vector<ConfigSubGroup*> subGroups,
+            std::vector<MifLayer*>* srcLayers,
+            std::vector<MifLayer*>* targetLayers,
+            ResourcePool* resourcePool) : filePath_(filePath),
+            fullContent_(fullContent), startIndex_(startIndex),
+            lineCount_(lineCount), subGroups_(subGroups),
+            srcLayers_(srcLayers), targetLayers_(targetLayers),
+            resourcePool_(resourcePool) {}
     // 析构函数
     ~ParseConfigLinesJob() = default;
     // 对多行配置文件的内容进行语法解析的函数
@@ -106,7 +111,11 @@ private:
     // 分配的ConfigItem对应的起始索引
     const int lineCount_;
     // 处理所在的子config组
-    ConfigSubGroup* subGroup_;
+    std::vector<ConfigSubGroup*>* subGroups_;
+    // 目标Layer的指针
+    std::vector<MifLayer*>* srcLayers_;
+    // 目标Layer的指针
+    std::vector<MifLayer*>* targetLayers_;
     // 资源池指针
     ResourcePool* resourcePool_;
 };

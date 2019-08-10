@@ -4,7 +4,7 @@ namespace condition_assign {
 
 int ResourcePool::init(const ExecutorPool::Params& params,
         Semaphore* newCandidateJob,
-        std::map<std::string, ExecutorPool::LayerInfo>* layerInfo) {
+        std::map<std::string, LayerInfo>* layerInfo) {
     inputSize_ = params.inputs.size();
     configSize_ = params.configs.size();
     outputSize_ = params.outputs.size();
@@ -26,7 +26,7 @@ int ResourcePool::init(const ExecutorPool::Params& params,
 }
 
 int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
-        std::map<std::string, ExecutorPool::LayerInfo>* layerInfo) {
+        std::map<std::string, LayerInfo>* layerInfo) {
     int index = 0;
     int sharedID = 0;
     int uniqueID = 0;
@@ -34,7 +34,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     std::map<std::string, int> outputLayers;
     for (const std::string& input : params.inputs) {
         if (layerInfo->find(input) == layerList.end()) {
-            (*layerInfo)[input] = ExecutorPool::LayerInfo();
+            (*layerInfo)[input] = LayerInfo();
         }
         if (readOnlyLayers[input] != readOnlyLayers.end()) {
             layers_.push_back(new MifLayerNormal(input));
@@ -51,7 +51,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     index = 0;
     for (const std::string& plugin : params.plugins) {
         if (layerInfo->find(plugin) == layerList.end()) {
-            (*layerInfo)[plugin] = ExecutorPool::LayerInfo();
+            (*layerInfo)[plugin] = LayerInfo();
         }
         if (readOnlyLayers[plugin] != readOnlyLayers.end()) {
             layers_.push_back(new MifLayerNormal(plugin));
@@ -66,7 +66,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     if (ExecutorPool::runParallel_) {
         for (const std::string& output : params.outputs) {
             if (layerInfo->find(output) == layerList.end()) {
-                (*layerInfo)[output] = ExecutorPool::LayerInfo();
+                (*layerInfo)[output] = LayerInfo();
             }
             // 没有注册当前输出层
             if (outputLayers.find(output) == outputLayers.end()) {
@@ -97,7 +97,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     } else {
         for (const std::string& output : params.outputs) {
             if (layerInfo->find(output) == layerList.end()) {
-                (*layerInfo)[output] = ExecutorPool::LayerInfo();
+                (*layerInfo)[output] = LayerInfo();
             }
             // 没有注册当前输出层
             if (outputLayers.find(output) == outputLayers.end()) {
@@ -128,7 +128,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
 
 int ResourcePool::initLayers(const ExecutorPool::Params& params,
         const std::map<std::string, int>& readOnlyLayers,
-        const std::map<std::string, ExecutorPool::LayerInfo>& layerInfo) {
+        const std::map<std::string, LayerInfo>& layerInfo) {
     index = 0;
     if (!ExecutorPool::runParallel_) {
         if (layerInfo[params.inputs[0]].outputIndexes.size() > 1) {
@@ -140,7 +140,7 @@ int ResourcePool::initLayers(const ExecutorPool::Params& params,
     }
     for (auto readOnlyLayer : readOnlyLayers) {
         // 设置输入层的地理类型
-        const ExecutorPool::LayerInfo& info = layerInfo[readOnlyLayer.first];
+        const LayerInfo& info = layerInfo[readOnlyLayer.first];
         if (info.inputIndexes.size() + info.pluginIndexes.size() > 1 ||
                 info.pluginIndexes.size() > 0) {
             layers_[readOnlyLayer.second]->setWithItemCache();
@@ -156,14 +156,23 @@ int ResourcePool::initLayers(const ExecutorPool::Params& params,
 }
 
 int ResourcePool::initConfigGroup(const ExecutorPool::Params& params,
-        const std::map<std::string, ExecutorPool::LayerInfo>& layerInfo) {
+        const std::map<std::string, LayerInfo>& layerInfo) {
     // 基于输入类型初始化ConfigGroup
     std::vector<int> savePoints(configSize_, 0);
+    std::vector<int> subGroupMap;
+    std::map<std::string, int> groupIDMap;
     if (!ExecutorPool::runParallel_) {
-        // 保存点生成
+        // 保存点生成和共享配置的检查
         int uniqueID = inputSize_ + pluginSize_;
         std::map<int, int> saveTag;
         for (int i = outputSize_ - 1; i >= 0; i--) {
+            auto mapIterator = groupIDMap.find(params.configs[i]);
+            if (mapIterator == groupIDMap.end()) {
+                groupIDMap[params.configs[i]] = i;
+                subGroupMap[i] = i;
+            } else {
+                subGroupMap[i] = mapIterator->second;
+            }
             int sharedID = idMapping_[uniqueID];
             if (saveTag.find(sharedID) == saveTag.end()){
                 savePoints[i] = i;
@@ -173,7 +182,7 @@ int ResourcePool::initConfigGroup(const ExecutorPool::Params& params,
             }
         }
     }
-    CHECK_RET(configGroup_.init(configSize_, targetCount_, savePoints, this),
+    CHECK_RET(configGroup_.init(configSize_, subGroupMap, savePoints, this),
             "Failed to init config group");
     return 0;
 }

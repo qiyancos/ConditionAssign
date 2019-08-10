@@ -205,7 +205,7 @@ int OperatorGeoContain::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -234,7 +234,7 @@ int OperatorGeoContainAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -263,7 +263,7 @@ int OperatorGeoContained::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -292,7 +292,7 @@ int OperatorGeoContainedAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -321,7 +321,7 @@ int OperatorGeoIntersect::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -352,7 +352,7 @@ int OperatorGeoIntersectAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -383,7 +383,7 @@ int OperatorGeoInContact::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -414,7 +414,7 @@ int OperatorGeoInContactAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -445,7 +445,7 @@ int OperatorGeoDeparture::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),
@@ -476,7 +476,7 @@ int OperatorGeoDepartureAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
-    Group::Type inputType = item->srcLayer->getGeoType();
+    Group::Type inputType = item->srcLayer_->getGeoType();
     groupPtr->ready_.wait();
     wsl::Geometry* leftVal;
     CHECK_RET(item->getGeometry(&leftVal),

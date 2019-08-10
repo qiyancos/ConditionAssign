@@ -34,7 +34,7 @@ static int Executor::mainRunner(Executor* executor) {
                 workingJobPtr);
         if (newJob > 0) {
             TEST(executor->id_);
-            if (((*workingJobPtr)->process(executor->id)) < 0) {
+            if (((*workingJobPtr)->process(executor->id_)) < 0) {
                 sys_log_println(_ERROR,
                         "Error occourred while running executor job %s[%d].\n",
                         "in executor", executor->id_);
@@ -117,7 +117,7 @@ int ExecutorPool::init() {
         "Warning: thread number is greater than the %s",
         "cpu logic cores in this computer.");
     resourcePool_ = new ResourcePool();
-    CHECK_RET(resourcePool_->init(params_, &(needReadyJob_), &layerInfo_),
+    CHECK_RET(resourcePool_->init(params_, &(needReadyJob_)),
             "ResourcePool failed to init.");
     workingJob_.resize(executorCount, nullptr);
     executorStatus_.resize(executorCount, Executor::Busy);
@@ -144,7 +144,7 @@ int ExecutorPool::execute() {
     // 初始化工作内容
     std::vector<ExecutorJob*> initJobs;
     int totalLayersCount;
-    CHECK_ARGS(totalLayersCount = resourcePool_.getLayersCount() > 0,
+    CHECK_ARGS(totalLayersCount = resourcePool_->getLayersCount() > 0,
             "No mif layer available for loading.");
     for (int sharedID = 0; sharedID < totalLayersCount; sharedID++) {
         initJobs.push_back(new job::LoadLayerJob(sharedID, resourcePool_));
