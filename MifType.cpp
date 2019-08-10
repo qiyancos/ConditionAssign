@@ -131,29 +131,13 @@ int MifLayerNew::getTagType(const std::string& tagName,
     } else {
         // 查找对应的colID
         int colID;
-        std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
-        auto colCacheIterator = tagColCache_.find(tagName);
-        if (colCacheIterator != tagColCache_.end()) {
-            colID = colCacheIterator->second;
-        } else {
-            std::string lowerTagName = htk::toLower(tagName);
-            std::lock_guard<std::mutex> mifGuard(mifLock_);
-            auto colIterator = mif_.header.col_name_map.find(lowerTagName);
-            if (colIterator != mif_.header.col_name_map.end()) {
-                tagColCache_.insert(std::pair<std::string, int>(tagName,
-                        colID = colIterator->second));
-            } else {
-                // 添加新的column
-                mif_.add_column(tagName, "char(64)");
-                colIterator = mif_.header.col_name_map.find(lowerTagName);
-                CHECK_RET(colIterator != mif_.header.col_name_map.end(),
-                        "Create new column \"%s\" failed!", tagName.c_str());
-                tagColCache_.insert(std::pair<std::string, int>(tagName,
-                        colID = colIterator->second));
-                tagTypeCache_[tagName] = syntax::New;
-                *type = syntax::New;
-                return 0;
-            }
+        int result;
+        CHECK_RET(result = checkAddTag(tagName, &colID),
+                "Failed to add new column.");
+        if (result > 0) {
+            tagTypeCache_[tagName] = syntax::New;
+            *type = syntax::New;
+            return 0;
         }
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         std::string tagStringVal = copySrcLayer_->mif_.mid[0][colID];
@@ -161,6 +145,40 @@ int MifLayerNew::getTagType(const std::string& tagName,
         tagTypeCache_[tagName] = *type;
         return 0;
     }
+}
+
+int MifLayerNew::checkAddTag(const std::string& tagName,
+        int* colID = nullptr) {
+    int index;
+    std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
+    auto colCacheIterator = tagColCache_.find(tagName);
+    if (colCacheIterator != tagColCache_.end()) {
+        index = colCacheIterator->second;
+    } else {
+        std::string lowerTagName = htk::toLower(tagName);
+        std::lock_guard<std::mutex> mifGuard(mifLock_);
+        auto colIterator = mif_.header.col_name_map.find(lowerTagName);
+        if (colIterator != mif_.header.col_name_map.end()) {
+            tagColCache_.insert(std::pair<std::string, int>(tagName,
+                index = colIterator->second));
+        } else {
+            // 添加新的column
+            mif_.add_column(tagName, "char(64)");
+            colIterator = mif_.header.col_name_map.find(lowerTagName);
+            CHECK_RET(colIterator != mif_.header.col_name_map.end(),
+                "Create new column \"%s\" failed!", tagName.c_str());
+            tagColCache_.insert(std::pair<std::string, int>(tagName,
+                    index = colIterator->second));
+            if (colID) {
+                *colID = index;
+            }
+            return 1;
+        }
+    }
+    if (colID) {
+        *colID = index;
+    }
+    return 0;
 }
 
 int MifLayerNew::getTagVal(const std::string& tagName,
@@ -259,35 +277,55 @@ int MifLayerNormal::getTagType(const std::string& tagName,
     } else {
         // 查找对应的colID
         int colID;
-        std::lock_guard<std::mutex> mifGuard(mifLock_);
-        std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
-        auto colCacheIterator = tagColCache_.find(tagName);
-        if (colCacheIterator != tagColCache_.end()) {
-            colID = colCacheIterator->second;
-        } else {
-            std::string lowerTagName = htk::toLower(tagName);
-            auto colIterator = mif_.header.col_name_map.find(lowerTagName);
-            if (colIterator != mif_.header.col_name_map.end()) {
-                tagColCache_.insert(std::pair<std::string, int>(tagName,
-                        colID = colIterator->second));
-            } else {
-                // 添加新的column
-                mif_.add_column(tagName, "char(64)");
-                colIterator = mif_.header.col_name_map.find(lowerTagName);
-                CHECK_RET(colIterator != mif_.header.col_name_map.end(),
-                        "Create new column \"%s\" failed!", tagName.c_str());
-                tagColCache_.insert(std::pair<std::string, int>(tagName,
-                        colID = colIterator->second));
-                tagTypeCache_[tagName] = syntax::New;
-                *type = syntax::New;
-                return 0;
-            }
+        int result;
+        CHECK_RET(result = checkAddTag(tagName, &colID),
+                "Failed to add new column or tag not exist.");
+        if (result > 0) {
+            tagTypeCache_[tagName] = syntax::New;
+            *type = syntax::New;
+            return 0;
         }
         std::string tagStringVal = mif_.mid[0][colID];
         *type = syntax::getDataType(tagStringVal);
         tagTypeCache_[tagName] = *type;
         return 0;
     }
+}
+
+int MifLayerNormal::checkAddTag(const std::string& tagName,
+        int* colID = nullptr) {
+    int index;
+    std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
+    auto colCacheIterator = tagColCache_.find(tagName);
+    if (colCacheIterator != tagColCache_.end()) {
+        index = colCacheIterator->second;
+    } else {
+        std::string lowerTagName = htk::toLower(tagName);
+        std::lock_guard<std::mutex> mifGuard(mifLock_);
+        auto colIterator = mif_.header.col_name_map.find(lowerTagName);
+        if (colIterator != mif_.header.col_name_map.end()) {
+            tagColCache_.insert(std::pair<std::string, int>(tagName,
+                index = colIterator->second));
+        } else {
+            CHECK_ARGS(isOutput, "Tag \"%s\" not found in mif layer.",
+                    tagName.c_str());
+            // 添加新的column
+            mif_.add_column(tagName, "char(64)");
+            colIterator = mif_.header.col_name_map.find(lowerTagName);
+            CHECK_RET(colIterator != mif_.header.col_name_map.end(),
+                "Create new column \"%s\" failed!", tagName.c_str());
+            tagColCache_.insert(std::pair<std::string, int>(tagName,
+                    index = colIterator->second));
+            if (colID) {
+                *colID = index;
+            }
+            return 1;
+        }
+    }
+    if (colID) {
+        *colID = index;
+    }
+    return 0;
 }
 
 int MifLayerNormal::getTagVal(const std::string& tagName,

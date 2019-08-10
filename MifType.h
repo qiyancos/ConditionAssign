@@ -40,7 +40,13 @@ public:
     // 判断当前Layer是否拥有ItemCache
     bool withItemCache();
     // 设置当前的Layer是否需要ItemCache
-    int setWithItemCache(const bool withCache);
+    void setWithItemCache(const bool withCache);
+    // 设置当前Layer的属性为输入
+    void setAsInput() {isInput = true};
+    // 设置当前Layer的属性为输出
+    void setAsOutput() {isOutput = true;}
+    // 设置当前Layer的属性为外挂表
+    void setAsPlugin() {isPlugin = true};
     // 设置当前Layer的地理类型
     int setGeoType(const std::string& typeStr);
     // 获取当前Layer对应的地理类型
@@ -62,6 +68,9 @@ public:
     // 获取当前MifItem的某个字段的类型(操作带锁)
     virtual int getTagType(const std::string& tagName,
             syntax::DataType* type) = 0;
+    // 检查当前是否有某一个Tag，如果没有则会添加
+    virtual int checkAddTag(const std::string& tagName,
+            int* colID = nullptr) = 0;
     // 获取当前MifItem的某个字段的内容
     virtual int getTagVal(const std::string& tagName, const int index,
             std::string* val) = 0;
@@ -102,6 +111,12 @@ protected:
     
     // 当前Layer的地理类型
     Group::Type geoType_;
+    // 当前Layer是否是一个输入
+    bool isInput = false;
+    // 当前Layer是否是一个输出
+    bool isOutput = false;
+    // 当前Layer是否是一个外挂
+    bool isPlugin = false;
 };
 
 // 新生成的Layer，一定是输出Layer，所有操作均带锁
@@ -124,6 +139,8 @@ public:
             const std::string& val, MifLayer* input = nullptr);
     // 获取当前MifItem的某个字段的类型
     int getTagType(const std::string& tagName, syntax::DataType* type);
+    // 检查当前是否有某一个Tag，如果没有则会添加
+    int checkAddTag(const std::string& tagName, int* colID = nullptr);
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const std::string& tagName, const int index,
             std::string* val);
@@ -147,6 +164,8 @@ public:
             const std::string& val, MifLayer* input = nullptr);
     // 获取当前MifItem的某个字段的类型
     int getTagType(const std::string& tagName, syntax::DataType* type);
+    // 检查当前是否有某一个Tag，如果没有则会添加
+    int checkAddTag(const std::string& tagName, int* colID = nullptr);
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const std::string& tagName, const int index,
             std::string* val);

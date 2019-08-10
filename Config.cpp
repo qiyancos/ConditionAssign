@@ -218,9 +218,12 @@ int parseExpr(const syntax::Operator::OperatorType opType,
                     "[%s] No left value provided in expression \"%s\".",
                     opName.c_str(), content.c_str());
             node->tagName = content.substr(0, range.first);
-            for (MifLayer* srcLayer : *srcLayers) {
-                CHECK_RET(srcLayer->getTagType(node->tagName,
-                        &(node->leftType)), "Failed to get %s \"%s\".",
+            CHECK_RET(srcLayers[0]->getTagType(node->tagName,
+                    &(node->leftType)), "Failed to get %s \"%s\".",
+                    "data type of tag", node->tagName.c_str());
+            for (int i = 1; i < srcLayers->size(); i++) {
+                CHECK_RET(srcLayers[i]->checkAddTag(node->tagName),
+                        "Failed to get %s \"%s\".",
                         "data type of tag", node->tagName.c_str());
             }
             configItem->addOperator(newOperator, &(node->op));

@@ -92,6 +92,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 idMapping_[uniqueID] = outputLayers[output];
             }
             outputLayers[output] = idMapping_[uniqueID++];
+            layers_[idMapping_[uniqueID]]->setAsOutput();
             (*layerInfo)[output].outputIndexes.push_back(index++);
         }
     } else {
@@ -118,6 +119,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 idMapping_[uniqueID] = outputLayers[output];
             }
             outputLayers[output] = idMapping_[uniqueID++];
+            layers_[idMapping_[uniqueID]]->setAsOutput();
             (*layerInfo)[output].outputIndexes.push_back(index++);
         }
     }
