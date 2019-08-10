@@ -61,10 +61,7 @@ int ConfigItem::addAssign(syntax::Node* newNode,
 }
 
 int ConfigGroup::init(const int totalCount, const int targetCount,
-        const std::vector<Semaphore*>& dependencySignals,
-        const std::vector<std::vector<int>>& dependency) {
-    CHECK_ARGS(dependencySignals.size() == targetCount && dependency.size() ==
-            targetCount, "Dependency infomation data size not match.");
+        const std::vector<int>& savePoints, ResourcePool* resourcePool) {
     totalCount_ = totalCount;
     group_.resize(targetCount);
     if (totalCount == 1) {
@@ -83,11 +80,14 @@ int ConfigGroup::init(const int totalCount, const int targetCount,
     for (int i = 0; i < targetCount; i++) {
         CHECK_ARGS(dependency[i].size() == 3,
                 "Lack of information for building config subgroup.");
-        group_[i].srcLayerID = dependency[i][1];
-        group_[i].targetLayerID = dependency[i][2];
-        group_[i].wait_ = dependency[i][0] == -1 ? dependencySignals.back() :
-                dependencySignals[dependency[i][0]];
-        group_[i].ready_ = dependencySignals[i];
+        CHECK_RET(resourcePool->getSharedIDByIndex(ResourcePool::Input,
+                i, &(group_[i].srcLayerID_), "Failed to get %s[%d].",
+                "shared id of input layer for config file", i);
+        CHECK_RET(resourcePool->getSharedIDByIndex(ResourcePool::Output,
+                i, &(group_[i].targetLayerID_), "Failed to get %s[%d].",
+                "shared id of output layer for config file", i);
+        group_[i].savePoint_ = savePoints[i];
+        group_[i].finishedFileCount_ = &(finishedFileCount_);
     }
     return 0;
 }

@@ -5,7 +5,9 @@
 
 namespace condition_assign {
 
-MifLayer::MifLayer(const bool withCache) : withCache_(withCache) {
+MifLayer::MifLayer(const std::string& layerPath,
+        MifLayer* copySrcLayer = nullptr) : layerPath_(layerPath),
+        copySrcLayer_(copySrcLayer) {
     ready_.init(0, Semaphore::OnceForAll);
 }
 
@@ -15,19 +17,12 @@ MifLayer::~MifLayer() {
     }
 }
 
-int MifLayer::newMifItem(const int index, MifLayer* targetLayer,
-        MifItem** newItemPtr) {
-    CHECK_ARGS(withCache_,
-            "Can not get new mif item from miflayer without item cache.");
-    CHECK_ARGS(index > -1 && index < mifSize_,
-            "Mif item index[%d] out of bound.", index);
-#ifdef USE_MIFITEM_CACHE
-    *newItemPtr = new MifItem(index, this, targetLayer,
-            &(itemInfoCache_[index]));
-#else
-    *newItemPtr = new MifItem(index, this, targetlayer);
-#endif
-    return 0;
+int MifLayer::size() {
+    return mifSize_;
+}
+
+bool MifLayer::withItemCache() {
+    return withItemCache_;
 }
 
 int MifLayer::setGeoType(const std::string& typeStr) {
@@ -47,19 +42,47 @@ Group::Type MifLayer::getGeoType() {
     return geoType_;
 }
 
-MifLayerNew::MifLayerNew() : MifLayer(false) {}
+int MifLayer::newMifItem(const int index, MifLayer* targetLayer,
+        MifItem** newItemPtr) {
+    CHECK_ARGS(index > -1 && index < mifSize_,
+            "Mif item index[%d] out of bound.", index);
+#ifdef USE_MIFITEM_CACHE
+    CHECK_ARGS(withCache_,
+            "Can not get new mif item from miflayer without item cache.");
+    *newItemPtr = new MifItem(index, this, targetLayer,
+            &(itemInfoCache_[index]));
+#else
+    *newItemPtr = new MifItem(index, this, targetlayer);
+#endif
+    return 0;
+}
+
+MifLayerNew::MifLayerNew(const std::string& layerPath,
+        MifLayer* copySrcLayer) : MifLayer(layerPath, copySrcLayer) {}
 
 int MifLayerNew::open() {
-    CHECK_ARGS(layerPath_.length() != 0,
-            "Can not open mif layer with uninitiated layer path.");
-    CHECK_ARGS(copySrcLayer_ != nullptr,
-            "Can not find input layer for header copy");
-    copySrcLayer_->ready_.wait();
-    std::lock_guard<std::mutex> mifGuard(mifLock_);
-    mif_.header = copySrcLayer_->mif_.header;
-    mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
-    ready_.signalAll();
-    newLayer_ = true;
+    if (ExecutorPool::runParallel_) {
+        CHECK_ARGS(layerPath_.length() != 0,
+                "Can not open mif layer with uninitiated layer path.");
+        CHECK_ARGS(copySrcLayer_, "Can not find input layer for header copy");
+        copySrcLayer_->ready_.wait();
+        std::lock_guard<std::mutex> mifGuard(mifLock_);
+        mif_.header = copySrcLayer_->mif_.header;
+        mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
+        ready_.signalAll();
+    }
+    return 0;
+}
+
+int MifLayerNew::copyLoad() {
+    if (copySrcLayer_) {
+        std::lock_guard<std::mutex> mifGuard(mifLock_);
+        tagColCache_ = copySrcLayer_->tagColCache_;
+        tagTypeCahce_ = copySrcLayer_->tagTypeCache_;
+        mif_.header = copySrcLayer_->mif_.header;
+        mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
+        ready_.signalAll();
+    }
     return 0;
 }
 
@@ -165,21 +188,35 @@ int MifLayerNew::getGeometry(wsl::Geometry** val, const int index) {
 MifLayerNormal::MifLayerNormal(const bool withCache) : MifLayer(withCache) {}
 
 int MifLayerNormal::open() {
-    CHECK_ARGS(layerPath_.length() != 0,
-            "Can not open mif layer with uninitiated layer path.");
-    CHECK_RET(access(layerPath.c_str(), R_OK),
-            "File \"%s\" exists but not readable.", layerPath.c_str());
-    CHECK_RET(wgt::mif_to_wsbl(layerPath, mif_),
-            "Error occurred while openning mif layer \"%s\".",
-            layerPath.c_str());
-    mifSize_ = mif_.mid.size();
+    if (!copySrcLayer) {
+        CHECK_ARGS(layerPath_.length() != 0,
+                "Can not open mif layer with uninitiated layer path.");
+        CHECK_RET(access(layerPath.c_str(), R_OK),
+                "File \"%s\" exists but not readable.", layerPath.c_str());
+        CHECK_RET(wgt::mif_to_wsbl(layerPath, mif_),
+                "Error occurred while openning mif layer \"%s\".",
+                layerPath.c_str());
+        mifSize_ = mif_.mid.size();
 #ifdef USE_MIFITEM_CACHE
-    if (withCache_) {
-        itemInfoCache_.resize(mifSize);
-    }
+        if (withCache_) {
+            itemInfoCache_.resize(mifSize);
+        }
 #endif
-    ready_.signalAll();
+        ready_.signalAll();
+    } else {
+        copySrcLayer_->ready_.wait();
+        mif_ = copySrcLayer->mif_;
+        mifSize_ = copySrcLayer_->mifSize_;
+        tagColCache_ = copySrcLayer_->tagColCache_;
+        tagTypeCache_ = copySrcLayer->tagTypeCache_;
+        ready_.signalAll();
+    }
     return 0;
+}
+
+int MiLayerNormal::copyLoad() {
+    // Normal类型的layer不应该执行copyLoad
+    CHECK_RET(-1, "Normal mif layer should never running copy load function.");
 }
 
 int MifLayerNormal::save(std::string layerPath = "") {
@@ -222,13 +259,13 @@ int MifLayerNormal::getTagType(const std::string& tagName,
     } else {
         // 查找对应的colID
         int colID;
+        std::lock_guard<std::mutex> mifGuard(mifLock_);
         std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
         auto colCacheIterator = tagColCache_.find(tagName);
         if (colCacheIterator != tagColCache_.end()) {
             colID = colCacheIterator->second;
         } else {
             std::string lowerTagName = htk::toLower(tagName);
-            std::lock_guard<std::mutex> mifGuard(mifLock_);
             auto colIterator = mif_.header.col_name_map.find(lowerTagName);
             if (colIterator != mif_.header.col_name_map.end()) {
                 tagColCache_.insert(std::pair<std::string, int>(tagName,

@@ -56,14 +56,17 @@ public:
     std::vector<std::pair<int, ConfigItem*>>* group_;
     // 对应的对应的文件路径
     std::string* filePath_;
-    // 当前ConfigSubGroup解析需要等待的信号量
-    Semaphore* wait_ = nullptr;
-    // 当前ConfigSubGroup解析完毕的信号量
-    Semaphore* ready_ = nullptr;
     // 对应的源LayerID
     int srcLayerID_ = -1;
     // 对应的目标LayerID
     int targetLayerID_ = -1;
+    
+    // 当前的目标Layer的保存位置
+    int savePoint = -1;
+    // 对应的目标Layer存储路径
+    std::string savePath_;
+    // 解析文件数
+    std::atomic<int>* finishedFileCount_;
     // 当前子组的ID
     int id_;
 
@@ -76,6 +79,8 @@ public:
 
 class ConfigGroup {
 public:
+    // 解析文件数
+    std::atomic<int> finishedFileCount_ {0};
     // 需要解析的配置文件个数
     int totalCount_;
     // 配置文件对应的Vector
@@ -84,8 +89,7 @@ public:
 public:
     // 初始化函数
     int init(const int totalCount, const int targetCount,
-            const std::vector<Semaphore*>& dependencySignals,
-            const std::vector<std::vector<int>>& dependencyInfo);
+            const std::vector<int>& savePoints, ResourcePool* resourcePool);
     // 构造函数
     ConfigGroup() = default;
     // 析构函数

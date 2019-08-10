@@ -13,8 +13,6 @@
 
 namespace condition_assign {
 
-// 是否使用复杂依赖关系
-#define USE_COMPLICATE_DEPENDENCY
 // 准备好工作项的队列的最大长度
 #define MAX_READY_QUEUE_SIZE 32
 // 最大的MifLayer数目，防止爆内存
@@ -47,19 +45,22 @@ public:
     
     // 获取Layer实体的个数
     int getLayersCount();
-    // 打开指定的Layer
-    int openLayer(const int sharedID);
     // 根据路径名或者部分路径名查找对应Layer的索引
     int getLayerByName(MifLayer** layerPtr, const LayerType layerType,
             const std::string& layerPath, int* sharedID = nullptr);
     // 根据UniqueID获取某一个Layer的指针
-    int getLayerByUniqueID(MifLayer** layerPtr, const LayerType layerType,
-            const int uniqueID);
+    int getLayerByIndex(MifLayer** layerPtr, const LayerType layerType,
+            const int index);
+    // 根据普通类型和索引获取sharedID
+    int getSharedIDByIndex(const LayerType layerType, const int index,
+            int* sharedID);
     // 根据SharedID获取某一个Layer的指针
     int getLayerBySharedID(MifLayer** layerPtr, const int sharedID);
     // 获取外挂表的文件路径全名
     int getPluginFullPath(const std::string& layerName, std::string* fullPath);
-    
+    // 获取输出层的文件路径
+    int getOutputFullPath(const int index, std::string** fullPath);
+
     // 获取一个可以运行的工作项
     int getReadyJob(const int threadID, ExecutorJob** jobConsumerPtr);
     // 从备选工作队列中选择准备好的工作项放到准备队列
@@ -68,21 +69,24 @@ public:
 private:
     // 根据输入模型设置依赖关系和Layer属性
     int initRunningModel(const ExecutorPool::Params& params,
-            std::set<std::string>* needCachelayers,
-            std::vector<int>* layerDependency);
+            std::map<std::string, ExecutorPool::LayerInfo>* layerInfo);
+    // 初始化Layer的属性信息
+    int initLayers(const ExecotorPool::Params& params,
+            const std::map<std::string, int>& readOnlyLayers,
+            const std::map<std::string, ExecutorPool::LayerInfo>& layerInfo);
     // 初始化ConfigGroup
     int initConfigGroup(const ExecutorPool::Params& params,
-            const std::map<std::string, ExecutorPool::LayerInfo>& layerList);
+            const std::map<std::string, ExecutorPool::LayerInfo>& layerInfo);
 
 private:
-    // 输入层的实际个数
-    int inputSize_;
     // 配置文件的实际个数
     int configSize_;
     // 当前工作的目标层数目
     int outputSize_;
     // 当前的执行器数量
     int executorCount_;
+    // 输出层路径信息
+    std::vector<std::string> outputLayersPath_;
     
     // 对配置文件解析完毕后的语法信息, 使用指针避免加锁的需要
     ConfigGroup configGroup_;
@@ -103,10 +107,10 @@ private:
     // 所有MifLayer数据
     std::vector<MifLayer*> layers_;
 
-    // 信号量组，和依赖检查有直接关系
-    std::vector<Semaphore*> dependencySignals_;
-
 public:
+    // 输入层的实际个数
+    int inputSize_;
+    
     // 当前预备队列中任务的数目
     std::atomic<int> readyJobCount_ {0};
     // 预备队列的写入操作互斥锁
@@ -121,10 +125,15 @@ public:
     // 候选工作项的队列
     std::queue<ExecutorJob*> candidateQueue_;
 
+    // 用于缓存串行执行的配置文件解析任务
+    std::queue<ExecutorJob*> parseConfigFileJobs_;
+
+    // 下面的JobCache对应的锁
+    std::mutex jobCacheLock_;
     // 用于缓存ProcessMifItem工作项以避免死锁
     std::vector<std::vector<ExecutorJob*>> jobCache_;
     // 当前ParseGroup工作项的数目
-    std::atomic<int> parseGroupJobCount_ {0};
+    int parseGroupJobCount_ {0};
 };
 
 } // namespace condition_assign

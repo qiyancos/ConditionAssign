@@ -48,39 +48,12 @@ public:
 // Executor工作项
 class ExecutorJob {
 public:
-    // 工作类型
-    enum JobType {
-        // 加载给定的Layer数据
-        LoadLayer,
-        // 关闭并保存Layer
-        SaveLayer,
-        // 对多行配置文件的内容进行语法解析
-        ParseConfigLines,
-        // 为一个配置文件生成工作项
-        ParseConfigFile,
-        // 解析给定类型的Group
-        ParseGroup,
-        // 建立给定类型的Group类型
-        BuildGroup,
-        // 对多个Mif元素执行条件赋值操作
-        ProcessMifItems
-    };
-    
     // 根据工作类型获取对应的执行函数
-    std::function<int(void*, const int)> getJobFunc();
-    
+    virtual int process(const int executorID) = 0;
     // 构造函数，参数是一个结构体
-    ExecutorJob(const JobType type, void* param);
+    ExecutorJob() = default;
     // 析构函数
-    ~ExecutorJob();
-
-public:
-    // 当前工作项的参数
-    void* param_;
-
-private:
-    // 当前工作项的类型
-    const JobType type_;
+    virtual ~ExecutorJob() {}
 };
 
 class ExecutorPool {
@@ -141,6 +114,9 @@ public:
     // 当前执行器池的主状态
     Status status_;
 
+    // 当前运行模式
+    static bool runParallel_;
+
 private:
     // 记录layer的信息，用于初始化loadLayer任务
     std::map<std::string, LayerInfo> layerInfo_;
@@ -150,6 +126,7 @@ private:
     std::thread* resourceConsole_ = nullptr;
     // ExecutorPool的参数信息
     const Params params_;
+
     // Executor状态管理函数
     void executorController();
     // 工作项和资源管理函数

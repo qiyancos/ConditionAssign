@@ -11,7 +11,7 @@
 
 namespace condition_assign {
 
-namespace job_func {
+namespace job {
 
 // 每个工作项最多负责解析的config行数
 #define MAX_LINE_PER_JOB 128
@@ -20,114 +20,174 @@ namespace job_func {
 // 每个工作项最多负责处理的Node分数最大和
 #define MAX_SCORE_SUM_PER_JOB 1024
 
-// 加载目标Layer函数参数
-struct LoadLayerParam {
-    // 需要打开的layer类型
-    const ResourcePool::LayerType layerType;
-    // 目标层的路径
-    std::string* layerPath;
+// 加载目标Layer的工作项
+class LoadLayerJob : public ExecutorJob {
+public:
+    // 构造函数
+    LoadLayerJob(const int sharedID, ResourcePool* resourcePool) :
+            sharedID_(sharedID), resourcePool_(resourcePool) {}
+    // 析构函数
+    ~LoadLayerJob() = default;
+    // 执行函数
+    virtual int process(const int executorID);
+
+private:
     // 目标层的ID
-    const int layerID;
-    // 源目标层的ID
-    const int srcLayerID;
+    const int sharedID_;
     // 资源池指针
-    ResourcePool* resourcePool;
+    ResourcePool* resourcePool_;
 };
 
-// 加载目标Layer的函数
-int loadLayer(void* param, const int executorID);
+// 关闭保存目标Layer
+class SaveLayerJob : public ExecutorJob {
+public:
+    // 构造函数
+    SaveLayerJob(const int layerIndex, const std::string& savePath,
+            ResourcePool* resourcePool) : layerIndex_(layerIndex),
+            savePath_(savePath), resourcePool_(resourcePool) {}
+    // 析构函数
+    ~SaveLayerJob() = default;
+    // 关闭和保存Layer的函数
+    virtual int process(const int executorID);
 
-// 关闭保存目标Layer函数参数
-struct SaveLayerParam {
+private:
     // 目标层的路径
-    const int layerID;
+    const int layerIndex_;
+    // 保存的目标路径
+    const std::string& savePath_;
     // 资源池指针
-    ResourcePool* resourcePool;
+    ResourcePool* resourcePool_;
 };
-
-// 关闭和保存Layer的函数
-int saveLayer(void* param, const int executorID);
 
 // 配置文件工作项生成函数参数
-struct ParseConfigFileParam {
-    // 配置文件的路径
-    const std::string* filePath;
-    // 目标层的ID
-    int layerID;
-    // 资源池指针
-    ResourcePool* resourcePool;
-};
+class ParseConfigFileJob : public ExecutorJob {
+public:
+    // 构造函数
+    ParseConfigFileJob(const int configIndex, const std::string& filPath,
+            ResourcePool* resourcePool) : configIndex_(configIndex),
+            filePath_(filePath), resourcePool_(resourcePool) {}
+    // 析构函数
+    ~ParseConfigFileJob() = default;
+    // 为一个配置文件生成工作项的函数
+    virtual int process(const int executorID);
 
-// 为一个配置文件生成工作项的函数
-int parseConfigFile(void* param, const int executorID);
+private:
+    // 目标层的ID
+    const int configIndex_;
+    // 配置文件的路径
+    const std::string& filePath_;
+    // 资源池指针
+    ResourcePool* resourcePool_;
+};
 
 // 配置文件语法解析函数参数
-struct ParseConfigLinesParam {
+class ParseConfigLinesJob : public ExecutorJob {
+public:
+    using FullContent = std::vector<std::pair<std::string, int>>;
+    // 构造函数
+    ParseConfigLinesJob(const std::string& filePath, FullContent* fullContent,
+            const int startIndex, const int lineCount,
+            ConfigSubGroup* subGroup, ResourcePool* resourcePool) :
+            filePath_(filePath), fullContent_(fullContent),
+            startIndex_(startIndex), lineCount_(lineCount),
+            subGroup_(subGroup), resourcePool_(resourcePool) {}
+    // 析构函数
+    ~ParseConfigLinesJob() = default;
+    // 对多行配置文件的内容进行语法解析的函数
+    virtual int process(const int executorID);
+
+private:
     // 配置文件的路径
-    const std::string* filePath;
+    const std::string& filePath_;
     // 需要处理的多行Config信息的内容
-    std::vector<std::pair<std::string, int>>* fullContent;
+    FullContent* fullContent_;
     // 分配的ConfigItem对应的起始索引
-    const int startIndex;
+    const int startIndex_;
     // 分配的ConfigItem对应的起始索引
-    const int lineCount;
+    const int lineCount_;
     // 处理所在的子config组
-    ConfigSubGroup* subGroup;
+    ConfigSubGroup* subGroup_;
     // 资源池指针
-    ResourcePool* resourcePool;
+    ResourcePool* resourcePool_;
 };
 
-// 对多行配置文件的内容进行语法解析的函数
-int parseConfigLines(void* param, const int executorID);
-
 // 建立数据组函数参数
-struct ParseGroupParam {
+class ParseGroupJob : public ExecutorJob {
+public:
+    // 构造函数
+    ParseGroupJob(std::pair<std::string, Group**>* groupInfo,
+            ResourcePool* resourcePool) : groupInfo_(groupInfo),
+            resourcePool_(resourcePool) {}
+    // 析构函数
+    ~ParseGroupJob() = default;
+    // 建立给定类型的Group类型
+    virtual int process(const int executorID);
+
+private:
     // 需要构建的目标组原始字符串和对应节点组指针
-    std::pair<std::string, Group**>* groupInfo;
+    std::pair<std::string, Group**>* groupInfo_;
     // 资源池指针
-    ResourcePool* resourcePool;
+    ResourcePool* resourcePool_;
 };
 
-// 建立给定类型的Group类型的函数
-int parseGroup(void* param, const int executorID);
+// 建立数据组函数
+class BuildGroupJob : public ExecutorJob {
+public:
+    // 构造函数
+    BuildGroupJob(MifLayer* pluginLayer, Group* itemGroup, Group* typeGroup,
+            const int startIndex, const int itemCount,
+            ResourcePool* resourcePool) : pluginLayer_(pluginLayer),
+            itemGroup_(itemGroup), typeGroup_(typeGroup),
+            startIndex_(startIndex), itemCount_(itemCount),
+            resourcePool_(resourcePool) {}
+    // 析构函数
+    ~BuildGroupJob() = default;
+    // 建立给定类型的Group类型
+    virtual int process(const int executorID);
 
-// 建立数据组函数参数
-struct BuildGroupParam {
+private:
     // 处理的Layer
-    MifLayer* pluginLayer;
+    MifLayer* pluginLayer_;
     // 需要构建的目标组指针
-    Group* itemGroup;
+    Group* itemGroup_;
     // 需要构建的目标组指针
-    Group* typeGroup;
+    Group* typeGroup_;
     // 处理MifItem索引的起始值
-    const int startIndex;
+    const int startIndex_;
     // 需要处理的MifItem个数
-    const int itemCount;
+    const int itemCount_;
     // 资源池指针
-    ResourcePool* resourcePool;
+    ResourcePool* resourcePool_;
 };
-
-// 建立给定类型的Group类型的函数
-int buildGroup(void* param, const int executorID);
 
 // 对Mif进行条件赋值的参数
-struct ProcessMifItemsParam {
+class ProcessMifItemsJob : public ExecutorJob {
+public:
+    // 构造函数
+    ProcessMifItemsJob(MifLayer* srcLayer, MifLayer* targetLayer,
+            ConfigSubGroup* subGroup, const int startIndex,
+            const int itemCount, ResourcePool* resourcePool) {}
+    // 析构函数
+    ~ProcessMifItemsJob() = default;
+    // 对多个Mif元素执行条件赋值操作
+    virtual int process(const int executorID);
+
+private:
     // 当前处理的输入Layer
-    MifLayer* srcLayer;
+    MifLayer* srcLayer_;
     // 当前处理的目标Layer
-    MifLayer* targetLayer;
+    MifLayer* targetLayer_;
     // 处理的Config所在组指针
-    ConfigSubGroup* subGroup;
+    ConfigSubGroup* subGroup_;
     // 匹配的MifItem在子组中起始索引
-    const int startIndex;
+    const int startIndex_;
     // 当前工作需要匹配的item数量
-    int itemCount;
+    const int itemCount_;
+    // 资源池指针
+    ResourcePool* resourcePool_;
 };
 
-// 对多个Mif元素执行条件赋值操作的函数
-int processMifItems(void* param, const int executorID);
-
-} // namespace job_func
+} // namespace job
 
 } // namespace condition_assign
 

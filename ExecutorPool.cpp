@@ -5,6 +5,8 @@
 
 namespace condition_assign {
 
+bool ExecutorPool::runParallel_ = true;
+
 Executor::Executor(const int id, ExecutorPool* pool) : id_(id), pool_(pool) {
     status_ = &(pool_->executorStatus_[id_]);
     haveReadyJob_ = pool_->executorWakeup_[id_];
@@ -32,9 +34,7 @@ static int Executor::mainRunner(Executor* executor) {
                 workingJobPtr);
         if (newJob > 0) {
             TEST(executor->id_);
-            std::function<int(void*, const int)> jobFunc =
-                    (*workingJobPtr)->getJobFunc();
-            if (jobFunc((*workingJobPtr)->param_, executor->id_) < 0) {
+            if (((*workingJobPtr)->process(executor->id)) < 0) {
                 sys_log_println(_ERROR,
                         "Error occourred while running executor job %s[%d].\n",
                         "in executor", executor->id_);
@@ -68,55 +68,6 @@ int Executor::startWaiting() {
     return 0;
 }
 
-ExecutorJob::ExecutorJob(const JobType type, void* param) :
-        type_(type), param_(param) {}
-
-std::function<int(void*, const int)> ExecutorJob::getJobFunc(){
-    switch (type_) {
-    case LoadLayer:
-            return std::function<int(void*, const int)>(job_func::loadLayer);
-    case SaveLayer:
-            return std::function<int(void*, const int)>(job_func::saveLayer);
-    case ParseConfigLines:
-        return std::function<int(void*, const int)>(
-                job_func::parseConfigLines);
-    case ParseConfigFile:
-        return std::function<int(void*, const int)>(job_func::parseConfigFile);
-    case ParseGroup:
-        return std::function<int(void*, const int)>(job_func::parseGroup);
-    case BuildGroup:
-        return std::function<int(void*, const int)>(job_func::buildGroup);
-    case ProcessMifItems:
-        return std::function<int(void*, const int)>(job_func::processMifItems);
-    }
-}
-
-ExecutorJob::~ExecutorJob() {
-    switch (type_) {
-    case LoadLayer:
-        delete reinterpret_cast<job_func::LoadLayerParam*>(param_);
-        break;
-    case SaveLayer:
-        delete reinterpret_cast<job_func::SaveLayerParam*>(param_);
-        break;
-    case ParseConfigLines:
-        delete reinterpret_cast<job_func::ParseConfigLinesParam*>(param_);
-        break;
-    case ParseConfigFile:
-        delete reinterpret_cast<job_func::ParseConfigFileParam*>(param_);
-        break;
-    case ParseGroup:
-        delete reinterpret_cast<job_func::ParseGroupParam*>(param_);
-        break;
-    case BuildGroup:
-        delete reinterpret_cast<job_func::BuildGroupParam*>(param_);
-        break;
-    case ProcessMifItems:
-        delete reinterpret_cast<job_func::ProcessMifItemsParam*>(param_);
-        break;
-    }
-}
-
 ExecutorPool::ExecutorPool(const Params& params) : params_(params) {}
 
 ExecutorPool::~ExecutorPool() {
@@ -148,8 +99,11 @@ int ExecutorPool::init() {
     } else if (inputSize == 1) {
         if (outputSize == 1 && configSize > 1) {
             params_.outputs.resize(configSize, params_.outputs[0]);
-        } else if (outputSize() > 1 && configSize == 1) {
+        } else if (outputSize > 1 && configSize == 1) {
             params_.configs.resize(outputSize, params_.configs[0]);
+        }
+        if (configSize > 1) {
+            ExecutorPool::runParallel_ = false;
         }
     }
     if (params_.configs.size() > 1) {
@@ -193,25 +147,37 @@ int ExecutorPool::execute() {
     CHECK_ARGS(totalLayersCount = resourcePool_.getLayersCount() > 0,
             "No mif layer available for loading.");
     for (int sharedID = 0; sharedID < totalLayersCount; sharedID++) {
-        initJobs.push_back(new ExecutorJob(ExecutorJob::LoadLayer,
-                new job_func::LoadLayerParam {sharedID, resourcePool_}));
+        initJobs.push_back(new job::LoadLayerJob(sharedID, resourcePool_));
     }
+    int inputSize = params_.inputs.size();
     std::map<std::string, std::vector<int>> configFiles;
     for (int i = 0; i < params_.configs.size(); i++) {
         if (configFiles.find(params_.configs[i]) == configFiles.end()) {
             configFiles[params_.configs[i]] = std::vector<int>(1, i);
         } else {
+            CHECK_ARGS(ExecutorPool::runParallel_,
+                    "Can not running with same config files in serial mode.");
             configFiles[params_.configs[i]].push_back(i);
         }
     }
     for (auto mapIterator : configFiles) {
-        initJobs.push_back(new ExecutorJob(ExecutorJob::ParseConfigFile,
-                new job_func::ParseConfigFileParam {mapIterator.second,
-                &(params_.configs[mapIterator.second[0]]), resourcePool_}));
+        if (ExecutorPool::runParallel_) {
+            initJobs.push_back(new job::ParseConfigFileJob(mapIterator.second,
+                    params_.configs[mapIterator.second[0]], resourcePool_));
+        } else {
+            resourcePool_->parseConfigFileJobs_.push_back(
+                    new job::ParseConfigFileJob(mapIterator.second,
+                    params_.configs[mapIterator.second[0]], resourcePool_));
+        }
     }
     // 插入初始化的工作内容
     for (int i = 0; i < initJobs.size(); i++) {
         resourcePool_->candidateQueue_.push(initJobs[i]);
+    }
+    if (!ExecutorPool::runParallel_) {
+        resourcePool_->candidateQueue_.push(
+                resourcePool_->parseConfigFileJobs_.front());
+        resourcePool_->parseConfigFileJobs_.pop();
     }
     // 生成运行线程
     status_ = Running;

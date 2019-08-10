@@ -18,11 +18,9 @@ int ResourcePool::init(const ExecutorPool::Params& params,
     readyQueue_.resize(executorCount_, std::deque<ExecutorJob*>());
     for (int i = 0; i < executorCount_; i++) {
         readyQueueLock_.push_back(new std::mutex());
-        dependencySignals_.push_back(new Semaphore(0, Semaphore::OnceForAll));
     }
     // 初始化串行场景依赖信号量和配置文件信息
-    dependencySignals_[executorCount_ - 1]->signalAll();
-    CHECK_RET(initConfigGroup(params, layerList),
+    CHECK_RET(initConfigGroup(params, *layerInfo),
             "Failed to init config group.");
     return 0;
 }
@@ -44,7 +42,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         } else {
             idMapping_[uniqueID] = readOnlyLayers[input];
         }
-        if (inputSize_ > 1) {
+        if (ExecutorPool::runParallel_) {
             readOnlyLayers[input] = idMapping_[uniqueID];
         }
         uniqueID++;
@@ -65,7 +63,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         (*layerInfo)[plugin].pluginIndexes.push_back(index++);
     }
     index = 0;
-    if (inputSize > 1) {
+    if (ExecutorPool::runParallel_) {
         for (const std::string& output : params.outputs) {
             if (layerInfo->find(output) == layerList.end()) {
                 (*layerInfo)[output] = ExecutorPool::LayerInfo();
@@ -110,11 +108,10 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                     idMapping_[uniqueID] = sharedID++;
                 } else {
                     std::string input = params.inputs[0];
-                        MifLayer* copySrcLayer = layers_[idMapping_[index]];
-                        layers_.push_back(new MifLayerNormal(output,
-                                copySrcLayer));
-                        idMapping_[uniqueID] = sharedID++;
-                    }
+                    MifLayer* copySrcLayer = layers_[idMapping_[0]];
+                    layers_.push_back(new MifLayerNormal(output,
+                            copySrcLayer));
+                    idMapping_[uniqueID] = sharedID++;
                 }
             // 已经注册了当前输出层
             } else {
@@ -124,82 +121,67 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
             (*layerInfo)[output].outputIndexes.push_back(index++);
         }
     }
-    auto needCacheEnd = needCacheLayers.end();
+    CHECK_RET(initLayers(params, readOnlyLayers, *layerInfo),
+            "Faile to init layers' properties.");
+    return 0;
+}
+
+int ResourcePool::initLayers(const ExecutorPool::Params& params,
+        const std::map<std::string, int>& readOnlyLayers,
+        const std::map<std::string, ExecutorPool::LayerInfo>& layerInfo) {
     index = 0;
-    for (auto layerIterator : layerList) {
-        layers_.push_back(new MifLayerNormal(needCacheLayers.find(
-                layerIterator.first) != needCacheEnd));
-        // 设置输入层的地理类型
-        if (layerIterator.second.inputIndex != -1) {
-            CHECK_RET(layers_.back().setGeoType(params.geoTypes[
-                    layerIterator.second.inputIndex]),
+    if (!ExecutorPool::runParallel_) {
+        if (layerInfo[params.inputs[0]].outputIndexes.size() > 1) {
+            layers_[0]->setWithItemCache();
+            CHECK_RET(layers_[0]->setGeoType(params.geoTypes[0]),
                     "Failed to set geometry type for layer \"%s\".",
-                    layerIterator.first);
+                    params.inputs[0]);
         }
-        layerList.second.layerID = index;
-        if (layerIterator.second.pluginIndex != -1) {
-            pluginLayersMap_[layerIterator.first] = index++;
-        } else {
-            portLayersMap_[layerIterator.first] = index++;
+    }
+    for (auto readOnlyLayer : readOnlyLayers) {
+        // 设置输入层的地理类型
+        const ExecutorPool::LayerInfo& info = layerInfo[readOnlyLayer.first];
+        if (info.inputIndexes.size() + info.pluginIndexes.size() > 1 ||
+                info.pluginIndexes.size() > 0) {
+            layers_[readOnlyLayer.second]->setWithItemCache();
+        }
+        if (!info.inputIndexes.empty()) {
+            CHECK_RET(layers_[readOnlyLayer.second]->setGeoType(
+                    params.geoTypes[info.inputIndexes[0]])
+                    "Failed to set geometry type for layer \"%s\".",
+                    readOnlyLayer.first);
         }
     }
     return 0;
 }
 
 int ResourcePool::initConfigGroup(const ExecutorPool::Params& params,
-        const std::map<std::string, ExecutorPool::LayerInfo>* layerList) {
+        const std::map<std::string, ExecutorPool::LayerInfo>& layerInfo) {
     // 基于输入类型初始化ConfigGroup
-    std::vector<std::vector<int>> layerDependency;
-#ifdef USE_COMPLICATE_DEPENDENCY
-    // 依赖关系的检查
-    std::map<std::string, int> lastIndex;
-    int inputLastIndex = -1;
-    int anotherLastIndex;
-    bool isInputLayer;
-    if (!needWarnOutputAsInput) {
-        for (int i = 0; i < params.outputs.size(); i++) {
-            temp = &(params.outputs[i]);
-            anotherLastIndex = -1;
-            isInputlayer = *temp == *inputLayer;
-            if (!isInputLayer && lastIndex.find(*temp) != lastIndex.end()) {
-                anotherLastIndex = lastIndex[*temp];
+    std::vector<int> savePoints(configSize_, 0);
+    if (!ExecutorPool::runParallel_) {
+        // 保存点生成
+        int uniqueID = inputSize_ + pluginSize_;
+        std::map<int, int> saveTag;
+        for (int i = outputSize_ - 1; i >= 0; i--) {
+            int sharedID = idMapping_[uniqueID];
+            if (saveTag.find(sharedID) == saveTag.end()){
+                savePoints[i] = i;
+                saveTag[sharedID] = i;
+            } else {
+                savePoints[i] = saveTag[idMapping_[uniqueID]];
             }
-            layerDependency.push_back(std::vector<int>(1,
-                    std::max(anotherLastIndex, inputLastIndex)));
-            lastIndex[*temp] = i;
-            inputLastIndex = isInputLayer ? i : inputLastIndex;
         }
     }
-#else
-    // 全部设置为强依赖
-    if (!needWarnOutputAsInput) {
-        for(int i = 0; i < params.outputs.size(); i++) {
-            layerDependency.push_back(std::vector<int>(1, i - 1));
-        }
-    }
-#endif
-    int srcLayerID = layerList[params.inputs[0]].layerID;
-    bool singleInput = params.inputs.size() == 1;
-    for (int i = 0; i < targetCount_; i++) {
-        if (singleInput) {
-            layerDependency[i].second.push_back(srcLayerID);
-        } else {
-            layerDependency[i].second.push_back(
-                    layerList[params.inputs[i]].layerID);
-        }
-        layerDependency[i].second.push_back(
-                layerList[params.outputs[i]].layerID);
-    }
-    CHECK_RET(configGroup_.init(params.configs.size(), targetCount_,
-            dependencySignals_, layerDependency),
+    CHECK_RET(configGroup_.init(configSize_, targetCount_, savePoints, this),
             "Failed to init config group");
     return 0;
 }
 
 int ResourcePool::getConfigSubGroup(int targetID,
         ConfigSubGroup** subGroupPtr) {
-    CHECK_ARGS(targetID < targetCount_, "Invalid target ID [%d].", targetID);
-    *subGroupPtr = configGroup_[targetID];
+    CHECK_ARGS(targetID < outputSize_, "Invalid target ID [%d].", targetID);
+    *subGroupPtr = configGroup_.group_[targetID];
     return 0;
 }
 
@@ -257,43 +239,30 @@ int ResourcePool::findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
     return result;
 }
 
-int ResourcePool::openLayer(const std::string& layerPath,
-        const LayerType layerType, const int inputLayerID,
-        const int layerID = -1) {
-    CHECK_ARGS(layerID > -1 && layerID < layers_.size(),
-            "Layer ID [%d] out of bound.", layerID);
-    CHECK_ARGS(inputLayerID > -1 && inputLayerID < layers_.size(),
-            "Input layer ID [%d] out of bound.", inputLayerID);
-    if (layerType == Output) {
-        if (access(layerPath.c_str(), 0) < 0) {
-            delete layers_[layerID];
-            layers_[layerID] = new MifLayerNew();
-        }
-        CHECK_RET(layers_[layerID]->open(layerPath, layers_[inputLayerID]),
-                "Failed to open output layer \"%s\".", layerPath.c_str());
-    } else {
-        CHECK_RET(layers_[layerID]->open(layerPath),
-                "Failed to open output layer \"%s\".", layerPath.c_str());
-    }
-    return 0;
+int ResourcePool::getLayersCount() {
+    return layers_.size();
 }
 
 int ResourcePool::getLayerByName(MifLayer** layerPtr,
         const LayerType layerType, const std::string& layerPath,
-        int* targetID = nullptr) {
-    if (layerType != Plugin) {
-        auto mapIterator = portLayersMap_.find(layerPath);
-        if (layerType == Input) {
-            CHECK_ARGS(mapIterator != portLayersMap_.end(),
-                    "Can not find output layer named as \"%s\".",
-                    layerPath.c_str());
-        } else {
-            CHECK_ARGS(mapIterator != portLayersMap_.end(),
-                    "Can not find input layer named as \"%s\".",
-                    layerPath.c_str());
+        int* sharedID = nullptr) {
+    if (layerType == Input) {
+        auto mapIterator = inputLayersMap_.find(layerPath);
+        CHECK_ARGS(mapIterator != inputLayersMap_.end(),
+                "Can not find input layer named as \"%s\".",
+                layerPath.c_str());
+        if (sharedID) {
+            *sharedID = mapIterator->second;
         }
-        if (targetID) {
-            *targetID = mapIterator->second;
+        *layerPtr = layers_[mapIterator->second];
+        return 0;
+    } else if (layerType == Output) {
+        auto mapIterator = outputLayersMap_.find(layerPath);
+        CHECK_ARGS(mapIterator != outputLayersMap_.end(),
+                "Can not find output layer named as \"%s\".",
+                layerPath.c_str());
+        if (sharedID) {
+            *sharedID = mapIterator->second;
         }
         *layerPtr = layers_[mapIterator->second];
         return 0;
@@ -305,13 +274,13 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
                 "Can not find plugin layer named as \"%s\".",
                 layerPath.c_str());
             int layerID = pluginLayersMap_[completeLayerPath];
-            if (targetID) {
-                *targetID = layerID;
+            if (sharedID) {
+                *sharedID = layerID;
             }
             *layerPtr = layers_[layerID];
         } else {
-            if (targetID) {
-                *targetID = mapIterator->second;
+            if (sharedID) {
+                *sharedID = mapIterator->second;
             }
             *layerPtr = layers_[mapIterator->second];
         }
@@ -320,10 +289,34 @@ int ResourcePool::getLayerByName(MifLayer** layerPtr,
 }
 
 int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
-        const LayerType layerType, const int targetID) {
-    CHECK_ARGS(targetID > -1 && targetID < layers_.size(),
-                "Invalid targetID [%d].", targetID);
-    *layerPtr = layers_[targetID];
+        const LayerType layerType, const int index) {
+    int sharedID = -1;
+    CHECK_RET(getSharedIDByIndex(layerType, index, &sharedID),
+            "Failed to get shared id for given layer type and index.");
+    *layerPtr = layers_[sharedID];
+    return 0;
+}
+
+int ResourcePool::getSharedIDByIndex(const LayerType layerType, const int index,
+        int* sharedID) {
+    int sharedID = -1;
+    if (layerType == Input) {
+        CHECK_ARGS(index > -1 && index < inputSize_,
+                "Invalid index[%d] for input layer.", index);
+        if (ExecutorPool::runParallel) {
+            *sharedID = idMapping_[index];
+        } else {
+            *sharedID = idMapping_[0];
+        }
+    } else if (layerType == Output) {
+        CHECK_ARGS(index > -1 && index < outputSize_,
+                "Invalid index[%d] for output layer.", index);
+        *sharedID = idMapping_[index + inputSize_ + pluginSize_];
+    } else {
+        CHECK_ARGS(index > -1 && index < pluginSize_,
+                "Invalid index[%d] for plugin layer.", index);
+        *sharedID = idMapping_[index + inputSize_];
+    }
     return 0;
 }
 
@@ -336,6 +329,13 @@ int ResourcePool::getPluginFullPath(const std::string& layerName,
         }
     }
     return -1;
+}
+
+int ResourcePool::getOutputFullPath(const int index, std::string** fullPath) {
+    CHECK_ARGS(index > -1 && index < outputSize_,
+            "Index[%d] of output layer out of bound.", index);
+    *fullPath = &(outputLayersPath_[index]);
+    return 0;
 }
 
 int ResourcePool::getReadyJob(const int executorID,
