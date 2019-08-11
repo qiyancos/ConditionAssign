@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
 
     ExecutorPool::Params poolParams;
     poolParams.executorNum = executorNum;
-    poolParams.input = inputLayers;
+    poolParams.inputs = inputLayers;
     poolParams.outputs = outputLayers;
     poolParams.plugins = pluginLayers;
     poolParams.geoTypes = inputGeoTypes;

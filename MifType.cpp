@@ -1,5 +1,6 @@
 #include "MifType.h"
 #include "ConditionAssign.h"
+#include "ExecutorPool.h"
 
 #include <unistd.h>
 
@@ -9,12 +10,6 @@ MifLayer::MifLayer(const std::string& layerPath,
         MifLayer* copySrcLayer = nullptr) : layerPath_(layerPath),
         copySrcLayer_(copySrcLayer) {
     ready_.init(0, Semaphore::OnceForAll);
-}
-
-MifLayer::~MifLayer() {
-    for (auto itemIterator : itemCache_) {
-        delete itemIterator.second;
-    }
 }
 
 int MifLayer::size() {
@@ -47,7 +42,7 @@ int MifLayer::newMifItem(const int index, MifLayer* targetLayer,
     CHECK_ARGS(index > -1 && index < mifSize_,
             "Mif item index[%d] out of bound.", index);
 #ifdef USE_MIFITEM_CACHE
-    CHECK_ARGS(withCache_,
+    CHECK_ARGS(withItemCache_,
             "Can not get new mif item from miflayer without item cache.");
     *newItemPtr = new MifItem(index, this, targetLayer,
             &(itemInfoCache_[index]));
@@ -78,7 +73,7 @@ int MifLayerNew::copyLoad() {
     if (copySrcLayer_) {
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         tagColCache_ = copySrcLayer_->tagColCache_;
-        tagTypeCahce_ = copySrcLayer_->tagTypeCache_;
+        tagTypeCache_ = copySrcLayer_->tagTypeCache_;
         mif_.header = copySrcLayer_->mif_.header;
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
         ready_.signalAll();
@@ -115,7 +110,7 @@ int MifLayerNew::assignWithTag(const std::string& tagName,
     mif_.mid.push_back(copySrcLayer_->mif_.mid[index]);
     mif_.data.geo_vec.push_back(copySrcLayer_->mif_.data.geo_vec[index] ==
             NULL ? NULL : copySrcLayer_->mif_.data.geo_vec[index]->clone());
-    mif_.mid[mifSize][colID] = val;
+    mif_.mid[mifSize_][colID] = val;
     mifSize_++;
     return 0;
 }
@@ -203,36 +198,38 @@ int MifLayerNew::getGeometry(wsl::Geometry** val, const int index) {
     return 0;
 }
 
-MifLayerNormal::MifLayerNormal(const bool withCache) : MifLayer(withCache) {}
+MifLayerNormal::MifLayerNormal(const std::string& layerPath,
+        MifLayer* copySrcLayer = nullptr) :
+        MifLayer(layerPath, copySrcLayer) {}
 
 int MifLayerNormal::open() {
-    if (!copySrcLayer) {
+    if (!copySrcLayer_) {
         CHECK_ARGS(layerPath_.length() != 0,
                 "Can not open mif layer with uninitiated layer path.");
-        CHECK_RET(access(layerPath.c_str(), R_OK),
-                "File \"%s\" exists but not readable.", layerPath.c_str());
-        CHECK_RET(wgt::mif_to_wsbl(layerPath, mif_),
+        CHECK_RET(access(layerPath_.c_str(), R_OK),
+                "File \"%s\" exists but not readable.", layerPath_.c_str());
+        CHECK_RET(wgt::mif_to_wsbl(layerPath_, mif_),
                 "Error occurred while openning mif layer \"%s\".",
-                layerPath.c_str());
+                layerPath_.c_str());
         mifSize_ = mif_.mid.size();
 #ifdef USE_MIFITEM_CACHE
-        if (withCache_) {
-            itemInfoCache_.resize(mifSize);
+        if (withItemCache_) {
+            itemInfoCache_.resize(mifSize_);
         }
 #endif
         ready_.signalAll();
     } else {
         copySrcLayer_->ready_.wait();
-        mif_ = copySrcLayer->mif_;
+        mif_ = copySrcLayer_->mif_;
         mifSize_ = copySrcLayer_->mifSize_;
         tagColCache_ = copySrcLayer_->tagColCache_;
-        tagTypeCache_ = copySrcLayer->tagTypeCache_;
+        tagTypeCache_ = copySrcLayer_->tagTypeCache_;
         ready_.signalAll();
     }
     return 0;
 }
 
-int MiLayerNormal::copyLoad() {
+int MifLayerNormal::copyLoad() {
     // Normal类型的layer不应该执行copyLoad
     CHECK_RET(-1, "Normal mif layer should never running copy load function.");
 }
@@ -261,7 +258,7 @@ int MifLayerNormal::assignWithTag(const std::string& tagName,
     CHECK_ARGS(colCacheIterator != tagColCache_.end(),
             "Failed to get column id of tag \"%s\".", tagName.c_str());
     colID = colCacheIterator->second;
-    mif_.mid[mifSize][colID] = val;
+    mif_.mid[mifSize_][colID] = val;
     mifSize_++;
     return 0;
 }
@@ -373,24 +370,24 @@ int MifItem::assignWithTag(const std::string& tagName,
     CHECK_RET(targetLayer_->assignWithTag(tagName, index_, val),
             "Failed to assign value to tag \"%s\".", tagName.c_str());
 #ifdef USE_MIFITEM_CACHE
-    std::lock_guard<std::mutex> cacheGuard(info_->tagStringCacheLock_);
-    info->tagStringCache_[tagName] = val;
+    std::lock_guard<std::mutex> cacheGuard(tagStringCacheLock_);
+    info_->tagStringCache[tagName] = val;
 #endif
     return 0;
 }
 
 int MifItem::getTagVal(const std::string& tagName, std::string* val) {
 #ifdef USE_MIFITEM_CACHE
-    std::lock_guard<std::mutex> cacheGuard(info_->tagStringCacheLock_);
-    auto cacheIterator = info_->tagStringCache_.find(tagName);
-    if (cacheIterator != info_->tagStringCache_.end()) {
+    std::lock_guard<std::mutex> cacheGuard(tagStringCacheLock_);
+    auto cacheIterator = info_->tagStringCache.find(tagName);
+    if (cacheIterator != info_->tagStringCache.end()) {
         *val = cacheIterator->second;
         return 0;
     } else {
         CHECK_RET(srcLayer_->getTagVal(tagName, index_, val),
                 "Failed to get value of tag \"%s\" from mif layer.",
                 tagName.c_str());
-        info_->tagStringCache_[tagName] = *val;
+        info_->tagStringCache[tagName] = *val;
         return 0;
     }
 #else
@@ -403,10 +400,10 @@ int MifItem::getTagVal(const std::string& tagName, std::string* val) {
 
 int MifItem::getTagVal(const std::string& tagName, double* val) {
 #ifdef USE_MIFITEM_CACHE
-    std::lock_guard<std::mutex> cacheGuard(info->tagNumberCacheLock_);
-    auto cacheNumberIterator = info_->tagNumberCache_.find(tagName);
-    if (cacheNumberIterator != info_->tagNumberCache_.end()) {
-        *val = info_->cacheNumberIterator->second;
+    std::lock_guard<std::mutex> cacheGuard(tagNumberCacheLock_);
+    auto cacheNumberIterator = info_->tagNumberCache.find(tagName);
+    if (cacheNumberIterator != info_->tagNumberCache.end()) {
+        *val = cacheNumberIterator->second;
         return 0;
     } else {
         std::string tagVal;
@@ -415,7 +412,7 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
                 tagName.c_str());
         CHECK_ARGS(syntax::isType(tagVal, val),
                 "Trying to get tag value \"%s\" as a number.", tagVal.c_str());
-        info_->tagNumberCache_[tagName] = *val;
+        info_->tagNumberCache[tagName] = *val;
         return 0;
     }
 #else
@@ -429,13 +426,13 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
 }
 
 int MifItem::getGeometry(wsl::Geometry** val) {
-    if (info_->geometry_ != nullptr) {
-        *val = geometry_;
+    if (info_->geometry != nullptr) {
+        *val = info_->geometry;
         return 0;
     } else {
         CHECK_RET(srcLayer_->getGeometry(val, index_),
                 "Failed to get geometry from mif layer in item[%d].", index_);
-        info_->geometry_ = *val;
+        info_->geometry = *val;
         return 0;
     }
 }

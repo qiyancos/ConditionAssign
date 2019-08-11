@@ -13,6 +13,7 @@
 namespace condition_assign {
 
 class ResourcePool;
+class MifLayer;
 
 // 单行ConditionAssign对应的结构
 class ConfigItem {
@@ -86,7 +87,7 @@ public:
     // 需要解析的配置文件个数
     int totalCount_;
     // 配置文件对应的Vector
-    std::vector<ConfigSubGroup> group_;
+    std::vector<ConfigSubGroup*> group_;
 
 public:
     // 初始化函数
@@ -97,8 +98,6 @@ public:
     // 析构函数
     ~ConfigGroup();
 };
-
-class ResourcePool;
 
 namespace parser {
 

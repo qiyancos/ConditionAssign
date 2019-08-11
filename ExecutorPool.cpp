@@ -165,7 +165,7 @@ int ExecutorPool::execute() {
             initJobs.push_back(new job::ParseConfigFileJob(mapIterator.second,
                     params_.configs[mapIterator.second[0]], resourcePool_));
         } else {
-            resourcePool_->parseConfigFileJobs_.push_back(
+            resourcePool_->parseConfigFileJobs_.push(
                     new job::ParseConfigFileJob(mapIterator.second,
                     params_.configs[mapIterator.second[0]], resourcePool_));
         }

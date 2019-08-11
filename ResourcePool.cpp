@@ -3,24 +3,24 @@
 namespace condition_assign {
 
 int ResourcePool::init(const ExecutorPool::Params& params,
-        Semaphore* newCandidateJob,
-        std::map<std::string, LayerInfo>* layerInfo) {
+        Semaphore* newCandidateJob) {
     inputSize_ = params.inputs.size();
     configSize_ = params.configs.size();
+    pluginSize_ = params.plugins.size();
     outputSize_ = params.outputs.size();
+    std::map<std::string, LayerInfo> layerInfo;
     // 初始化Layer
-    CHECK_RET(initRunningModel(params, layerInfo),
+    CHECK_RET(initRunningModel(params, &layerInfo),
             "Failed to init layers based on current running model.");
     // 其他内容的初始化
     newCandidateJob_ = newCandidateJob;
     executorCount_ = params.executorNum;
-    targetCount_ = params.outputs.size();
     readyQueue_.resize(executorCount_, std::deque<ExecutorJob*>());
     for (int i = 0; i < executorCount_; i++) {
         readyQueueLock_.push_back(new std::mutex());
     }
     // 初始化串行场景依赖信号量和配置文件信息
-    CHECK_RET(initConfigGroup(params, *layerInfo),
+    CHECK_RET(initConfigGroup(params, layerInfo),
             "Failed to init config group.");
     return 0;
 }
@@ -33,10 +33,10 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     std::map<std::string, int> readOnlyLayers;
     std::map<std::string, int> outputLayers;
     for (const std::string& input : params.inputs) {
-        if (layerInfo->find(input) == layerList.end()) {
+        if (layerInfo->find(input) == layerInfo->end()) {
             (*layerInfo)[input] = LayerInfo();
         }
-        if (readOnlyLayers[input] != readOnlyLayers.end()) {
+        if (readOnlyLayers.find(input) != readOnlyLayers.end()) {
             layers_.push_back(new MifLayerNormal(input));
             idMapping_[uniqueID] = sharedID++;
         } else {
@@ -50,10 +50,10 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     }
     index = 0;
     for (const std::string& plugin : params.plugins) {
-        if (layerInfo->find(plugin) == layerList.end()) {
+        if (layerInfo->find(plugin) == layerInfo->end()) {
             (*layerInfo)[plugin] = LayerInfo();
         }
-        if (readOnlyLayers[plugin] != readOnlyLayers.end()) {
+        if (readOnlyLayers.find(plugin) != readOnlyLayers.end()) {
             layers_.push_back(new MifLayerNormal(plugin));
             idMapping_[uniqueID] = sharedID++;
         } else {
@@ -65,7 +65,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     index = 0;
     if (ExecutorPool::runParallel_) {
         for (const std::string& output : params.outputs) {
-            if (layerInfo->find(output) == layerList.end()) {
+            if (layerInfo->find(output) == layerInfo->end()) {
                 (*layerInfo)[output] = LayerInfo();
             }
             // 没有注册当前输出层
@@ -77,8 +77,8 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                     idMapping_[uniqueID] = sharedID++;
                 } else {
                     std::string input = params.inputs[index];
-                    if (layerInfo[input].inputIndexes == 1 &&
-                            layerInfo[input].inputIndexes[0] == index) {
+                    if ((*layerInfo)[input].inputIndexes.size() == 1 &&
+                            (*layerInfo)[input].inputIndexes[0] == index) {
                         idMapping_[uniqueID] = idMapping_[index];
                     } else {
                         MifLayer* copySrcLayer = layers_[idMapping_[index]];
@@ -97,7 +97,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         }
     } else {
         for (const std::string& output : params.outputs) {
-            if (layerInfo->find(output) == layerList.end()) {
+            if (layerInfo->find(output) == layerInfo->end()) {
                 (*layerInfo)[output] = LayerInfo();
             }
             // 没有注册当前输出层
@@ -131,7 +131,6 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
 int ResourcePool::initLayers(const ExecutorPool::Params& params,
         const std::map<std::string, int>& readOnlyLayers,
         const std::map<std::string, LayerInfo>& layerInfo) {
-    index = 0;
     if (!ExecutorPool::runParallel_) {
         if (layerInfo[params.inputs[0]].outputIndexes.size() > 1) {
             layers_[0]->setWithItemCache();
@@ -149,7 +148,7 @@ int ResourcePool::initLayers(const ExecutorPool::Params& params,
         }
         if (!info.inputIndexes.empty()) {
             CHECK_RET(layers_[readOnlyLayer.second]->setGeoType(
-                    params.geoTypes[info.inputIndexes[0]])
+                    params.geoTypes[info.inputIndexes[0]]),
                     "Failed to set geometry type for layer \"%s\".",
                     readOnlyLayer.first);
         }
@@ -310,11 +309,10 @@ int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
 
 int ResourcePool::getSharedIDByIndex(const LayerType layerType, const int index,
         int* sharedID) {
-    int sharedID = -1;
     if (layerType == Input) {
         CHECK_ARGS(index > -1 && index < inputSize_,
                 "Invalid index[%d] for input layer.", index);
-        if (ExecutorPool::runParallel) {
+        if (ExecutorPool::runParallel_) {
             *sharedID = idMapping_[index];
         } else {
             *sharedID = idMapping_[0];
@@ -328,6 +326,13 @@ int ResourcePool::getSharedIDByIndex(const LayerType layerType, const int index,
                 "Invalid index[%d] for plugin layer.", index);
         *sharedID = idMapping_[index + inputSize_];
     }
+    return 0;
+}
+
+int ResourcePool::getLayerBySharedID(MifLayer** layerPtr, const int sharedID) {
+    CHECK_ARGS(sharedID > -1 && sharedID < layers_.size(),
+            "Sahred id[%d] out of bound[%d].", sharedID, layers_.size());
+    *layerPtr = layers_[sharedID];
     return 0;
 }
 
@@ -460,9 +465,6 @@ ResourcePool::~ResourcePool() {
     }
     for (std::mutex* lock : readyQueueLock_) {
         delete lock;
-    }
-    for (Semaphore* semaphore : sependencySignals_) {
-        delete semaphore;
     }
 }
 

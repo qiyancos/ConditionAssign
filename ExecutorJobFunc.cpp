@@ -39,7 +39,7 @@ int ParseConfigFileJob::process(const int executorID) {
     for (int configIndex : configIndexes_) {
         // 初始化subGroup的路径信息
         CHECK_RET(resourcePool_->getConfigSubGroup(configIndex, &subGroup),
-                "Failed to get config sub group for layer[%d]", configIndex_);
+                "Failed to get config sub group for layer[%d]", configIndex);
         subGroup->filePath_ = &(filePath_);
         CHECK_RET(resourcePool_->getOutputFullPath(subGroup->id_,
                 &(subGroup->savePath_)), "Failed to get target %s \"%s\".",
@@ -51,9 +51,9 @@ int ParseConfigFileJob::process(const int executorID) {
                 "input layer bind with this config file", configIndex);
         srcLayers->push_back(layer);
         CHECK_RET(resourcePool_->getLayerBySharedID(&layer,
-                subGroup->targetLayerID), "Failed to get %s[%d].",
+                subGroup->targetLayerID_), "Failed to get %s[%d].",
                 "output layer bind with this config file", configIndex);
-        targetLayers->push_back(targetLayer);
+        targetLayers->push_back(layer);
     }
     // 打开并逐行读取配置文件
     std::ifstream configFileStream(filePath_.c_str());
@@ -67,7 +67,7 @@ int ParseConfigFileJob::process(const int executorID) {
         if (content.length() > 0 && htk::trim(content, " ")[0] != '#') {
             fullContent->push_back(std::pair<std::string, int>(
                     content, lineNumber));
-            subGroup_->group_->push_back(std::pair<int, ConfigItem*>(lineNumber,
+            subGroup->group_->push_back(std::pair<int, ConfigItem*>(lineNumber,
                     nullptr));
         }
         lineNumber++;
@@ -93,7 +93,7 @@ int ParseConfigFileJob::process(const int executorID) {
             targetLayers, resourcePool_));
     // 在串行模式下需要执行copyLoad
     if (!ExecutorPool::runParallel_) {
-        targetLayers[0]->copyLoad();
+        (*targetLayers)[0]->copyLoad();
     }
     for (MifLayer* srcLayer : *targetLayers) {
         srcLayer->ready_.wait();
@@ -113,7 +113,7 @@ int ParseConfigLinesJob::process(const int executorID) {
     TEST(executorID);
     int index = startIndex_;
     int lineCount = lineCount;
-    ConfigSubGroup* subGroup = subGroups_[0];
+    ConfigSubGroup* subGroup = (*subGroups_)[0];
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
         std::pair<std::string, int>& thisLine =
@@ -135,12 +135,12 @@ int ParseConfigLinesJob::process(const int executorID) {
     resourcePool_->parseGroupJobCount_ += newJobs.size();
     // 当前配置文件的所有内容均已经解析完毕
     if (subGroup->readyCount_ + lineCount_ == fullContent_->size()) {
-        MifLayer* srcLayer, targetLayer;
+        MifLayer *srcLayer, *targetLayer;
         ConfigSubGroup* subGroupNow;
-        for (int index = 0; index < subGroups_.size(); index++) {
-            srcLayer = srcLayers_[index];
-            targetLayer = targetLayers_[index];
-            subGroupNow = subGroups_[index];
+        for (int index = 0; index < subGroups_->size(); index++) {
+            srcLayer = (*srcLayers_)[index];
+            targetLayer = (*targetLayers_)[index];
+            subGroupNow = (*subGroups_)[index];
             int startIndex = 0;
             int itemCount = MAX_ITEM_PER_JOB;
             int totalCount = srcLayer->size() ;

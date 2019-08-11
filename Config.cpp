@@ -64,36 +64,37 @@ int ConfigGroup::init(const int totalCount,
         const std::vector<int>& subGroupMap,
         const std::vector<int>& savePoints, ResourcePool* resourcePool) {
     totalCount_ = totalCount;
-    group_.resize(totalCount);
     for (int i = 0; i < totalCount; i++) {
-        if (subGroupMapping[i] != i) {
-            group_[i].group_ = new std::vector<std::pair<int, ConfigItem*>>();
+        group_.push_back(new ConfigSubGroup());
+        if (subGroupMap[i] != i) {
+            group_[i]->group_ = new std::vector<std::pair<int, ConfigItem*>>();
         } else {
-            group_[i].group_ = group_[subGroupMapping[i]].group_;
+            group_[i]->group_ = group_[subGroupMap[i]]->group_;
         }
-        group_[i].id_ = i;
+        group_[i]->id_ = i;
     }
-    for (int i = 0; i < targetCount; i++) {
+    for (int i = 0; i < totalCount; i++) {
         CHECK_RET(resourcePool->getSharedIDByIndex(ResourcePool::Input,
-                i, &(group_[i].srcLayerID_), "Failed to get %s[%d].",
+                i, &(group_[i]->srcLayerID_)), "Failed to get %s[%d].",
                 "shared id of input layer for config file", i);
         CHECK_RET(resourcePool->getSharedIDByIndex(ResourcePool::Output,
-                i, &(group_[i].targetLayerID_), "Failed to get %s[%d].",
+                i, &(group_[i]->targetLayerID_)), "Failed to get %s[%d].",
                 "shared id of output layer for config file", i);
-        group_[i].savePoint_ = savePoints[i];
-        group_[i].finishedFileCount_ = &(finishedFileCount_);
+        group_[i]->savePoint_ = savePoints[i];
+        group_[i]->finishedFileCount_ = &(finishedFileCount_);
     }
     return 0;
 }
 
 ConfigGroup::~ConfigGroup() {
-    for (int i = 0; i < totalCount; i++) {
-        for (ConfigItem* item : group_[i].group_) {
-            if (item != nullptr) {
-                delete item;
+    for (int i = 0; i < totalCount_; i++) {
+        for (std::pair<int, ConfigItem*>& item : *(group_[i]->group_)) {
+            if (item.second != nullptr) {
+                delete item.second;
             }
         }
-        delete group_[i].group_;
+        delete group_[i]->group_;
+        delete group_[i];
     }
 }
 
@@ -202,7 +203,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
 int parseExpr(const syntax::Operator::OperatorType opType,
         const std::string& content, syntax::Node* node, ConfigItem* configItem,
         ResourcePool* resourcePool, std::vector<MifLayer*>* srcLayers,
-        std::vector<std::pair<std::string, Group**>*>* newGroups)
+        std::vector<std::pair<std::string, Group**>*>* newGroups) {
     std::pair<size_t, size_t> range;
     std::string opName;
     syntax::Operator* newOperator;
@@ -218,11 +219,11 @@ int parseExpr(const syntax::Operator::OperatorType opType,
                     "[%s] No left value provided in expression \"%s\".",
                     opName.c_str(), content.c_str());
             node->tagName = content.substr(0, range.first);
-            CHECK_RET(srcLayers[0]->getTagType(node->tagName,
+            CHECK_RET((*srcLayers)[0]->getTagType(node->tagName,
                     &(node->leftType)), "Failed to get %s \"%s\".",
                     "data type of tag", node->tagName.c_str());
             for (int i = 1; i < srcLayers->size(); i++) {
-                CHECK_RET(srcLayers[i]->checkAddTag(node->tagName),
+                CHECK_RET((*srcLayers)[i]->checkAddTag(node->tagName),
                         "Failed to get %s \"%s\".",
                         "data type of tag", node->tagName.c_str());
             }
@@ -495,7 +496,7 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
     CHECK_RET(parseAssigns(partitions[1], configItem, resourcePool,
             targetLayers), "Failed to parse assign expressions \"%s\".",
             partitions[1].c_str());
-    subGroup->group_[index].second = configItem;
+    (*(subGroup->group_))[index].second = configItem;
     return 0;
 }
 
@@ -649,7 +650,7 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
             std::vector<MifLayer*> pluginLayers {pluginLayer};
             CHECK_RET(parseConditions(conditions,
                     itemGroup->second->info_->configItem_,
-                    resourcePool, pluginLayers, &newGroup),
+                    resourcePool, &pluginLayers, &newGroup),
                     "Failed to parse conditions in group.");
             CHECK_ARGS(newGroup.empty(), "New-Condition-Assign %s",
                     "do not support group nested structure.");

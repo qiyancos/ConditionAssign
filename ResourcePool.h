@@ -30,7 +30,7 @@ public:
     ~ResourcePool();
 
     // 初始化
-    int init(ExecutorPool::Params params, Semaphore* newCandidateJob);
+    int init(const ExecutorPool::Params& params, Semaphore* newCandidateJob);
     
     // 根据目标层ID获取对应的ConfigSubGroup
     int getConfigSubGroup(int targetID, ConfigSubGroup** subGroupPtr);
@@ -92,6 +92,8 @@ private:
 private:
     // 配置文件的实际个数
     int configSize_;
+    // 当前工作的外挂层数目
+    int pluginSize_;
     // 当前工作的目标层数目
     int outputSize_;
     // 当前的执行器数量

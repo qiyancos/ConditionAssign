@@ -63,9 +63,9 @@ private:
 class ParseConfigFileJob : public ExecutorJob {
 public:
     // 构造函数
-    ParseConfigFileJob(const std::vector<int>& configIndex,
+    ParseConfigFileJob(const std::vector<int>& configIndexes,
             const std::string& filePath, ResourcePool* resourcePool) :
-            configIndex_(configIndex),
+            configIndexes_(configIndexes),
             filePath_(filePath), resourcePool_(resourcePool) {}
     // 析构函数
     ~ParseConfigFileJob() = default;
@@ -88,7 +88,7 @@ public:
     // 构造函数
     ParseConfigLinesJob(const std::string& filePath, FullContent* fullContent,
             const int startIndex, const int lineCount,
-            std::vector<ConfigSubGroup*> subGroups,
+            std::vector<ConfigSubGroup*>* subGroups,
             std::vector<MifLayer*>* srcLayers,
             std::vector<MifLayer*>* targetLayers,
             ResourcePool* resourcePool) : filePath_(filePath),
