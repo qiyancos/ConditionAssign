@@ -30,7 +30,7 @@ namespace syntax {
 }
 
 // 数据类型
-enum DataType {New, Number, String, GroupType, Expr};
+enum DataType {Empty, New, Number, String, GroupType, Expr};
 // debug使用获取数据类型对应的字符串
 std::string getTypeString(const DataType type);
 // 获取一个字符串的类型

@@ -91,7 +91,7 @@ int ExecutorPool::init() {
     int inputSize = params_.inputs.size();
     int configSize = params_.configs.size();
     int outputSize = params_.outputs.size();
-    CHECK_ARGS(outputSize < inputSize, "Input layers' count[%d] %s [%d].",
+    CHECK_ARGS(outputSize <= inputSize, "Input layers' count[%d] %s [%d].",
             inputSize, "can not be larger than the count of output layers",
             outputSize);
     if (inputSize > 1 && configSize == 1) {
@@ -121,12 +121,6 @@ int ExecutorPool::init() {
             "ResourcePool failed to init.");
     workingJob_.resize(executorCount, nullptr);
     executorStatus_.resize(executorCount, Executor::Busy);
-#ifdef DEBUG
-    debugStream.push_back(std::ofstream((debugLogDir + "/main.log").c_str(),
-            std::ofstream::out));
-    debugStream.push_back(std::ofstream((debugLogDir + "/rc.log").c_str(),
-            std::ofstream::out));
-#endif
     for (int id = 0; id < executorCount; id++) {
         executorWakeup_.push_back(new Semaphore(0));
 #ifdef DEBUG
@@ -199,28 +193,24 @@ int ExecutorPool::execute() {
 }
 
 int ExecutorPool::resourceController(ExecutorPool* mainPool) {
-    TEST("rc")
     std::set<int> wakeupExecutorID;
     while (1) {
         wakeupExecutorID.clear();
         TEST("rc")
         mainPool->needReadyJob_.wait();
+        TEST("rc")
         if (mainPool->status_ == Error || mainPool->status_ == Finished) {
             return 0;
         }
-        TEST("rc")
         CHECK_RET(mainPool->resourcePool_->selectReadyJob(&wakeupExecutorID),
                 "Failed to select ready job from candidate queue.");
         if (wakeupExecutorID.empty()) {
-            TEST("rc")
             mainPool->needStatusCheck_.signal();
             mainPool->statusCheckOver_.wait();
             if (mainPool->status_ == Finished || mainPool->status_ == Error) {
                 return 0;
             }
-            TEST("rc")
         } else {
-            TEST("rc")
             for (auto id : wakeupExecutorID) {
                 mainPool->executorWakeup_[id]->signal();
             }
@@ -229,11 +219,10 @@ int ExecutorPool::resourceController(ExecutorPool* mainPool) {
 }
 
 void ExecutorPool::executorController() {
-    TEST("main");
     while (status_ != Error) {
         TEST("main");
         needStatusCheck_.wait();
-        TEST("main")
+        TEST("main");
         // 判断是否发生了错误
         for (auto status : executorStatus_) {
             if (status == Executor::Error) {
@@ -247,7 +236,6 @@ void ExecutorPool::executorController() {
                 resourcePool_->candidateQueueLock_);
         if (resourcePool_->candidateQueue_.empty() &&
                 resourcePool_->readyJobCount_ == 0) {
-            TEST("main")
             bool noWorkingJob = true;
             for (auto job : workingJob_) {
                 if (job != nullptr) {
@@ -261,7 +249,6 @@ void ExecutorPool::executorController() {
                 return 0;
             }
         }
-        TEST("main")
         statusCheckOver_.signal();
     }
     return 0;

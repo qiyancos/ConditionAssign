@@ -47,7 +47,7 @@ int MifLayer::newMifItem(const int index, MifLayer* targetLayer,
     *newItemPtr = new MifItem(index, this, targetLayer,
             &(itemInfoCache_[index]));
 #else
-    *newItemPtr = new MifItem(index, this, targetlayer);
+    *newItemPtr = new MifItem(index, this, targetLayer);
 #endif
     return 0;
 }
@@ -81,7 +81,7 @@ int MifLayerNew::copyLoad() {
     return 0;
 }
 
-int MifLayerNew::save(std::string layerPath = "") {
+int MifLayerNew::save(const std::string layerPath = "") {
     std::string* savePath;
     if (layerPath.length() == 0) {
         CHECK_ARGS(layerPath_.length() != 0,
@@ -116,7 +116,7 @@ int MifLayerNew::assignWithTag(const std::string& tagName,
 }
 
 int MifLayerNew::getTagType(const std::string& tagName,
-        syntax::DataType* type) {
+        syntax::DataType* type, bool isAssign = false) {
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
@@ -143,7 +143,7 @@ int MifLayerNew::getTagType(const std::string& tagName,
 }
 
 int MifLayerNew::checkAddTag(const std::string& tagName,
-        int* colID = nullptr) {
+        int* colID = nullptr, bool isAssign = false) {
     int index;
     std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
     auto colCacheIterator = tagColCache_.find(tagName);
@@ -234,7 +234,7 @@ int MifLayerNormal::copyLoad() {
     CHECK_RET(-1, "Normal mif layer should never running copy load function.");
 }
 
-int MifLayerNormal::save(std::string layerPath = "") {
+int MifLayerNormal::save(const std::string layerPath = "") {
     std::string* savePath;
     if (layerPath.length() == 0) {
         CHECK_ARGS(layerPath_.length() != 0,
@@ -258,13 +258,12 @@ int MifLayerNormal::assignWithTag(const std::string& tagName,
     CHECK_ARGS(colCacheIterator != tagColCache_.end(),
             "Failed to get column id of tag \"%s\".", tagName.c_str());
     colID = colCacheIterator->second;
-    mif_.mid[mifSize_][colID] = val;
-    mifSize_++;
+    mif_.mid[index][colID] = val;
     return 0;
 }
 
 int MifLayerNormal::getTagType(const std::string& tagName,
-        syntax::DataType* type) {
+        syntax::DataType* type, bool isAssign = false) {
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
@@ -275,7 +274,7 @@ int MifLayerNormal::getTagType(const std::string& tagName,
         // 查找对应的colID
         int colID;
         int result;
-        CHECK_RET(result = checkAddTag(tagName, &colID),
+        CHECK_RET(result = checkAddTag(tagName, &colID, isAssign),
                 "Failed to add new column or tag not exist.");
         if (result > 0) {
             tagTypeCache_[tagName] = syntax::New;
@@ -290,7 +289,7 @@ int MifLayerNormal::getTagType(const std::string& tagName,
 }
 
 int MifLayerNormal::checkAddTag(const std::string& tagName,
-        int* colID = nullptr) {
+        int* colID = nullptr, bool isAssign = false) {
     int index;
     std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
     auto colCacheIterator = tagColCache_.find(tagName);
@@ -303,9 +302,7 @@ int MifLayerNormal::checkAddTag(const std::string& tagName,
         if (colIterator != mif_.header.col_name_map.end()) {
             tagColCache_.insert(std::pair<std::string, int>(tagName,
                 index = colIterator->second));
-        } else {
-            CHECK_ARGS(isOutput, "Tag \"%s\" not found in mif layer.",
-                    tagName.c_str());
+        } else if (isAssign) {
             // 添加新的column
             mif_.add_column(tagName, "char(64)");
             colIterator = mif_.header.col_name_map.find(lowerTagName);
@@ -316,6 +313,8 @@ int MifLayerNormal::checkAddTag(const std::string& tagName,
             if (colID) {
                 *colID = index;
             }
+            return 1;
+        } else {
             return 1;
         }
     }

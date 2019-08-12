@@ -57,16 +57,16 @@ public:
     // 依据拷贝源进行复制加载
     virtual int copyLoad() = 0;
     // 保存对应的Layer的数据
-    virtual int save(std::string layerPath = "") = 0;
+    virtual int save(const std::string layerPath = "") = 0;
     // 依据字段名进行赋值操作
     virtual int assignWithTag(const std::string& tagName, const int index,
             const std::string& val) = 0;
     // 获取当前MifItem的某个字段的类型(操作带锁)
     virtual int getTagType(const std::string& tagName,
-            syntax::DataType* type) = 0;
+            syntax::DataType* type, bool isAssign = false) = 0;
     // 检查当前是否有某一个Tag，如果没有则会添加
     virtual int checkAddTag(const std::string& tagName,
-            int* colID = nullptr) = 0;
+            int* colID = nullptr, bool isAssign = false) = 0;
     // 获取当前MifItem的某个字段的内容
     virtual int getTagVal(const std::string& tagName, const int index,
             std::string* val) = 0;
@@ -129,14 +129,16 @@ public:
     // 依据拷贝源进行复制加载
     int copyLoad();
     // 保存对应的Layer的数据
-    int save(std::string layerPath = "");
+    int save(const std::string layerPath = "");
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
     // 获取当前MifItem的某个字段的类型
-    int getTagType(const std::string& tagName, syntax::DataType* type);
+    int getTagType(const std::string& tagName, syntax::DataType* type,
+            bool isAssign = false);
     // 检查当前是否有某一个Tag，如果没有则会添加
-    int checkAddTag(const std::string& tagName, int* colID = nullptr);
+    int checkAddTag(const std::string& tagName, int* colID = nullptr,
+            bool isAssign = false);
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const std::string& tagName, const int index,
             std::string* val);
@@ -160,14 +162,16 @@ public:
     // 依据拷贝源进行复制加载
     int copyLoad();
     // 保存对应的Layer的数据
-    int save(std::string layerPath = "");
+    int save(const std::string layerPath = "");
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
     // 获取当前MifItem的某个字段的类型
-    int getTagType(const std::string& tagName, syntax::DataType* type);
+    int getTagType(const std::string& tagName, syntax::DataType* type,
+            bool isAssign = false);
     // 检查当前是否有某一个Tag，如果没有则会添加
-    int checkAddTag(const std::string& tagName, int* colID = nullptr);
+    int checkAddTag(const std::string& tagName, int* colID = nullptr,
+            bool isAssign = false);
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const std::string& tagName, const int index,
             std::string* val);

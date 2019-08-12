@@ -72,7 +72,7 @@ int OperatorEqual::process(Node* node, MifItem* item) {
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
         return floatEqual(leftVal, node->value.numberValue);
     } else if (node->leftType == New) {
-        return node->value.stringValue.length() == 0;
+        return false;
     } else {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -89,6 +89,8 @@ int OperatorNotEqual::process(Node* node, MifItem* item) {
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
         return ! floatEqual(leftVal, node->value.numberValue);
+    } else if (node->leftType == New) {
+        return false;
     } else {
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),

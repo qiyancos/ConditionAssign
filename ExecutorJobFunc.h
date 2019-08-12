@@ -175,7 +175,10 @@ public:
     // 构造函数
     ProcessMifItemsJob(MifLayer* srcLayer, MifLayer* targetLayer,
             ConfigSubGroup* subGroup, const int startIndex,
-            const int itemCount, ResourcePool* resourcePool) {}
+            const int itemCount, ResourcePool* resourcePool) :
+            srcLayer_(srcLayer), targetLayer_(targetLayer),
+            subGroup_(subGroup), startIndex_(startIndex),
+            itemCount_(itemCount), resourcePool_(resourcePool) {}
     // 析构函数
     ~ProcessMifItemsJob() = default;
     // 对多个Mif元素执行条件赋值操作

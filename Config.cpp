@@ -66,7 +66,7 @@ int ConfigGroup::init(const int totalCount,
     totalCount_ = totalCount;
     for (int i = 0; i < totalCount; i++) {
         group_.push_back(new ConfigSubGroup());
-        if (subGroupMap[i] != i) {
+        if (subGroupMap[i] == i) {
             group_[i]->group_ = new std::vector<std::pair<int, ConfigItem*>>();
         } else {
             group_[i]->group_ = group_[subGroupMap[i]]->group_;
@@ -215,17 +215,24 @@ int parseExpr(const syntax::Operator::OperatorType opType,
             CHECK_ARGS(op->type() == opType,
                     "[%s] Found operator type[Condition/Assign] not matched.",
                     opName.c_str());
-            CHECK_ARGS(range.first > 0,
-                    "[%s] No left value provided in expression \"%s\".",
-                    opName.c_str(), content.c_str());
-            node->tagName = content.substr(0, range.first);
-            CHECK_RET((*srcLayers)[0]->getTagType(node->tagName,
-                    &(node->leftType)), "Failed to get %s \"%s\".",
-                    "data type of tag", node->tagName.c_str());
-            for (int i = 1; i < srcLayers->size(); i++) {
-                CHECK_RET((*srcLayers)[i]->checkAddTag(node->tagName),
+            if (op->isSupported(syntax::Empty) && range.first == 0) {
+                node->tagName = "";
+                node->leftType = syntax::Empty;
+            } else {
+                CHECK_ARGS(range.first > 0,
+                        "[%s] No left value provided in expression \"%s\".",
+                        opName.c_str(), content.c_str());
+                node->tagName = content.substr(0, range.first);
+                CHECK_RET((*srcLayers)[0]->getTagType(node->tagName,
+                        &(node->leftType), opType == syntax::Operator::Assign),
                         "Failed to get %s \"%s\".",
                         "data type of tag", node->tagName.c_str());
+                for (int i = 1; i < srcLayers->size(); i++) {
+                    CHECK_RET((*srcLayers)[i]->checkAddTag(node->tagName,
+                            nullptr, opType == syntax::Operator::Assign),
+                            "Failed to get %s \"%s\".",
+                            "data type of tag", node->tagName.c_str());
+                }
             }
             configItem->addOperator(newOperator, &(node->op));
             if (op->isSupported(syntax::GroupType)) {

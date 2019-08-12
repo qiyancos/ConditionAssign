@@ -55,6 +55,8 @@ class ConfigSubGroup {
 public:
     // 当前子组完成解析的ConfigItem数量
     std::atomic<int> readyCount_ {0};
+    // 当前子组完成处理的MifItem数量
+    std::atomic<int> processedCount_ {0};
     // 多有ConfigItem的组
     std::vector<std::pair<int, ConfigItem*>>* group_;
     // 对应的对应的文件路径

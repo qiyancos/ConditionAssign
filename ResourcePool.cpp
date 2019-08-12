@@ -8,6 +8,9 @@ int ResourcePool::init(const ExecutorPool::Params& params,
     configSize_ = params.configs.size();
     pluginSize_ = params.plugins.size();
     outputSize_ = params.outputs.size();
+    outputLayersPath_ = params.outputs;
+    idMapping_.resize(inputSize_ + pluginSize_ + outputSize_);
+    jobCache_.resize(configSize_);
     std::map<std::string, LayerInfo> layerInfo;
     // 初始化Layer
     CHECK_RET(initRunningModel(params, &layerInfo),
@@ -36,7 +39,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         if (layerInfo->find(input) == layerInfo->end()) {
             (*layerInfo)[input] = LayerInfo();
         }
-        if (readOnlyLayers.find(input) != readOnlyLayers.end()) {
+        if (readOnlyLayers.find(input) == readOnlyLayers.end()) {
             layers_.push_back(new MifLayerNormal(input));
             idMapping_[uniqueID] = sharedID++;
         } else {
@@ -53,7 +56,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         if (layerInfo->find(plugin) == layerInfo->end()) {
             (*layerInfo)[plugin] = LayerInfo();
         }
-        if (readOnlyLayers.find(plugin) != readOnlyLayers.end()) {
+        if (readOnlyLayers.find(plugin) == readOnlyLayers.end()) {
             layers_.push_back(new MifLayerNormal(plugin));
             idMapping_[uniqueID] = sharedID++;
         } else {
@@ -91,8 +94,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
             } else {
                 idMapping_[uniqueID] = outputLayers[output];
             }
-            outputLayers[output] = idMapping_[uniqueID++];
-            layers_[idMapping_[uniqueID]]->setAsOutput();
+            outputLayers[output] = idMapping_[uniqueID];
             (*layerInfo)[output].outputIndexes.push_back(index++);
         }
     } else {
@@ -119,7 +121,6 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 idMapping_[uniqueID] = outputLayers[output];
             }
             outputLayers[output] = idMapping_[uniqueID++];
-            layers_[idMapping_[uniqueID]]->setAsOutput();
             (*layerInfo)[output].outputIndexes.push_back(index++);
         }
     }
@@ -160,7 +161,7 @@ int ResourcePool::initConfigGroup(const ExecutorPool::Params& params,
         const std::map<std::string, LayerInfo>& layerInfo) {
     // 基于输入类型初始化ConfigGroup
     std::vector<int> savePoints(configSize_, 0);
-    std::vector<int> subGroupMap;
+    std::vector<int> subGroupMap(configSize_, 0);
     std::map<std::string, int> groupIDMap;
     if (!ExecutorPool::runParallel_) {
         // 保存点生成和共享配置的检查
@@ -359,9 +360,7 @@ int ResourcePool::getReadyJob(const int executorID,
     TEST(executorID);
     std::lock_guard<std::mutex> readyQueueGuard(
             *(readyQueueLock_[executorID]));
-    TEST(executorID);
     if (readyQueue_[executorID].empty()) {
-        TEST(executorID);
         return 0;
     }
     CHECK_ARGS(*jobConsumerPtr == nullptr,
@@ -371,7 +370,6 @@ int ResourcePool::getReadyJob(const int executorID,
             "No job consumer pointer is provided.");
     readyJobCount_--;
     readyQueue_[executorID].pop_front();
-    TEST(executorID);
     return 1;
 }
 
@@ -386,7 +384,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     for (int index = executorCount_ - 1; index >= 0; index--) {
         readyQueueLock_[index]->lock();
     }
-#ifdef DEBUG_JOB
+#ifdef DEBUG_OP
     std::cout << "Before select: ";
     for (auto que : readyQueue_) {
         std::cout << que.size() << " ";
@@ -422,7 +420,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
             candidateQueue_.pop();
         }
     }
-#ifdef DEBUG_JOB
+#ifdef DEBUG_OP
     std::cout << "After select:  ";
     for (auto que : readyQueue_) {
         std::cout << que.size() << " ";

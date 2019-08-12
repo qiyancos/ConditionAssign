@@ -112,7 +112,7 @@ int ParseConfigFileJob::process(const int executorID) {
 int ParseConfigLinesJob::process(const int executorID) {
     TEST(executorID);
     int index = startIndex_;
-    int lineCount = lineCount;
+    int lineCount = lineCount_;
     ConfigSubGroup* subGroup = (*subGroups_)[0];
     std::vector<std::pair<std::string, Group**>*> newGroups;
     while (lineCount--) {
@@ -361,29 +361,28 @@ int ProcessMifItemsJob::process(const int executorID) {
 #else
         delete workingItem;
 #endif
-        if (subGroup_->readyCount_ + itemCount_ == srcLayer_->size()) {
-            std::vector<ExecutorJob*> newJobs;
-            if (!ExecutorPool::runParallel_ && 
-                    !(resourcePool_->parseConfigFileJobs_.empty())) {
-                newJobs.push_back(resourcePool_->parseConfigFileJobs_.front());
-                resourcePool_->parseConfigFileJobs_.pop();
-            }
-            if (*(subGroup_->finishedFileCount_) + 1 >=
-                    subGroup_->savePoint_) {
-                newJobs.push_back(new SaveLayerJob(subGroup_->targetLayerID_,
-                        *(subGroup_->savePath_), resourcePool_));
-            }
-            std::lock_guard<std::mutex> candidateQueueGuard(
-                    resourcePool_->candidateQueueLock_);
-            if (!newJobs.empty()) {
-                for (ExecutorJob* job : newJobs) {
-                    resourcePool_->candidateQueue_.push(job);
-                }
-                resourcePool_->newCandidateJob_->signalAll();
-            }
-            *(subGroup_->finishedFileCount_)++;
+    }
+    if ((subGroup_->processedCount_ += itemCount_) == srcLayer_->size()) {
+        std::vector<ExecutorJob*> newJobs;
+        if (!ExecutorPool::runParallel_ && 
+                !(resourcePool_->parseConfigFileJobs_.empty())) {
+            newJobs.push_back(resourcePool_->parseConfigFileJobs_.front());
+            resourcePool_->parseConfigFileJobs_.pop();
         }
-        subGroup_->readyCount_ += itemCount_;
+        if (*(subGroup_->finishedFileCount_) + 1 >=
+                subGroup_->savePoint_) {
+            newJobs.push_back(new SaveLayerJob(subGroup_->targetLayerID_,
+                    *(subGroup_->savePath_), resourcePool_));
+        }
+        std::lock_guard<std::mutex> candidateQueueGuard(
+                resourcePool_->candidateQueueLock_);
+        if (!newJobs.empty()) {
+            for (ExecutorJob* job : newJobs) {
+                resourcePool_->candidateQueue_.push(job);
+            }
+            resourcePool_->newCandidateJob_->signalAll();
+        }
+        *(subGroup_->finishedFileCount_)++;
     }
     return 0;
 }

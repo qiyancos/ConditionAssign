@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
             "Can not find argument TargetLayers!");
     CHECK_EXIT(argParser.findArgByName("PluginLayer", &pluginLayers),
             "Can not find argument PluginLayers!");
-    CHECK_EXIT(argParser.findArgByName("InputGeoType", &inputGeoTypes),
+    CHECK_EXIT(argParser.findArgByName("SourceGeoType", &inputGeoTypes),
             "Can not find argument InputGeoTypes!");
     int executorNum = atoi(maxExecutor.c_str());
 
@@ -50,6 +50,10 @@ int main(int argc, char** argv) {
     sys_log_path(logDir.c_str(), date_str);
 #ifdef DEBUG
     debugLogDir = logDir;
+    debugStream.push_back(std::ofstream((debugLogDir + "/main.log").c_str(),
+            std::ofstream::out));
+    debugStream.push_back(std::ofstream((debugLogDir + "/rc.log").c_str(),
+            std::ofstream::out));
 #endif
 
     sys_log_println(_INFORANK, "=====================================\n");
