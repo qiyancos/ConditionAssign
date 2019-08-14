@@ -12,7 +12,7 @@
 namespace condition_assign {
 
 // 是否使用MifItem的Cache优化
-#define USE_MIFITEM_CACHE
+// #define USE_MIFITEM_CACHE
 // 下面的变量用于解决地理库不支持多线程的问题
 extern double globalDouble;
 

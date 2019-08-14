@@ -34,96 +34,150 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     int sharedID = 0;
     int uniqueID = 0;
     std::map<std::string, int> readOnlyLayers;
-    for (const std::string& input : params.inputs) {
-        if (layerInfo->find(input) == layerInfo->end()) {
-            (*layerInfo)[input] = LayerInfo();
-        }
-        if (readOnlyLayers.find(input) == readOnlyLayers.end()) {
-            layers_.push_back(new MifLayerNormal(input));
-            idMapping_[uniqueID] = sharedID++;
-        } else {
-            idMapping_[uniqueID] = readOnlyLayers[input];
-        }
-        if (ExecutorPool::runParallel_) {
-            readOnlyLayers[input] = idMapping_[uniqueID];
-        }
-        (*layerInfo)[input].inputIndexes.push_back(index++);
-        inputLayersMap_[input] = idMapping_[uniqueID++];
-    }
-    index = 0;
-    for (const std::string& plugin : params.plugins) {
-        if (layerInfo->find(plugin) == layerInfo->end()) {
-            (*layerInfo)[plugin] = LayerInfo();
-        }
-        if (readOnlyLayers.find(plugin) == readOnlyLayers.end()) {
-            layers_.push_back(new MifLayerNormal(plugin));
-            idMapping_[uniqueID] = sharedID++;
-        } else {
-            idMapping_[uniqueID] = readOnlyLayers[plugin];
-        }
-        readOnlyLayers[plugin] = idMapping_[uniqueID];
-        pluginLayersMap_[plugin] = idMapping_[uniqueID++];
-        (*layerInfo)[plugin].pluginIndexes.push_back(index++);
-    }
-    index = 0;
+#ifndef USE_MIFITEM_CACHE
     if (ExecutorPool::runParallel_) {
-        for (const std::string& output : params.outputs) {
+        std::map<std::string, int> noOutputLayers;
+        uniqueID = inputSize_ + pluginSize_;
+        for (int i = 0; i < inputSize_; i++) {
+            const std::string& input = params.inputs[i];
+            const std::string& output = params.outputs[i];
+            if (layerInfo->find(input) == layerInfo->end()) {
+                (*layerInfo)[input] = LayerInfo();
+            }
             if (layerInfo->find(output) == layerInfo->end()) {
                 (*layerInfo)[output] = LayerInfo();
             }
-            // 没有注册当前输出层
-            if (outputLayersMap_.find(output) == outputLayersMap_.end()) {
-                if (htk::endswith(output, "*NEW*")) {
-                    MifLayer* copySrcLayer = layers_[idMapping_[index]];
-                    layers_.push_back(new MifLayerNew(output.substr(0,
-                            output.size() - 5), copySrcLayer));
-                    idMapping_[uniqueID] = sharedID++;
+            if (htk::endswith(output, "*NEW*")) {
+                if (noOutputLayers.find(input) != noOutputLayers.end()) { 
+                    idMapping_[i] = noOutputLayers[input];
                 } else {
-                    std::string input = params.inputs[index];
-                    if ((*layerInfo)[input].inputIndexes.size() == 1 &&
-                            (*layerInfo)[input].inputIndexes[0] == index) {
-                        idMapping_[uniqueID] = idMapping_[index];
-                    } else {
+                    layers_.push_back(new MifLayerNormal(input));
+                    noOutputLayers[input] = sharedID;
+                    idMapping_[i] = sharedID++;
+                }
+                layers_.push_back(new MifLayerNew(output.substr(0,
+                        output.size() - 5), layers_[idMapping_[i]]));
+                idMapping_[i + uniqueID] = sharedID++;
+            } else {
+                layers_.push_back(new MifLayerNormal(input));
+                idMapping_[i] = sharedID;
+                idMapping_[i + uniqueID] = sharedID++;
+            }
+            (*layerInfo)[input].inputIndexes.push_back(i);
+            inputLayersMap_[input] = idMapping_[i];
+            (*layerInfo)[output].outputIndexes.push_back(i);
+            outputLayersMap_[output] = idMapping_[i + uniqueID];
+            readOnlyLayers[input] = idMapping_[i];
+        }
+        uniqueID = inputSize_;
+        for (int i = 0; i < pluginSize_; i++) {
+            const std::string& plugin = params.plugins[0];
+            if (noOutputLayers.find(plugin) != noOutputLayers.end()) { 
+                idMapping_[i] = noOutputLayers[plugin];
+            } else {
+                layers_.push_back(new MifLayerNormal(plugin));
+                noOutputLayers[plugin] = sharedID;
+                idMapping_[i + uniqueID] = sharedID++;
+            }
+            readOnlyLayers[plugin] = idMapping_[i + uniqueID];
+            pluginLayersMap_[plugin] = idMapping_[i + uniqueID];
+        }
+    } else {
+#endif
+        for (const std::string& input : params.inputs) {
+            if (layerInfo->find(input) == layerInfo->end()) {
+                (*layerInfo)[input] = LayerInfo();
+            }
+            if (readOnlyLayers.find(input) == readOnlyLayers.end()) {
+                layers_.push_back(new MifLayerNormal(input));
+                idMapping_[uniqueID] = sharedID++;
+            } else {
+                idMapping_[uniqueID] = readOnlyLayers[input];
+            }
+            if (ExecutorPool::runParallel_) {
+                readOnlyLayers[input] = idMapping_[uniqueID];
+            }
+            (*layerInfo)[input].inputIndexes.push_back(index++);
+            inputLayersMap_[input] = idMapping_[uniqueID++];
+        }
+        index = 0;
+        for (const std::string& plugin : params.plugins) {
+            if (layerInfo->find(plugin) == layerInfo->end()) {
+                (*layerInfo)[plugin] = LayerInfo();
+            }
+            if (readOnlyLayers.find(plugin) == readOnlyLayers.end()) {
+                layers_.push_back(new MifLayerNormal(plugin));
+                idMapping_[uniqueID] = sharedID++;
+            } else {
+                idMapping_[uniqueID] = readOnlyLayers[plugin];
+            }
+            readOnlyLayers[plugin] = idMapping_[uniqueID];
+            pluginLayersMap_[plugin] = idMapping_[uniqueID++];
+            (*layerInfo)[plugin].pluginIndexes.push_back(index++);
+        }
+        index = 0;
+        if (ExecutorPool::runParallel_) {
+            for (const std::string& output : params.outputs) {
+                if (layerInfo->find(output) == layerInfo->end()) {
+                    (*layerInfo)[output] = LayerInfo();
+                }
+                // 没有注册当前输出层
+                if (outputLayersMap_.find(output) == outputLayersMap_.end()) {
+                    if (htk::endswith(output, "*NEW*")) {
                         MifLayer* copySrcLayer = layers_[idMapping_[index]];
+                        layers_.push_back(new MifLayerNew(output.substr(0,
+                                output.size() - 5), copySrcLayer));
+                        idMapping_[uniqueID] = sharedID++;
+                    } else {
+                        std::string input = params.inputs[index];
+                        if ((*layerInfo)[input].inputIndexes.size() == 1 &&
+                                (*layerInfo)[input].inputIndexes[0] == index) {
+                            idMapping_[uniqueID] = idMapping_[index];
+                        } else {
+                            MifLayer* copySrcLayer =
+                                    layers_[idMapping_[index]];
+                            layers_.push_back(new MifLayerNormal(output,
+                                    copySrcLayer));
+                            idMapping_[uniqueID] = sharedID++;
+                        }
+                    }
+                // 已经注册了当前输出层
+                } else {
+                    idMapping_[uniqueID] = outputLayersMap_[output];
+                }
+                outputLayersMap_[output] = idMapping_[uniqueID++];
+                (*layerInfo)[output].outputIndexes.push_back(index++);
+            }
+        } else {
+            for (const std::string& output : params.outputs) {
+                if (layerInfo->find(output) == layerInfo->end()) {
+                    (*layerInfo)[output] = LayerInfo();
+                }
+                // 没有注册当前输出层
+                if (outputLayersMap_.find(output) == outputLayersMap_.end()) {
+                    if (htk::endswith(output, "*NEW*")) {
+                        MifLayer* copySrcLayer = layers_[idMapping_[0]];
+                        layers_.push_back(new MifLayerNew(output.substr(0,
+                                output.size() - 5), copySrcLayer));
+                        idMapping_[uniqueID] = sharedID++;
+                    } else {
+                        std::string input = params.inputs[0];
+                        MifLayer* copySrcLayer = layers_[idMapping_[0]];
                         layers_.push_back(new MifLayerNormal(output,
                                 copySrcLayer));
                         idMapping_[uniqueID] = sharedID++;
                     }
-                }
-            // 已经注册了当前输出层
-            } else {
-                idMapping_[uniqueID] = outputLayersMap_[output];
-            }
-            outputLayersMap_[output] = idMapping_[uniqueID++];
-            (*layerInfo)[output].outputIndexes.push_back(index++);
-        }
-    } else {
-        for (const std::string& output : params.outputs) {
-            if (layerInfo->find(output) == layerInfo->end()) {
-                (*layerInfo)[output] = LayerInfo();
-            }
-            // 没有注册当前输出层
-            if (outputLayersMap_.find(output) == outputLayersMap_.end()) {
-                if (htk::endswith(output, "*NEW*")) {
-                    MifLayer* copySrcLayer = layers_[idMapping_[0]];
-                    layers_.push_back(new MifLayerNew(output.substr(0,
-                            output.size() - 5), copySrcLayer));
-                    idMapping_[uniqueID] = sharedID++;
+                // 已经注册了当前输出层
                 } else {
-                    std::string input = params.inputs[0];
-                    MifLayer* copySrcLayer = layers_[idMapping_[0]];
-                    layers_.push_back(new MifLayerNormal(output,
-                            copySrcLayer));
-                    idMapping_[uniqueID] = sharedID++;
+                    idMapping_[uniqueID] = outputLayersMap_[output];
                 }
-            // 已经注册了当前输出层
-            } else {
-                idMapping_[uniqueID] = outputLayersMap_[output];
+                outputLayersMap_[output] = idMapping_[uniqueID++];
+                (*layerInfo)[output].outputIndexes.push_back(index++);
             }
-            outputLayersMap_[output] = idMapping_[uniqueID++];
-            (*layerInfo)[output].outputIndexes.push_back(index++);
         }
+#ifndef USE_MIFITEM_CACHE
     }
+#endif
     CHECK_RET(initLayers(params, readOnlyLayers, *layerInfo),
             "Faile to init layers' properties.");
     return 0;
@@ -132,11 +186,13 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
 int ResourcePool::initLayers(const ExecutorPool::Params& params,
         const std::map<std::string, int>& readOnlyLayers,
         const std::map<std::string, LayerInfo>& layerInfo) {
+#ifdef USE_MIFITEM_CACHE
     if (!ExecutorPool::runParallel_) {
         if (layerInfo[params.inputs[0]].outputIndexes.size() > 1) {
             layers_[0]->setWithItemCache();
         }
     }
+#endif
     for (auto readOnlyLayer : readOnlyLayers) {
         // 设置输入层的地理类型
         const LayerInfo& info = layerInfo[readOnlyLayer.first];
