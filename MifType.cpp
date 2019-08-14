@@ -6,9 +6,11 @@
 
 namespace condition_assign {
 
+double globalDouble = 0.0f;
+
 MifLayer::MifLayer(const std::string& layerPath,
-        MifLayer* copySrcLayer = nullptr) : layerPath_(layerPath),
-        copySrcLayer_(copySrcLayer) {
+        MifLayer* copySrcLayer) : copySrcLayer_(copySrcLayer),
+        layerPath_(layerPath) {
     ready_.init(0, Semaphore::OnceForAll);
 }
 
@@ -18,19 +20,6 @@ int MifLayer::size() {
 
 bool MifLayer::withItemCache() {
     return withItemCache_;
-}
-
-int MifLayer::setGeoType(const std::string& typeStr) {
-    if (typeStr == "POINT" || typeStr == "NULL") {
-        geoType_ = Group::Point;
-    } else if (typeStr == "LINE") {
-        geoType_ = Group::Line;
-    } else if (typeStr == "AREA") {
-        geoType_ = Group::Area;
-    } else {
-        CHECK_RET(-1, "Unknown geometry type \"%s\".", typeStr.c_str());
-    }
-    return 0;
 }
 
 Group::Type MifLayer::getGeoType() {
@@ -64,6 +53,7 @@ int MifLayerNew::open() {
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         mif_.header = copySrcLayer_->mif_.header;
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
+        geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
         ready_.signalAll();
     }
     return 0;
@@ -76,13 +66,14 @@ int MifLayerNew::copyLoad() {
         tagTypeCache_ = copySrcLayer_->tagTypeCache_;
         mif_.header = copySrcLayer_->mif_.header;
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
+        geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
         ready_.signalAll();
     }
     return 0;
 }
 
-int MifLayerNew::save(const std::string layerPath = "") {
-    std::string* savePath;
+int MifLayerNew::save(const std::string layerPath) {
+    const std::string* savePath;
     if (layerPath.length() == 0) {
         CHECK_ARGS(layerPath_.length() != 0,
                 "Can not save unopened mif layer.");
@@ -116,7 +107,7 @@ int MifLayerNew::assignWithTag(const std::string& tagName,
 }
 
 int MifLayerNew::getTagType(const std::string& tagName,
-        syntax::DataType* type, bool isAssign = false) {
+        syntax::DataType* type, bool isAssign) {
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
@@ -143,7 +134,7 @@ int MifLayerNew::getTagType(const std::string& tagName,
 }
 
 int MifLayerNew::checkAddTag(const std::string& tagName,
-        int* colID = nullptr, bool isAssign = false) {
+        int* colID, bool isAssign) {
     int index;
     std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
     auto colCacheIterator = tagColCache_.find(tagName);
@@ -178,28 +169,17 @@ int MifLayerNew::checkAddTag(const std::string& tagName,
 
 int MifLayerNew::getTagVal(const std::string& tagName,
         const int index, std::string* val) {
-    CHECK_ARGS((index < mifSize_ && index >= 0),
-            "Index[%d] out of bound.", index);
-    int colID;
-    auto colCacheIterator = tagColCache_.find(tagName);
-    CHECK_ARGS(colCacheIterator != tagColCache_.end(),
-            "Failed to get column id of tag \"%s\".", tagName.c_str());
-    colID = colCacheIterator->second;
-    std::lock_guard<std::mutex> mifGuard(mifLock_);
-    *val = mif_.mid[index][colID];
+    CHECK_RET(-1, "This function should never be called.");
     return 0;
 }
 
 int MifLayerNew::getGeometry(wsl::Geometry** val, const int index) {
-    CHECK_ARGS(index < mifSize_ && index >= 0,
-            "Index[%d] out of bound.", index);
-    std::lock_guard<std::mutex> mifGuard(mifLock_);
-    *val = mif_.data.geo_vec[index];
+    CHECK_RET(-1, "This function should never be called.");
     return 0;
 }
 
 MifLayerNormal::MifLayerNormal(const std::string& layerPath,
-        MifLayer* copySrcLayer = nullptr) :
+        MifLayer* copySrcLayer) :
         MifLayer(layerPath, copySrcLayer) {}
 
 int MifLayerNormal::open() {
@@ -212,6 +192,7 @@ int MifLayerNormal::open() {
                 "Error occurred while openning mif layer \"%s\".",
                 layerPath_.c_str());
         mifSize_ = mif_.mid.size();
+        geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
 #ifdef USE_MIFITEM_CACHE
         if (withItemCache_) {
             itemInfoCache_.resize(mifSize_);
@@ -222,6 +203,7 @@ int MifLayerNormal::open() {
         copySrcLayer_->ready_.wait();
         mif_ = copySrcLayer_->mif_;
         mifSize_ = copySrcLayer_->mifSize_;
+        geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
         tagColCache_ = copySrcLayer_->tagColCache_;
         tagTypeCache_ = copySrcLayer_->tagTypeCache_;
         ready_.signalAll();
@@ -232,10 +214,11 @@ int MifLayerNormal::open() {
 int MifLayerNormal::copyLoad() {
     // Normal类型的layer不应该执行copyLoad
     CHECK_RET(-1, "Normal mif layer should never running copy load function.");
+    return 0;
 }
 
-int MifLayerNormal::save(const std::string layerPath = "") {
-    std::string* savePath;
+int MifLayerNormal::save(const std::string layerPath) {
+    const std::string* savePath;
     if (layerPath.length() == 0) {
         CHECK_ARGS(layerPath_.length() != 0,
                 "Can not save unopened mif layer.");
@@ -263,7 +246,7 @@ int MifLayerNormal::assignWithTag(const std::string& tagName,
 }
 
 int MifLayerNormal::getTagType(const std::string& tagName,
-        syntax::DataType* type, bool isAssign = false) {
+        syntax::DataType* type, bool isAssign) {
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
@@ -289,7 +272,7 @@ int MifLayerNormal::getTagType(const std::string& tagName,
 }
 
 int MifLayerNormal::checkAddTag(const std::string& tagName,
-        int* colID = nullptr, bool isAssign = false) {
+        int* colID, bool isAssign) {
     int index;
     std::lock_guard<std::mutex> tagColCacheGuard(tagColCacheLock_);
     auto colCacheIterator = tagColCache_.find(tagName);
@@ -345,7 +328,7 @@ int MifLayerNormal::getGeometry(wsl::Geometry** val, const int index) {
 }
 
 MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer) :
-        index_(index), srcLayer_(srcLayer), targetLayer_(targetLayer) {
+        srcLayer_(srcLayer), targetLayer_(targetLayer), index_(index) {
 #ifdef USE_MIFITEM_CACHE
     info_ = new MifLayer::ItemInfo();
     newInfo_ = true;
@@ -353,8 +336,8 @@ MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer) :
 }
 
 MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer,
-        MifLayer::ItemInfo* info) : index_(index), srcLayer_(srcLayer),
-        targetLayer_(targetLayer), info_(info) {}
+        MifLayer::ItemInfo* info) :  srcLayer_(srcLayer),
+        targetLayer_(targetLayer), index_(index), info_(info) {}
 
 MifItem::~MifItem() {
     if (newInfo_) {
@@ -425,13 +408,16 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
 }
 
 int MifItem::getGeometry(wsl::Geometry** val) {
-    if (info_->geometry != nullptr) {
-        *val = info_->geometry;
+    if (geometry != nullptr) {
+        *val = geometry;
         return 0;
     } else {
+        std::lock_guard<std::mutex> geoGuard(geometryLock_);
         CHECK_RET(srcLayer_->getGeometry(val, index_),
                 "Failed to get geometry from mif layer in item[%d].", index_);
-        info_->geometry = *val;
+        geometry = *val;
+        // 强制调用对应对象的_cal_
+        globalDouble = geometry->mbr().ll._x_;
         return 0;
     }
 }

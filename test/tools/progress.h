@@ -21,7 +21,7 @@ public:
 private:
     // 打印信息
     void dumpProgress() {
-        printf("[%s] %d/%d %.2f%", progressBar_, progressCount_, totalCount_,
+        printf("[%s] %d/%d %.2f%%", progressBar_, progressCount_, totalCount_,
                 percentage_);
         if (progressCount_ == totalCount_) {
             printf("\n");

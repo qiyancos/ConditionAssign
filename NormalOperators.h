@@ -37,12 +37,12 @@ namespace syntax {
             size_t pos = content.find(str_); \
             *opName = "Operator"#Name""; \
             if (pos == std::string::npos) { \
-                return -1; \
+                return 0; \
             } else { \
                 range->first = pos; \
                 range->second = pos + str_.length(); \
                 *newOperatorPtr = new Operator##Name(); \
-                return 0; \
+                return 1; \
             } \
         } \
         \
@@ -94,8 +94,8 @@ OPDEF(GeoContained);
 OPDEF(GeoContainedAll);
 OPDEF(GeoIntersect);
 OPDEF(GeoIntersectAll);
-OPDEF(GeoInContact);
-OPDEF(GeoInContactAll);
+OPDEF(GeoAtEdge);
+OPDEF(GeoAtEdgeAll);
 OPDEF(GeoDeparture);
 OPDEF(GeoDepartureAll);
 // 赋值相关运算符的声明

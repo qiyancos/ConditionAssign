@@ -6,86 +6,37 @@ namespace condition_assign {
 
 namespace syntax {
 
-std::map<std::string, std::function<int(Node*,
-        MifItem*)>> opInternalFuncList;
-
-OperatorCondFunc::OperatorCondFunc(const std::string& funcName) :
-        Operator(), funcName_(funcName) {}
-
-std::string OperatorCondFunc::str() {
-    std::string symbol("<");
-    symbol += funcName_;
-    symbol += ">";
-    return symbol;
+int funcOperatorListInit(const std::string name, Operator* newFuncOp) {
+    funcOperatorList[name] = newFuncOp;
+    return 0;
 }
 
-int OperatorCondFunc::process(Node* node, MifItem* item) {
-    int result;
-    BINARYOP_CHECK();
-    CHECK_ARGS(opInternalFuncList.find(funcName_) != opInternalFuncList.end(),
-            "Function \"%s\" not defined", funcName_.c_str());
-    std::function<int(Node*, MifItem*)>& executeFunc =
-            opInternalFuncList[funcName_];
-    CHECK_RET(result = executeFunc(node, item),
-            "Failed to execute function [%d].", funcName_.c_str());
-    return result;
+int OperatorFunction::process(Node* node, MifItem* item) {
+    CHECK_RET(-1, "Process function of operator Function should %s.",
+            "never be called.");
+    return 0;
 }
 
-int OperatorCondFunc::find(Operator** newOperatorPtr,
+int OperatorFunction::find(Operator** newOperatorPtr,
         const std::string& content, std::pair<size_t, size_t>* range,
         std::string* opName) {
-    *opName = "OperatorCondFunc";
-    range->first = content.find("<");
-    range->second = content.find(">");
-    int length = range->second - range->first - 1;
-    if (range->first == std::string::npos ||
-            range->second == std::string::npos ||
-            length < 0 || content.find("[") != std::string::npos) {
-        return -1;
+    size_t leftBound = content.find("<");
+    size_t rightBound = content.find(">");
+    range->first = leftBound;
+    range->second = rightBound;
+    int length = rightBound - leftBound - 1;
+    if (leftBound == std::string::npos || rightBound == std::string::npos ||
+            length < 0) {
+        return 0;
     }
-    CHECK_ARGS(!length, "No function name is given in condition expression.");
-    *newOperatorPtr = new OperatorCondFunc(content.substr(range->first,
-            length));
-    return 0;
-}
-
-OperatorAssignFunc::OperatorAssignFunc(const std::string& funcName) :
-        Operator(), funcName_(funcName) {}
-
-std::string OperatorAssignFunc::str() {
-    std::string symbol("<");
-    symbol += funcName_;
-    symbol += ">";
-    return symbol;
-}
-
-int OperatorAssignFunc::process(Node* node, MifItem* item) {
-    BINARYOP_CHECK();
-    CHECK_ARGS(opInternalFuncList.find(funcName_) != opInternalFuncList.end(),
-            "Function \"%s\" not defined.", funcName_.c_str());
-    std::function<int(Node*, MifItem*)>& executeFunc =
-            opInternalFuncList[funcName_];
-    CHECK_RET(executeFunc(node, item),
-            "Failed to execute function [%s].", funcName_.c_str());
-    return 0;
-}
-
-int OperatorAssignFunc::find(Operator** newOperatorPtr,
-        const std::string& content, std::pair<size_t, size_t>* range,
-        std::string* opName) {
-    *opName = "OperatorAssignFunc";
-    range->first = content.find("<");
-    range->second = content.find(">");
-    int length = range->second - range->first - 1;
-    if (range->first == std::string::npos ||
-            range->second == std::string::npos ||
-            length < 0 || content.find("[") != std::string::npos) {
-        return -1;
-    }
-    CHECK_ARGS(!length, "No function name is given in condition expression.");
-    *newOperatorPtr = new OperatorAssignFunc(content.substr(range->first,
-            length));
-    return 0;
+    CHECK_ARGS(length, "No function name is given in this expression.");
+    std::string funcName = content.substr(leftBound + 1,
+            rightBound - leftBound - 1);
+    auto funcOpIterator = funcOperatorList.find(funcName);
+    CHECK_ARGS(funcOpIterator != funcOperatorList.end(),
+            "Unknown function name \"%s\".", funcName.c_str());
+    return funcOpIterator->second->find(newOperatorPtr, content, range,
+            opName);
 }
 
 OperatorReplace::OperatorReplace(const int startIndex, const int length) :
@@ -110,7 +61,7 @@ int OperatorReplace::process(Node* node, MifItem* item) {
     CHECK_RET(item->assignWithTag(node->tagName, leftVal),
             "Failed to assign new tag value to tag \"%s\".",
             node->tagName.c_str());
-    return 0;
+    return 1;
 }
 
 int OperatorReplace::find(Operator** newOperatorPtr,
@@ -123,7 +74,7 @@ int OperatorReplace::find(Operator** newOperatorPtr,
     if (leftBracketIndex == std::string::npos ||
             colonIndex == std::string::npos ||
             rightBracketIndex == std::string::npos) {
-        return -1;
+        return 0;
     }
     int startPosLength = colonIndex - leftBracketIndex - 1;
     int lengthLength = rightBracketIndex - colonIndex - 1;
@@ -134,16 +85,58 @@ int OperatorReplace::find(Operator** newOperatorPtr,
     std::string startIndexString = content.substr(leftBracketIndex + 1,
             startPosLength);
     std::string lengthStr = content.substr(colonIndex + 1, lengthLength);
-    int startIndex, length;
-    CHECK_ARGS(isType(startIndexString, &startIndex),
+    CHECK_ARGS(isType(startIndexString, &startIndex_),
             "Start postion \"%s\" can not be converted to number.",
-            startIndexString);
-    CHECK_ARGS(isType(lengthStr, &length),
+            startIndexString.c_str());
+    CHECK_ARGS(isType(lengthStr, &length_),
             "Length \"%s\" can not be converted to number.",
-            startIndexString);\
-    *newOperatorPtr = new OperatorReplace(startIndex, length);
-    return 0;
+            startIndexString.c_str());\
+    *newOperatorPtr = new OperatorReplace(startIndex_, length_);
+    return 1;
 }
+
+namespace func_op {
+
+FuncOperatorInRange::FuncOperatorInRange(const int startNumber,
+        const int endNumber) {
+    int number = startNumber;
+    while (number <= endNumber) {
+        rangeOfNum_.insert(std::to_string(number++));
+    }
+}
+
+int FuncOperatorInRange::process(Node* node, MifItem* item) {
+    BINARYOP_CHECK();
+    std::string leftVal;
+    CHECK_RET(item->getTagVal(node->tagName, &leftVal),
+            "Tag [%s] not found!", node->tagName.c_str());
+    return rangeOfNum_.find(leftVal) != rangeOfNum_.end();
+}
+
+int FuncOperatorInRange::find(Operator** newOperatorPtr,
+        const std::string& content, std::pair<size_t, size_t>* range,
+        std::string* opName) {
+    *opName = "FuncOperatorInRange";
+    std::string arguments = content.substr(range->second + 1,
+            content.size() - range->second - 1);
+    size_t minusIndex = arguments.find("-");
+    CHECK_ARGS(minusIndex != std::string::npos, "Can not find %s \"%s\".",
+            "delimeter in function arguments", arguments.c_str());
+    std::string startNumberStr = arguments.substr(0, minusIndex);
+    std::string endNumberStr = arguments.substr(minusIndex + 1,
+            arguments.size() - minusIndex - 1);
+    int startNumber, endNumber;
+    CHECK_ARGS(isType(startNumberStr, &startNumber),
+            "Start number part \"%s\" in arguments is not a integer.",
+            startNumberStr.c_str());
+    CHECK_ARGS(isType(endNumberStr, &endNumber),
+            "End number part \"%s\" in arguments is not a integer.",
+            endNumberStr.c_str());
+    *newOperatorPtr = new FuncOperatorInRange(startNumber, endNumber);
+    return 1;
+}
+
+} // namespace func_op
 
 } // namespace syntax
 

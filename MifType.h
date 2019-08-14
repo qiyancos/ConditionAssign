@@ -13,6 +13,8 @@ namespace condition_assign {
 
 // 是否使用MifItem的Cache优化
 #define USE_MIFITEM_CACHE
+// 下面的变量用于解决地理库不支持多线程的问题
+extern double globalDouble;
 
 class MifLayer {
 public:
@@ -21,8 +23,6 @@ public:
         std::map<std::string, std::string> tagStringCache;
         // 缓存的Tag数值(浮点数)映射
         std::map<std::string, double> tagNumberCache;
-        // 缓存的地理坐标信息
-        wsl::Geometry* geometry = nullptr;
     };
 
 public:
@@ -43,8 +43,6 @@ public:
     void setAsOutput() {isOutput = true;}
     // 设置当前Layer的属性为外挂表
     void setAsPlugin() {isPlugin = true;}
-    // 设置当前Layer的地理类型
-    int setGeoType(const std::string& typeStr);
     // 获取当前Layer对应的地理类型
     Group::Type getGeoType();
     
@@ -213,6 +211,11 @@ private:
     std::mutex tagStringCacheLock_;
     // 缓存的Tag数值(浮点数)映射锁
     std::mutex tagNumberCacheLock_;
+    // 计算地理位置时的锁
+    std::mutex geometryLock_;
+    
+    // 缓存的地理坐标信息
+    wsl::Geometry* geometry = nullptr;
     // 当前MifItem的info
     MifLayer::ItemInfo* info_ = nullptr;
 };

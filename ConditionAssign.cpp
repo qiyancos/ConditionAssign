@@ -11,7 +11,7 @@ std::vector<std::ofstream> debugStream;
 
 int main(int argc, char** argv) {
     setlocale(LC_ALL, "Chinese-simplified");
-    if (argc < 9) {
+    if (argc < conf_helper::argList.size() + 1) {
         std::cout << "Usage: " << std::string(argv[0]);
         for (std::string argName : conf_helper::argList) {
             std::cout << " <" << argName << ">";
@@ -21,8 +21,8 @@ int main(int argc, char** argv) {
     }
 
     std::string maxExecutor, logDir;
-    std::vector<std::string> inputLayers, configFiles, inputGeoTypes,
-            outputLayers, pluginLayers;
+    std::vector<std::string> inputLayers, configFiles, outputLayers,
+            pluginLayers;
     conf_helper::ConfArgParser argParser(argc, argv);
 
     CHECK_EXIT(argParser.findArgByName("MaxExecutor", &maxExecutor),
@@ -37,8 +37,6 @@ int main(int argc, char** argv) {
             "Can not find argument TargetLayers!");
     CHECK_EXIT(argParser.findArgByName("PluginLayer", &pluginLayers),
             "Can not find argument PluginLayers!");
-    CHECK_EXIT(argParser.findArgByName("SourceGeoType", &inputGeoTypes),
-            "Can not find argument InputGeoTypes!");
     int executorNum = atoi(maxExecutor.c_str());
 
     time_t start = 0, end = 0;
@@ -78,7 +76,6 @@ int main(int argc, char** argv) {
     poolParams.inputs = inputLayers;
     poolParams.outputs = outputLayers;
     poolParams.plugins = pluginLayers;
-    poolParams.geoTypes = inputGeoTypes;
     poolParams.configs = configFiles;
     
     ExecutorPool mainPool(poolParams);

@@ -10,16 +10,18 @@ namespace syntax {
 
 std::string getTypeString(const DataType type) {
     switch(type) {
+    case Empty: return "Empty";
     case New: return "New";
     case Number: return "Number";
     case String: return "String";
     case GroupType: return "Group";
     case Expr: return "Expression";
     }
+    return "Unknown Type";
 }
 
-DataType getDataType(const std::string data, std::string* stringVal = nullptr,
-        double* numberVal = nullptr) {
+DataType getDataType(const std::string data, std::string* stringVal,
+        double* numberVal) {
     const int length = data.length();
     if (length == 0 || (data[0] == '\"' && data[length - 1] == '\"')) {
         if (stringVal != nullptr) {
@@ -97,7 +99,6 @@ int satisfyConditions(const ConfigItem& configItem, MifItem* item) {
 }
 
 int applyAssigns(const ConfigItem& configItem, MifItem* item) {
-    int result;
     syntax::Node* mainNode = configItem.assignMainNode_;
     CHECK_ARGS(mainNode, "Failed to get main node of assign expressions.");
     CHECK_ARGS(mainNode->op != nullptr, "Found main node without operator.");

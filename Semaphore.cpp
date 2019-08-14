@@ -1,71 +1,58 @@
 #include "Semaphore.h"
 
+#include <iostream>
 #include <limits.h>
 
 namespace condition_assign {
 
-Semaphore::Semaphore(const int count = 0, const Type type = Normal) {
-    param_.type = type;
-    param_.count = count;
-    param_.wakeupCount = 0;
-}
+Semaphore::Semaphore(const int count) : count_(count) {}
 
-int Semaphore::init(const int count = 0, const Type type = Normal) {
-    param_.type = type;
-    param_.count = count;
-    param_.wakeupCount = 0;
+Semaphore::Semaphore(const int count, const Type type) :
+        type_(type), count_(count){}
+
+int Semaphore::init(const int count, const Type type) {
+    type_ = type;
+    count_ = count;
+    wakeupCount_ = 0;
     return 0;
 }
 
 void Semaphore::wait() {
-    param_.waitFunc(&param_);
+    std::unique_lock<std::mutex> lock(lock_);
+    if (--count_ < 0) {
+        condition_.wait(lock,
+                [&]()->bool{return wakeupCount_ > 0;});
+        --wakeupCount_;
+    }
 }
 
 void Semaphore::signal() {
-    param_.signalFunc(&param_);
+    std::lock_guard<std::mutex> lock(lock_);
+    if (count_ != INT_MAX) {
+        if (++count_ <= 0) {
+            ++wakeupCount_;
+            condition_.notify_one();
+        }
+        if (type_ == SignalFolded) {
+            count_ = 1;
+        } else if (type_ == OnceForAll) {
+            count_ = INT_MAX;
+        }
+    }
 }
 
 void Semaphore::signalAll() {
-    param_.signalAllFunc(&param_);
-}
-
-void Semaphore::waitOrigin(Param* param) {
-    std::unique_lock<std::mutex> lock(param->lock);
-    if (--(param->count) < 0) {
-        param->condition.wait(lock,
-                [&]()->bool{return param->wakeupCount > 0;});
-        --(param->wakeupCount);
-    }
-    if (param->type == OnceForAll) {
-        param->count = INT_MAX;
-    }
-}
-
-void Semaphore::signalOrigin(Param* param) {
-    std::lock_guard<std::mutex> lock(param->lock);
-    if (++(param->count) <= 0) {
-        ++(param->wakeupCount);
-        param->condition.notify_one();
-    }
-    if (param->type == OnceForAll) {
-        param->count = INT_MAX;
-        //param->waitFunc = emptyFunc;
-        //param->signalFunc = emptyFunc;
-        //param->signalAllFunc = emptyFunc;
-    }
-}
-
-void Semaphore::signalAllOrigin(Param* param) {
-    std::lock_guard<std::mutex> lock {param->lock};
-    while (++(param->count) <= 0) {
-        ++(param->wakeupCount);
-        param->condition.notify_one();
-    }
-    if (param->type == OnceForAll) {
-        param->count = INT_MAX;
-        //param->waitFunc = emptyFunc;
-        //param->signalFunc = emptyFunc;
-        //param->signalAllFunc = emptyFunc;
+    std::lock_guard<std::mutex> lock(lock_);
+    if (count_ != INT_MAX) {
+        while (++count_ <= 0) {
+            ++wakeupCount_;
+            condition_.notify_one();
+        }
+        if (type_ == SignalFolded) {
+            count_ = 1;
+        } else if (type_ == OnceForAll) {
+            count_ = INT_MAX;
+        }
     }
 }
 

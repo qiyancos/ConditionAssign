@@ -19,7 +19,7 @@ Executor::~Executor() {
     }
 }
 
-static int Executor::mainRunner(Executor* executor) {
+int Executor::mainRunner(Executor* executor) {
     ExecutorJob** workingJobPtr =
             &(executor->pool_->workingJob_[executor->id_]);
     ExecutorPool::Status poolStatus;
@@ -62,8 +62,10 @@ int Executor::startWaiting() {
     TEST(id_);
     CHECK_ARGS(*status_ == Busy, "Executor status should be Busy.");
     *status_ = Idle;
+    pool_->needSelect_ |= (1 << id_);
     needReadyJob_->signal();
     haveReadyJob_->wait();
+    pool_->needSelect_ &= ~(1 << id_);
     *status_ = Busy;
     return 0;
 }
@@ -95,12 +97,15 @@ int ExecutorPool::init() {
             inputSize, "can not be larger than the count of output layers",
             outputSize);
     if (inputSize > 1 && configSize == 1) {
-        params_.configs.resize(outputSize, params_.configs[0]);
+        const_cast<std::vector<std::string>&>(params_.configs).resize(
+                outputSize, params_.configs[0]);
     } else if (inputSize == 1) {
         if (outputSize == 1 && configSize > 1) {
-            params_.outputs.resize(configSize, params_.outputs[0]);
+            const_cast<std::vector<std::string>&>(params_.outputs).resize(
+                    configSize, params_.outputs[0]);
         } else if (outputSize > 1 && configSize == 1) {
-            params_.configs.resize(outputSize, params_.configs[0]);
+            const_cast<std::vector<std::string>&>(params_.configs).resize(
+                    outputSize, params_.configs[0]);
         }
         if (configSize > 1) {
             ExecutorPool::runParallel_ = false;
@@ -113,6 +118,8 @@ int ExecutorPool::init() {
                 params_.outputs.size());
     }
     int executorCount = params_.executorNum;
+    CHECK_ARGS(executorCount > 0, "At least one executor must be given.");
+    CHECK_ARGS(executorCount < 33, "Too many executors(>32) to be handled.");
     CHECK_WARN(executorCount <= std::thread::hardware_concurrency(),
         "Warning: thread number is greater than the %s",
         "cpu logic cores in this computer.");
@@ -122,7 +129,7 @@ int ExecutorPool::init() {
     workingJob_.resize(executorCount, nullptr);
     executorStatus_.resize(executorCount, Executor::Busy);
     for (int id = 0; id < executorCount; id++) {
-        executorWakeup_.push_back(new Semaphore(0));
+        executorWakeup_.push_back(new Semaphore(0, Semaphore::SignalFolded));
 #ifdef DEBUG
         debugStream.push_back(std::ofstream((debugLogDir + "/" +
                 std::to_string(id) + ".log").c_str(), std::ofstream::out));
@@ -138,12 +145,11 @@ int ExecutorPool::execute() {
     // 初始化工作内容
     std::vector<ExecutorJob*> initJobs;
     int totalLayersCount;
-    CHECK_ARGS(totalLayersCount = resourcePool_->getLayersCount() > 0,
+    CHECK_ARGS((totalLayersCount = resourcePool_->getLayersCount()) > 0,
             "No mif layer available for loading.");
     for (int sharedID = 0; sharedID < totalLayersCount; sharedID++) {
         initJobs.push_back(new job::LoadLayerJob(sharedID, resourcePool_));
     }
-    int inputSize = params_.inputs.size();
     std::map<std::string, std::vector<int>> configFiles;
     for (int i = 0; i < params_.configs.size(); i++) {
         if (configFiles.find(params_.configs[i]) == configFiles.end()) {
@@ -202,23 +208,28 @@ int ExecutorPool::resourceController(ExecutorPool* mainPool) {
         if (mainPool->status_ == Error || mainPool->status_ == Finished) {
             return 0;
         }
-        CHECK_RET(mainPool->resourcePool_->selectReadyJob(&wakeupExecutorID),
-                "Failed to select ready job from candidate queue.");
-        if (wakeupExecutorID.empty()) {
-            mainPool->needStatusCheck_.signal();
-            mainPool->statusCheckOver_.wait();
-            if (mainPool->status_ == Finished || mainPool->status_ == Error) {
-                return 0;
-            }
-        } else {
-            for (auto id : wakeupExecutorID) {
-                mainPool->executorWakeup_[id]->signal();
+        if (mainPool->needSelect_) {
+            CHECK_RET(mainPool->resourcePool_->selectReadyJob(
+                    &wakeupExecutorID),
+                    "Failed to select ready job from candidate queue.");
+            if (wakeupExecutorID.empty()) {
+                mainPool->needStatusCheck_.signal();
+                mainPool->statusCheckOver_.wait();
+                if (mainPool->status_ == Finished || mainPool->status_ == Error) {
+                    return 0;
+                }
+            } else {
+                for (auto id : wakeupExecutorID) {
+                    mainPool->executorWakeup_[id]->signal();
+                }
             }
         }
     }
 }
 
 void ExecutorPool::executorController() {
+    unsigned int noWorkingJob = ~(int(0x80000000) >> (32 -
+            params_.executorNum - 1));
     while (status_ != Error) {
         TEST("main");
         needStatusCheck_.wait();
@@ -228,30 +239,22 @@ void ExecutorPool::executorController() {
             if (status == Executor::Error) {
                 status_ = Error;
                 statusCheckOver_.signal();
-                return -1;
+                return;
             }
         }
         // 判断是否可以结束
         std::lock_guard<std::mutex> candidateLockGuard(
                 resourcePool_->candidateQueueLock_);
         if (resourcePool_->candidateQueue_.empty() &&
-                resourcePool_->readyJobCount_ == 0) {
-            bool noWorkingJob = true;
-            for (auto job : workingJob_) {
-                if (job != nullptr) {
-                    noWorkingJob = false;
-                    break;
-                }
-            }
-            if (noWorkingJob == true) {
-                status_ = Finished;
-                statusCheckOver_.signal();
-                return 0;
-            }
+                resourcePool_->readyJobCount_ == 0 &&
+                needSelect_ == noWorkingJob) {
+            status_ = Finished;
+            statusCheckOver_.signal();
+            return;
         }
         statusCheckOver_.signal();
     }
-    return 0;
+    return;
 }
 
 } // namespace condition_assign

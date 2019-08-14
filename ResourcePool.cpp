@@ -34,7 +34,6 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     int sharedID = 0;
     int uniqueID = 0;
     std::map<std::string, int> readOnlyLayers;
-    std::map<std::string, int> outputLayers;
     for (const std::string& input : params.inputs) {
         if (layerInfo->find(input) == layerInfo->end()) {
             (*layerInfo)[input] = LayerInfo();
@@ -48,8 +47,8 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         if (ExecutorPool::runParallel_) {
             readOnlyLayers[input] = idMapping_[uniqueID];
         }
-        uniqueID++;
         (*layerInfo)[input].inputIndexes.push_back(index++);
+        inputLayersMap_[input] = idMapping_[uniqueID++];
     }
     index = 0;
     for (const std::string& plugin : params.plugins) {
@@ -62,7 +61,8 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         } else {
             idMapping_[uniqueID] = readOnlyLayers[plugin];
         }
-        readOnlyLayers[plugin] = idMapping_[uniqueID++];
+        readOnlyLayers[plugin] = idMapping_[uniqueID];
+        pluginLayersMap_[plugin] = idMapping_[uniqueID++];
         (*layerInfo)[plugin].pluginIndexes.push_back(index++);
     }
     index = 0;
@@ -72,7 +72,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 (*layerInfo)[output] = LayerInfo();
             }
             // 没有注册当前输出层
-            if (outputLayers.find(output) == outputLayers.end()) {
+            if (outputLayersMap_.find(output) == outputLayersMap_.end()) {
                 if (htk::endswith(output, "*NEW*")) {
                     MifLayer* copySrcLayer = layers_[idMapping_[index]];
                     layers_.push_back(new MifLayerNew(output.substr(0,
@@ -92,9 +92,9 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 }
             // 已经注册了当前输出层
             } else {
-                idMapping_[uniqueID] = outputLayers[output];
+                idMapping_[uniqueID] = outputLayersMap_[output];
             }
-            outputLayers[output] = idMapping_[uniqueID];
+            outputLayersMap_[output] = idMapping_[uniqueID++];
             (*layerInfo)[output].outputIndexes.push_back(index++);
         }
     } else {
@@ -103,7 +103,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 (*layerInfo)[output] = LayerInfo();
             }
             // 没有注册当前输出层
-            if (outputLayers.find(output) == outputLayers.end()) {
+            if (outputLayersMap_.find(output) == outputLayersMap_.end()) {
                 if (htk::endswith(output, "*NEW*")) {
                     MifLayer* copySrcLayer = layers_[idMapping_[0]];
                     layers_.push_back(new MifLayerNew(output.substr(0,
@@ -118,9 +118,9 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 }
             // 已经注册了当前输出层
             } else {
-                idMapping_[uniqueID] = outputLayers[output];
+                idMapping_[uniqueID] = outputLayersMap_[output];
             }
-            outputLayers[output] = idMapping_[uniqueID++];
+            outputLayersMap_[output] = idMapping_[uniqueID++];
             (*layerInfo)[output].outputIndexes.push_back(index++);
         }
     }
@@ -135,9 +135,6 @@ int ResourcePool::initLayers(const ExecutorPool::Params& params,
     if (!ExecutorPool::runParallel_) {
         if (layerInfo[params.inputs[0]].outputIndexes.size() > 1) {
             layers_[0]->setWithItemCache();
-            CHECK_RET(layers_[0]->setGeoType(params.geoTypes[0]),
-                    "Failed to set geometry type for layer \"%s\".",
-                    params.inputs[0]);
         }
     }
     for (auto readOnlyLayer : readOnlyLayers) {
@@ -146,12 +143,6 @@ int ResourcePool::initLayers(const ExecutorPool::Params& params,
         if (info.inputIndexes.size() + info.pluginIndexes.size() > 1 ||
                 info.pluginIndexes.size() > 0) {
             layers_[readOnlyLayer.second]->setWithItemCache();
-        }
-        if (!info.inputIndexes.empty()) {
-            CHECK_RET(layers_[readOnlyLayer.second]->setGeoType(
-                    params.geoTypes[info.inputIndexes[0]]),
-                    "Failed to set geometry type for layer \"%s\".",
-                    readOnlyLayer.first);
         }
     }
     return 0;
@@ -216,7 +207,7 @@ int ResourcePool::findGroup(const int key, Group** groupPtr){
 }
 
 int ResourcePool::findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
-        const int typeGroupKey = -1, Group** typeGroupPtr = nullptr) {
+        const int typeGroupKey, Group** typeGroupPtr) {
     int result = 0;
     std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     auto itemIterator = groupMap_.find(itemGroupKey);
@@ -256,7 +247,7 @@ int ResourcePool::getLayersCount() {
 
 int ResourcePool::getLayerByName(MifLayer** layerPtr,
         const LayerType layerType, const std::string& layerPath,
-        int* sharedID = nullptr) {
+        int* sharedID) {
     if (layerType == Input) {
         auto mapIterator = inputLayersMap_.find(layerPath);
         CHECK_ARGS(mapIterator != inputLayersMap_.end(),
@@ -384,7 +375,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     for (int index = executorCount_ - 1; index >= 0; index--) {
         readyQueueLock_[index]->lock();
     }
-#ifdef DEBUG_OP
+#ifdef DEBUG_SCHEDULE
     std::cout << "Before select: ";
     for (auto que : readyQueue_) {
         std::cout << que.size() << " ";
@@ -396,7 +387,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
     int avgSize = maxReadySize / executorCount_;
     maxReadySize = maxReadySize % executorCount_ > 0 ? avgSize + 1 : avgSize;
     maxReadySize = std::min(MAX_READY_QUEUE_SIZE, maxReadySize);
-    for (int index; index < executorCount_; index++) {
+    for (int index = 0; index < executorCount_; index++) {
         std::deque<ExecutorJob*>& que = readyQueue_[index];
         while(que.size() < maxReadySize) {
             que.push_back(nullptr);
@@ -409,7 +400,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
         }
         return 0;
     }
-    int selected = 0, index = 0;
+    int selected = 0;
     while (selected < jobVacancies.size()) {
         if (candidateQueue_.empty()) {
             readyQueue_[jobVacancies[selected++].second].pop_back();
@@ -420,7 +411,7 @@ int ResourcePool::selectReadyJob(std::set<int>* wakeupExecutorID) {
             candidateQueue_.pop();
         }
     }
-#ifdef DEBUG_OP
+#ifdef DEBUG_SCHEDULE
     std::cout << "After select:  ";
     for (auto que : readyQueue_) {
         std::cout << que.size() << " ";

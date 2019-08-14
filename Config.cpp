@@ -34,7 +34,7 @@ int ConfigItem::score() {
 }
 
 int ConfigItem::addOperator(syntax::Operator* newOperator,
-        syntax::Operator** newOperatorPtr = nullptr) {
+        syntax::Operator** newOperatorPtr) {
     operators_.push_back(newOperator);
     if (newOperatorPtr != nullptr) {
         *newOperatorPtr = newOperator;
@@ -43,7 +43,7 @@ int ConfigItem::addOperator(syntax::Operator* newOperator,
 }
 
 int ConfigItem::addCondition(syntax::Node* newNode,
-        syntax::Node** newNodePtr = nullptr) {
+        syntax::Node** newNodePtr) {
     conditions_.push_back(newNode);
     if (newNodePtr != nullptr) {
         *newNodePtr = newNode;
@@ -52,7 +52,7 @@ int ConfigItem::addCondition(syntax::Node* newNode,
 }
 
 int ConfigItem::addAssign(syntax::Node* newNode,
-        syntax::Node** newNodePtr = nullptr) {
+        syntax::Node** newNodePtr) {
     assigns_.push_back(newNode);
     if (newNodePtr != nullptr) {
         *newNodePtr = newNode;
@@ -106,7 +106,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
     size_t index = 0, newIndex = 0;
     const char* contentStr = content.c_str();
     int intoString = 0;
-    // intoString 0-无 1-普通双引号字符串中 3-Group内容
+    // intoString 0-无 1-普通双引号字符串中
     while (index < content.size()) {
         if (intoString) {
             switch(contentStr[index]) {
@@ -122,7 +122,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                 }
                 break;
             case '\"':
-                if (intoString = 1) {
+                if (intoString == 1) {
                     intoString = 0;
                 }
             default:
@@ -207,15 +207,18 @@ int parseExpr(const syntax::Operator::OperatorType opType,
     std::pair<size_t, size_t> range;
     std::string opName;
     syntax::Operator* newOperator;
+    int findResult = 0;
     for (syntax::Operator* op : syntax::operatorList) {
-        if (op->find(&newOperator, content, &range, &opName) > -1) {
+        CHECK_RET(findResult = op->find(&newOperator, content, &range,
+                &opName), "Error occurred while finding operator in expr.");
+        if (findResult == 1) {
 #ifdef DEBUG_OP
             std::cout << opName << ": Operator matched." << std::endl;
 #endif
-            CHECK_ARGS(op->type() == opType,
+            CHECK_ARGS(newOperator->type() == opType,
                     "[%s] Found operator type[Condition/Assign] not matched.",
                     opName.c_str());
-            if (op->isSupported(syntax::Empty) && range.first == 0) {
+            if (newOperator->isSupported(syntax::Empty) && range.first == 0) {
                 node->tagName = "";
                 node->leftType = syntax::Empty;
             } else {
@@ -235,22 +238,23 @@ int parseExpr(const syntax::Operator::OperatorType opType,
                 }
             }
             configItem->addOperator(newOperator, &(node->op));
-            if (op->isSupported(syntax::GroupType)) {
-                CHECK_ARGS(node->value.stringValue.find(")->") !=
-                        std::string::npos, "Bad group format.");
-                node->rightType = syntax::GroupType;
-                newGroups->push_back(new std::pair<std::string, Group**>(
-                        node->value.stringValue, &(node->value.groupPtr)));
-            } else if (range.second >= content.size()) {
+            if (range.second >= content.size()) {
                 node->rightType = syntax::Number;
                 node->value.stringValue = "";
                 node->value.numberValue = 0.0f;
             } else {
                 node->value.stringValue = content.substr(range.second,
                         content.size() - range.second);
-                node->rightType = syntax::getDataType(node->value.stringValue,
-                        &(node->value.stringValue),
-                        &(node->value.numberValue));
+                if (node->value.stringValue.find(")->") != std::string::npos) {
+                    node->rightType = syntax::GroupType;
+                    newGroups->push_back(new std::pair<std::string, Group**>(
+                            node->value.stringValue, &(node->value.groupPtr)));
+                } else {
+                    node->rightType = syntax::getDataType(
+                            node->value.stringValue,
+                            &(node->value.stringValue),
+                            &(node->value.numberValue));
+                }
             }
             return 0;
         }
@@ -286,7 +290,7 @@ int linkExpr(const syntax::Operator::OperatorType opType,
     int reduceDepth = 0, index = 0;
     syntax::Node* newNode;
     std::vector<syntax::Node*> nodeStack;
-    Delimeter* lastDelim = nullptr;
+    const Delimeter* lastDelim = nullptr;
     for (int i = 0; i < delimeters.size(); i++) {
         const Delimeter& delim = delimeters[i];
         // 表明中间存在需要解析的简单表达式
@@ -330,6 +334,7 @@ int linkExpr(const syntax::Operator::OperatorType opType,
                 case And:
                 case Semicolon:
                     newNode->op = new syntax::OperatorAnd(); break;
+                default: break;
                 }
                 configItem->addOperator(newNode->op);
                 nodeStack.pop_back();
@@ -380,6 +385,7 @@ int linkExpr(const syntax::Operator::OperatorType opType,
                 case Or: newNode->op = new syntax::OperatorOr(); break;
                 case And:
                 case Semicolon: newNode->op = new syntax::OperatorAnd(); break;
+                default: break;
                 }
                 configItem->addOperator(newNode->op);
                 nodeStack.pop_back();
@@ -512,7 +518,7 @@ int groupKeyGenerate(const std::string& str) {
     for (int i = 0; i < str.length(); i++) {
         sum += (str[i] == ' ' ? 0 : str[i]);
     }
-    return sum ^ (str.length() * 1234) + sum;
+    return (sum ^ (str.length() * 1234)) + sum;
 }
 
 int parseGroupArgs(const std::string& content, std::string* layerName,
@@ -520,7 +526,7 @@ int parseGroupArgs(const std::string& content, std::string* layerName,
         std::string* newTagName, std::string* tagName) {
     size_t startIndex, endIndex;
     // 获取layerName参数
-    startIndex = content.find("(");
+    startIndex = content.find("(") + 1;
     endIndex = content.find(",");
     CHECK_ARGS(endIndex > startIndex, "Can not locate left bracket of group.");
     *layerName = htk::trim(content.substr(startIndex,
@@ -529,7 +535,8 @@ int parseGroupArgs(const std::string& content, std::string* layerName,
     // 获取条件部分
     startIndex = endIndex + 1;
     endIndex = content.find(",", startIndex);
-    if (endIndex = std::string::npos) {
+    // TODO 此处需要确保condition不会在双引号中间加逗号
+    if (endIndex == std::string::npos) {
         endIndex = content.find("->");
         CHECK_ARGS(endIndex != std::string::npos,
                 "Can not find \"->\" for group.");
@@ -586,15 +593,24 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
     int staticItemGroupKey = groupKeyGenerate(layerName + conditions);
     int typeGroupKey = groupKeyGenerate(layerName + conditions + tagName);
     // 生成Group信息
-    if (oldTagName.length()) {
+    MifLayer* pluginLayer;
+    CHECK_RET(resourcePool->getLayerByName(&pluginLayer, ResourcePool::Plugin,
+            layerName), "Failed to find layer named as \"%s\".",
+            layerName.c_str());
+    if (tagName != "GEOMETRY") {
+        syntax::DataType tagType;
+        CHECK_RET(pluginLayer->getTagType(tagName, &tagType),
+                "Fialed to get tag type of tag \"%s\" for tag group.",
+                tagName.c_str());
+        CHECK_ARGS(tagType != syntax::New,
+                "Type of tag \"%s\" for group should not be New.",
+                tagName.c_str());
+    }
+    if (oldTagName.length() == 0) {
         // 静态Group的处理
         itemGroup->second = new ItemGroup();
-        if (tagName == "POINT") {
-            typeGroup->second = new PointGroup();
-        } else if (tagName == "LINE") {
-            typeGroup->second = new LineGroup();
-        } else if (tagName == "AREA") {
-            typeGroup->second = new AreaGroup();
+        if (tagName == "GEOMETRY") {
+            typeGroup->second = new GeometryGroup();
         } else {
             typeGroup->second = new TagGroup();
         }
@@ -604,12 +620,8 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         case 0:
             itemGroup->second->info_ = new Group::GroupInfo();
             itemGroup->second->info_->layerName_ = layerName;
-            // 获取外挂表指针并解析条件语句
-            MifLayer* pluginLayer;
-            CHECK_RET(resourcePool->getLayerByName(&pluginLayer,
-                    ResourcePool::Plugin, layerName),
-                    "Failed to find layer named as \"%s\".",
-                    layerName.c_str());
+            itemGroup->second->info_->tagName_ = tagName;
+            // 解析条件语句
             itemGroup->second->setLayer(pluginLayer);
             std::vector<std::pair<std::string, Group**>*> newGroup;
             std::vector<MifLayer*> pluginLayers {pluginLayer};
@@ -646,12 +658,7 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         } else {
             itemGroup->second->info_ = new Group::GroupInfo();
             itemGroup->second->info_->layerName_ = layerName;
-            // 获取外挂表指针并解析条件语句
-            MifLayer* pluginLayer;
-            CHECK_RET(resourcePool->getLayerByName(&pluginLayer,
-                    ResourcePool::Plugin, layerName),
-                    "Failed to find layer named as \"%s\".",
-                    layerName.c_str());
+            // 解析条件语句
             itemGroup->second->setLayer(pluginLayer);
             std::vector<std::pair<std::string, Group**>*> newGroup;
             std::vector<MifLayer*> pluginLayers {pluginLayer};
@@ -668,6 +675,7 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         itemGroup->second->info_->newTagName_ = newTagName;
         itemGroup->second->info_->tagName_ = tagName;
     }
+    return 0;
 }
 
 } // namesapce parser

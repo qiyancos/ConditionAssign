@@ -33,7 +33,6 @@ do
     Modules[$index]="NULL"
     SourceLayers[$index]="$root/data/${layerName}.mif"
     ConfPaths[$index]="$root/conf/${layerName}.conf"
-    SourceGeoTypes[$index]="POINT"
     index=$[index + 1]
 done
 
@@ -41,33 +40,29 @@ testNew(){
     # New test
     rm -rf $root/log_New/log_*.txt
     echo ">> Running with new condition assign:"
-    cp $root/data/$layerName.mid $root/data/${layerName}_Out_New.mid
-    cp $root/data/$layerName.mif $root/data/${layerName}_Out_New.mif
     if [ "`ls $root/data/${layerName}_plugin*.mif`"x != x ]
     then
         for plugin in $(ls $root/data/${layerName}_plugin*.mif)
         do pluginLayers="$plugin;$pluginLayers"
         done
         pluginLayers=${pluginLayers:0:$[${#pluginLayers} - 1]}
-    else pluginLayer="NULL"
+    else pluginLayers="NULL"
     fi
     targetLayer="$root/data/${layerName}_Out_New.mif"
     logPath="$root/log_New"
     echo -n "$root/../bin/ConditionsAssign ${Modules[$index]} "
-    echo -n "${SourceLayers[$index]} ${SourceGeoTypes[$index]} ${targetLayer} "
+    echo -n "${SourceLayers[$index]} ${targetLayer} "
     echo -n "${executorCnt} ${logPath} ${ConfPaths[$index]} "
     echo "$pluginLayers"
     if [ ${1}x = -rawx -o ${2}x = -rawx ]
     then
         $root/../bin/ConditionAssign ${Modules[$index]} \
-                ${SourceLayers[$index]} ${SourceGeoTypes[$index]} \
-                ${targetLayer} ${executorCnt} ${logPath} \
-                ${ConfPaths[$index]} $pluginLayers[$index]
+                ${SourceLayers[$index]} ${targetLayer} ${executorCnt} \
+                ${logPath} ${ConfPaths[$index]} $pluginLayers
     else
         timeNew=`(time $root/../bin/ConditionAssign ${Modules[$index]} \
-                ${SourceLayers[$index]} ${SourceGeoTypes[$index]} \
-                ${targetLayer} ${executorCnt} ${logPath} \
-                ${ConfPaths[$index]} $pluginLayers) 2>&1 | \
+                ${SourceLayers[$index]} ${targetLayer} ${executorCnt} \
+                ${logPath} ${ConfPaths[$index]} $pluginLayers) 2>&1 | \
                 awk '/real/ {print $2}'`
         cat $root/log_New/log_$date.txt
     fi
@@ -78,8 +73,6 @@ testOld() {
     # Old test
     rm -rf $root/log_Old/log_*.txt
     echo ">> Running with old condition assign:"
-    cp $root/data/$layerName.mid $root/data/${layerName}_Out_Old.mid
-    cp $root/data/$layerName.mif $root/data/${layerName}_Out_Old.mif
     targetLayer="$root/data/${layerName}_Out_Old.mif"
     confPath="$root/conf/${layerName}_Old.conf"
     logPath="$root/log_Old"

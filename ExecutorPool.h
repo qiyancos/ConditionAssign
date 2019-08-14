@@ -39,10 +39,10 @@ public:
     Semaphore* haveReadyJob_;
     // 当前执行器对应线程的指针
     std::thread* thread_ = nullptr;
-    // 所属的执行器池指针
-    ExecutorPool* pool_;
     // 执行器唯一的标识ID
     const int id_;
+    // 所属的执行器池指针
+    ExecutorPool* pool_;
 };
 
 // Executor工作项
@@ -86,6 +86,8 @@ public:
     ~ExecutorPool();
 
 public:
+    // 判断是否需要进行工作项选择
+    std::atomic<unsigned int> needSelect_ {0};
     // 执行器队列
     std::vector<Executor> executors_;
     // Executor工作状态

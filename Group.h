@@ -45,16 +45,18 @@ public:
         std::string tagName_;
     };
 
+    // 获取当前的Geometry信息
+    static Type getGeometryType(wsl::Geometry* geometry);
     // 获取当前Group的类型
-    Type getGroupType();
+    Type getGroupType() const {return type_;}
     // 设置当前Group的layer指针
     void setLayer(MifLayer* layer) {layer_ = layer;}
     // 获取当前Group对应的layer
-    MifLayer* getLayer() {return layer_;}
+    MifLayer* getLayer() const {return layer_;}
     // 获取当前Group的元素个数
-    int size() {return size_;}
+    int size() const {return size_;}
     // 判断当前的
-    bool isDynamic() {return dynamic_;}
+    bool isDynamic() const {return dynamic_;}
 
     // 基于一个ItemGroup生成类型Group
     virtual int init(const Group& itemGroup, const std::string& tagName) = 0;
@@ -62,9 +64,9 @@ public:
     virtual int buildDynamicGroup(Group** groupPtr, MifItem* item);
 
     // 向Group中添加元素的虚函数
-    virtual int addElement(const int newElement);
-    virtual int addElement(const std::string& newElement);
-    virtual int addElement(wsl::Geometry* newElement);
+    virtual int addElements(const std::vector<int>& newElements);
+    virtual int addElements(const std::vector<std::string>& newElements);
+    virtual int addElements(const std::vector<wsl::Geometry*>& newElements);
 
     // 包含关系的判断
     virtual int checkOneContain(const std::string& src, bool* result);
@@ -85,9 +87,9 @@ public:
     virtual int checkAllIntersect(const Type inputType, wsl::Geometry* src,
             bool* result);
     // 地理位置接触的判断
-    virtual int checkOneInContact(const Type inputType, wsl::Geometry* src,
+    virtual int checkOneAtEdge(const Type inputType, wsl::Geometry* src,
             bool* result);
-    virtual int checkAllInContact(const Type inputType, wsl::Geometry* src,
+    virtual int checkAllAtEdge(const Type inputType, wsl::Geometry* src,
             bool* result);
     // 地理位置相离的判断
     virtual int checkOneDeparture(const Type inputType, wsl::Geometry* src,
@@ -111,12 +113,12 @@ public:
 protected:
     // 元素所在层
     MifLayer* layer_ = nullptr;
+    // 当前Group的类型
+    Type type_;
     // 当前Group是不是一个动态Group
     bool dynamic_ = false;
     // 当前Group的元素个数
     int size_ = 0;
-    // 当前Group的类型
-    const Type groupType_;
 };
 
 class ItemGroup : public Group {
@@ -126,10 +128,12 @@ public:
     int init(const Group& itemGroup, const std::string& tagName);
     // 动态Group的构建
     int buildDynamicGroup(Group** groupPtr, MifItem* item);
-    // 添加元素
-    int addElement(const int newElement);
+    // 原子性添加元素
+    int addElements(const std::vector<int>& newElements);
 
 public:
+    // 元素组的锁
+    std::mutex groupLock_;
     // 元素组的索引
     std::vector<int> group_;
 };
@@ -140,7 +144,7 @@ public:
     // 基于ItemGroup生成一个TagGroup
     int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
-    int addElement(const std::string& newElement);
+    int addElements(const std::vector<std::string>& newElements);
     // 检测是否存在于当前的Tag组里面
     int checkOneContain(const std::string& src, bool* result);
     int checkAllContain(const std::string& src, bool* result);
@@ -149,74 +153,13 @@ private:
     std::set<std::string> group_;
 };
 
-class PointGroup : public Group {
+class GeometryGroup : public Group {
 public:
-    PointGroup();
-    // 基于一个ItemGroup生成PointGroup
-    int init(const Group& itemGroup, const std::string& tagName);
-    // 添加元素
-    int addElement(wsl::Geometry* newElement);
-
-    // 地理位置包含的判断
-    int checkOneContain(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    int checkAllContain(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    // 地理位置被包含的判断
-    int checkOneContained(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    int checkAllContained(const Type inputType, wsl::Geometry* src,
-            bool* result);
-
-private:
-    std::vector<wsl::Feature<wsl::Point>*> group_;
-};
-
-class LineGroup : public Group {
-public:
-    LineGroup();
-    // 基于一个ItemGroup生成LineGroup
-    int init(const Group& itemGroup, const std::string& tagName);
-    // 添加元素
-    int addElement(wsl::Geometry*);
-
-    // 地理位置包含的判断
-    int checkOneContain(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    int checkAllContain(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    // 地理位置被包含的判断
-    int checkOneContained(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    int checkAllContained(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    // 地理位置交叉的判断
-    int checkOneIntersect(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    int checkAllIntersect(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    // 地理位置接触的判断
-    int checkOneInContact(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    int checkAllInContact(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    // 地理位置相离的判断
-    int checkOneDeparture(const Type inputType, wsl::Geometry* src,
-            bool* result);
-    int checkAllDeparture(const Type inputType, wsl::Geometry* src,
-            bool* result);
-
-private:
-    std::vector<wsl::Feature<wsl::Line>*> group_;
-};
-
-class AreaGroup : public Group {
-public:
-    AreaGroup();
+    GeometryGroup();
     // 基于ItemGroup构造AreaGroup
     int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
-    int addElement(wsl::Geometry*);
+    int addElements(const std::vector<wsl::Geometry*>& newElements);
 
     // 地理位置包含的判断
     int checkOneContain(const Type inputType, wsl::Geometry* src,
@@ -234,9 +177,9 @@ public:
     int checkAllIntersect(const Type inputType, wsl::Geometry* src,
             bool* result);
     // 地理位置接触的判断
-    int checkOneInContact(const Type inputType, wsl::Geometry* src,
+    int checkOneAtEdge(const Type inputType, wsl::Geometry* src,
             bool* result);
-    int checkAllInContact(const Type inputType, wsl::Geometry* src,
+    int checkAllAtEdge(const Type inputType, wsl::Geometry* src,
             bool* result);
     // 地理位置相离的判断
     int checkOneDeparture(const Type inputType, wsl::Geometry* src,
@@ -245,7 +188,7 @@ public:
             bool* result);
 
 private:
-    std::vector<wsl::Feature<wsl::Polygon>*> group_;
+    std::vector<wsl::Geometry*> group_;
 };
 
 } // namespace condition_assign

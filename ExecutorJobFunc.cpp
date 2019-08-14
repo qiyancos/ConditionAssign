@@ -55,6 +55,7 @@ int ParseConfigFileJob::process(const int executorID) {
                 "output layer bind with this config file", configIndex);
         targetLayers->push_back(layer);
     }
+    TEST(executorID);
     // 打开并逐行读取配置文件
     std::ifstream configFileStream(filePath_.c_str());
     CHECK_ARGS(configFileStream, "Failed to open config file \"%s\".",
@@ -137,7 +138,7 @@ int ParseConfigLinesJob::process(const int executorID) {
     if (subGroup->readyCount_ + lineCount_ == fullContent_->size()) {
         MifLayer *srcLayer, *targetLayer;
         ConfigSubGroup* subGroupNow;
-        for (int index = 0; index < subGroups_->size(); index++) {
+        for (index = 0; index < subGroups_->size(); index++) {
             srcLayer = (*srcLayers_)[index];
             targetLayer = (*targetLayers_)[index];
             subGroupNow = (*subGroups_)[index];
@@ -175,12 +176,14 @@ int ParseConfigLinesJob::process(const int executorID) {
     }
     subGroup->readyCount_ += lineCount_;
     resourcePool_->jobCacheLock_.unlock();
-    std::lock_guard<std::mutex> candidateQueueGuard(
-            resourcePool_->candidateQueueLock_);
-    for (ExecutorJob* job : newJobs) {
-        resourcePool_->candidateQueue_.push(job);
+    if (!newJobs.empty()) {
+        std::lock_guard<std::mutex> candidateQueueGuard(
+                resourcePool_->candidateQueueLock_);
+        for (ExecutorJob* job : newJobs) {
+            resourcePool_->candidateQueue_.push(job);
+        }
+        resourcePool_->newCandidateJob_->signalAll();
     }
-    resourcePool_->newCandidateJob_->signalAll();
     return 0;
 }
 
@@ -191,14 +194,29 @@ int ParseGroupJob::process(const int executorID) {
     GroupPair itemGroup(-1, nullptr), typeGroup(-1, nullptr);
     CHECK_RET(parser::parseGroupInfo(groupInfo_->first,
             resourcePool_, &itemGroup, &typeGroup),
-            "Failed to parse group \"%s\".", groupInfo_->first);
-    // 判断解析group的结果
+            "Failed to parse group \"%s\".", groupInfo_->first.c_str());
+    // 判断解析group的结果是否为Dynamic Group
     if (typeGroup.second == nullptr) {
         *(groupInfo_->second) = itemGroup.second;
         delete groupInfo_;
         std::lock_guard<std::mutex> jobCacheGuard(
                 resourcePool_->jobCacheLock_);
-        resourcePool_->parseGroupJobCount_--;
+        if (--resourcePool_->parseGroupJobCount_ == 0) {
+            std::vector<ExecutorJob*> newJobs;
+            for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
+                newJobs.insert(newJobs.end(), resourcePool_->jobCache_[i].begin(),
+                        resourcePool_->jobCache_[i].end());
+                resourcePool_->jobCache_.clear();
+            }
+            if (!newJobs.empty()) {
+                std::lock_guard<std::mutex> candidateGuard(
+                        resourcePool_->candidateQueueLock_);
+                for (ExecutorJob* job : newJobs) {
+                    resourcePool_->candidateQueue_.push(job);
+                }
+                resourcePool_->newCandidateJob_->signalAll();
+            }
+        }
         return 0;
     } else {
         *(groupInfo_->second) = typeGroup.second;
@@ -252,7 +270,7 @@ int ParseGroupJob::process(const int executorID) {
 int BuildGroupJob::process(const int executorID) {
     TEST(executorID);
     if (startIndex_ == -1) {
-        CHECK_RET(typeGroup_->init(*(itemGroup_), typeGroup_->info_->tagName_),
+        CHECK_RET(typeGroup_->init(*(itemGroup_), itemGroup_->info_->tagName_),
                 "Failed to init type group from item group.");
         CHECK_ARGS(!typeGroup_->info_,
                 "Type group should not have group info while building.");
@@ -263,6 +281,7 @@ int BuildGroupJob::process(const int executorID) {
         int index = startIndex_;
         int result = 0, totalCount = itemCount_;
         MifItem* workingItem;
+        std::vector<int> matchIndexes;
         while (totalCount--) {
 #ifdef USE_MIFITEM_CACHE
             CHECK_RET(pluginLayer_->newMifItem(index, nullptr, &workingItem),
@@ -274,19 +293,18 @@ int BuildGroupJob::process(const int executorID) {
                     workingItem);
             CHECK_RET(result, "Failed to check conditions in mif item.");
             if (result) {
-                itemGroup_->addElement(index);
+                matchIndexes.push_back(index);
             }
 #ifndef USE_MIFITEM_CACHE
             delete workingItem;
 #endif
             index++;
         }
-        groupInfo->checkedCount_ += totalCount;
-        if (groupInfo->checkedCount_ == pluginLayer_->size()) {
-            delete groupInfo;
-            itemGroup_->info_ = nullptr;
+        itemGroup_->addElements(matchIndexes);
+        if (groupInfo->checkedCount_ + itemCount_ == pluginLayer_->size()) {
             itemGroup_->ready_.signalAll();
         }
+        groupInfo->checkedCount_ += itemCount_;
     }
     std::lock_guard<std::mutex> jobCacheGuard(resourcePool_->jobCacheLock_);
     if (resourcePool_->parseGroupJobCount_ == 0) {
@@ -382,7 +400,7 @@ int ProcessMifItemsJob::process(const int executorID) {
             }
             resourcePool_->newCandidateJob_->signalAll();
         }
-        *(subGroup_->finishedFileCount_)++;
+        (*(subGroup_->finishedFileCount_))++;
     }
     return 0;
 }

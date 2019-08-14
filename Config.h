@@ -60,7 +60,7 @@ public:
     // 多有ConfigItem的组
     std::vector<std::pair<int, ConfigItem*>>* group_;
     // 对应的对应的文件路径
-    std::string* filePath_;
+    const std::string* filePath_;
     // 对应的源LayerID
     int srcLayerID_ = -1;
     // 对应的目标LayerID

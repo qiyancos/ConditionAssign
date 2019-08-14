@@ -174,6 +174,7 @@ int OperatorRegularExpr::process(Node* node, MifItem* item) {
                 "search regular expression", regularExpr.c_str(),
                 leftVal.c_str(), except.what());
     }
+    return 0;
 }
 
 int OperatorTagContain::process(Node* node, MifItem* item) {
@@ -381,7 +382,7 @@ int OperatorGeoIntersectAll::process(Node* node, MifItem* item) {
     return result;
 }
 
-int OperatorGeoInContact::process(Node* node, MifItem* item) {
+int OperatorGeoAtEdge::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -399,20 +400,20 @@ int OperatorGeoInContact::process(Node* node, MifItem* item) {
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
                 "Group type not supported");
-        CHECK_RET(dynamicGroup->checkOneInContact(inputType, leftVal, &result),
+        CHECK_RET(dynamicGroup->checkOneAtEdge(inputType, leftVal, &result),
                 "Failed to running group-check function.");
         delete dynamicGroup;
     } else {
         CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
                 groupPtr->getGroupType() != Group::Item,
                 "Group type not supported");
-        CHECK_RET(groupPtr->checkOneInContact(inputType, leftVal, &result),
+        CHECK_RET(groupPtr->checkOneAtEdge(inputType, leftVal, &result),
                 "Failed to running group-check function.");
     }
     return result;
 }
 
-int OperatorGeoInContactAll::process(Node* node, MifItem* item) {
+int OperatorGeoAtEdgeAll::process(Node* node, MifItem* item) {
     bool result;
     BINARYOP_CHECK();
     Group* groupPtr = node->value.groupPtr;
@@ -430,14 +431,14 @@ int OperatorGeoInContactAll::process(Node* node, MifItem* item) {
         CHECK_ARGS(dynamicGroup->getGroupType() != Group::Tag &&
                 dynamicGroup->getGroupType() != Group::Item,
                 "Group type not supported");
-        CHECK_RET(dynamicGroup->checkAllInContact(inputType, leftVal, &result),
+        CHECK_RET(dynamicGroup->checkAllAtEdge(inputType, leftVal, &result),
                 "Failed to running group-check function.");
         delete dynamicGroup;
     } else {
         CHECK_ARGS(groupPtr->getGroupType() != Group::Tag &&
                 groupPtr->getGroupType() != Group::Item,
                 "Group type not supported");
-        CHECK_RET(groupPtr->checkAllInContact(inputType, leftVal, &result),
+        CHECK_RET(groupPtr->checkAllAtEdge(inputType, leftVal, &result),
                 "Failed to running group-check function.");
     }
     return result;

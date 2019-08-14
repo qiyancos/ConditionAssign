@@ -11,29 +11,14 @@ namespace condition_assign {
 // 用于进行线程调度的信号量
 class Semaphore {
 public:
-    enum Type {Normal, OnceForAll};
-    struct Param {
-        // 当前信号量的类型
-        Type type;
-        // 等待线程计数
-        int count;
-        // 唤醒状态
-        int wakeupCount;
-        // 互斥锁
-        std::mutex lock;
-        // 信号量用于通知
-        std::condition_variable condition;
-
-        // 等待信号的到来
-        std::atomic<void(*)(Param*)> waitFunc {waitOrigin};
-        // 发出信号，开启等待的线程
-        std::atomic<void(*)(Param*)> signalFunc {signalOrigin};
-        // 发出信号，开启等待的线程
-        std::atomic<void(*)(Param*)> signalAllFunc {signalOrigin};
-    };
+    enum Type {Normal, SignalFolded, OnceForAll};
 
     // 初始化函数
-    Semaphore(const int count = 0, const Type type = Normal);
+    Semaphore() = default;
+    // 构造函数
+    Semaphore(const int count);
+    // 构造函数
+    Semaphore(const int count, const Type type);
     // 析构函数
     ~Semaphore() = default;
 
@@ -47,19 +32,16 @@ public:
     void signalAll();
 
 private:
-    // 等待信号的到来
-    static void waitOrigin(Param* param);
-    // 发出信号，开启等待的线程
-    static void signalOrigin(Param* param);
-    // 发出信号，开启等待的线程
-    static void signalAllOrigin(Param* param);
-
-    // 空等待函数
-    static void emptyFunc(Param* param) {}
-
-private:
-    // 信号量的参数
-    Param param_;
+    // 当前信号量的类型
+    Type type_ = Normal;
+    // 等待线程计数
+    int count_ = 0;
+    // 唤醒状态
+    int wakeupCount_ = 0;
+    // 互斥锁
+    std::mutex lock_;
+    // 信号量用于通知
+    std::condition_variable condition_;
 };
 
 } // namespace condition_assign

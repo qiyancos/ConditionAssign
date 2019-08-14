@@ -5,10 +5,12 @@ BOOST=$(THIRD)/boost
 
 GCC=g++
 CPPFLAGS=-g -O2 -std=c++11 -finline-functions -std=gnu++0x \
-		-Wall -W -Wshadow -Wpointer-arith -DUSE_TIMER -DDEBUG -DDEBUG_OP\
+		-Wall -W -Wshadow -Wpointer-arith -DUSE_TIMER \
 		-Wcast-qual -Wwrite-strings -Woverloaded-virtual \
+		-fpermissive -fPIC -DLINUX -D_USE_DOUBLE_POINT_ \
 		-Wno-unused-parameter -Wno-unused-function \
-		-fpermissive -fPIC -DLINUX -D_USE_DOUBLE_POINT_
+        -Wno-overloaded-virtual -Wno-sign-compare \
+        -DDEBUG
 LDFLAGS=-pg
 
 INCLUDE_PATH=-I ../../lib/spatial-base/output \
@@ -45,6 +47,7 @@ all: outputdir $(OUTPUT)/$(EXENAME)
 	@echo "**************************************************************"
 	@echo "$(EXENAME) project pass the build, you can use it!GO, GO, GO!"
 	@echo "**************************************************************"
+
 outputdir:
 	mkdir $(OUTPUT) 2>/dev/null || echo
 	mkdir $(OUTPUT_OBJ) 2>/dev/null || echo	
