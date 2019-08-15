@@ -417,6 +417,9 @@ int linkExpr(const syntax::Operator::OperatorType opType,
         nodeStack.push_back(newNode);
         CHECK_RET(reduceExpr(&nodeStack, reduceDepth),
                 "Failed to shift-reduce in depth[%d].", reduceDepth);
+    } else {
+        CHECK_ARGS(delimeters.back().second == RightBracket,
+                "Expression ends with non expected operator or delimeter.");
     }
     CHECK_ARGS(nodeStack.size() == 1, "No node or too many nodes left for %s",
             "main node setting in nodestack");

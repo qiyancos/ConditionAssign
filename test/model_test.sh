@@ -14,70 +14,80 @@ then MaxExecutors="1 4 8 16"
 else MaxExecutors=$1
 fi
 
-index=0
 for conf in $originConfigs
 do
     if [ x`echo $conf | grep "_Old"` != x ]
     then continue
     fi
-    layerName=`basename $layer | sed 's/.conf//g'`
+    layerName=`basename $conf | sed 's/.conf//g'`
     layerNames="$layerName $layerNames"
 done
 layerNames=($layerNames)
 
-echo -n "Please input the config file index: "
-while [1]
+while [ 1 ]
 do
-    index=0
-    for layer in $layerNames
+    index=1
+    for layer in ${layerNames[*]}
     do
         echo "[$index] $layer"
         index=$[index + 1]
     done
+    echo -n "Please input the config file index: "
     read input
     if [ "x$input" = x ]
-    then echo -n "<Empty Input> Please reinput: "
+    then echo "<Empty Input> Please reinput! "
     else break
     fi
 done
 
-first=0
+serial=0
 for index in $input
 do
-    layer=${layerNames[$index]}
-    if [ $first = 0 ]
-    then srcLayer
-    first=$[first + 1]
+    layer=${layerNames[$[index - 1]]}
+    if [ -f $root/data/$layer.mif ]
+    then srcLayers="$srcLayers;$root/data/$layer.mif"
+    else serial=1
+    fi
+    if [ "`ls $root/data/${layer}_plugin*.mif`"x != x ]
+    then
+        for plugin in $(ls $root/data/${layer}_plugin*.mif)
+        do pluginLayers="$pluginLayers;$plugin"
+        done
+    fi
+    targetLayers="$targetLayers;$root/data/${layer}_Out_New.mif"
+    confFiles="$confFiles;$root/conf/$layer.conf"
 done
 
-    # New test
+confFiles=${confFiles:1:$[${#confFiles} - 1]}
+srcLayers=${srcLayers:1:$[${#srcLayers} - 1]}
+targetLayers=${targetLayers:1:$[${#targetLayers} - 1]}
+pluginLayers=${pluginLayers:1:$[${#pluginLayers} - 1]}
+if [ x$pluginLayers = x ]
+then pluginLayers=NULL 
+fi
+
+# New test
+for executorCnt in $MaxExecutors
+do
     rm -rf $root/log_New/log_*.txt
     echo ">> Running with new condition assign:"
-    if [ "`ls $root/data/${layerName}_plugin*.mif`"x != x ]
-    then
-        for plugin in $(ls $root/data/${layerName}_plugin*.mif)
-        do pluginLayers="$plugin;$pluginLayers"
-        done
-        pluginLayers=${pluginLayers:0:$[${#pluginLayers} - 1]}
-    else pluginLayers="NULL"
-    fi
-    targetLayer="$root/data/${layerName}_Out_New.mif"
     logPath="$root/log_New"
-    echo -n "$root/../bin/ConditionsAssign ${Modules[$index]} "
-    echo -n "${SourceLayers[$index]} ${targetLayer} "
-    echo -n "${executorCnt} ${logPath} ${ConfPaths[$index]} "
-    echo "$pluginLayers"
+    echo -n "$root/../bin/ConditionsAssign NULL $srcLayers $targetLayers "
+    echo "${executorCnt} $logPath $confFiles $pluginLayers"
     if [ ${1}x = -rawx -o ${2}x = -rawx ]
     then
-        $root/../bin/ConditionAssign ${Modules[$index]} \
-                ${SourceLayers[$index]} ${targetLayer} ${executorCnt} \
-                ${logPath} ${ConfPaths[$index]} $pluginLayers
+        $root/../bin/ConditionAssign NULL $srcLayers $targetLayers \
+                ${executorCnt} $logPath $confFiles $pluginLayers
     else
-        timeNew=`(time $root/../bin/ConditionAssign ${Modules[$index]} \
-                ${SourceLayers[$index]} ${targetLayer} ${executorCnt} \
-                ${logPath} ${ConfPaths[$index]} $pluginLayers) 2>&1 | \
+        timeNew=`(time $root/../bin/ConditionAssign NULL $srcLayers $targetLayers \
+                ${executorCnt} $logPath $confFiles $pluginLayers) 2>&1 | \
                 awk '/real/ {print $2}'`
         cat $root/log_New/log_$date.txt
     fi
-    newTested=1
-}
+    
+    if [ x$timeNew != x ]
+    then
+        echo "Running with executors[$executorCnt]"
+        echo "Total time: $timeNew"
+    fi
+done

@@ -26,7 +26,9 @@ namespace syntax {
             "Bad node-tree structure!"); \
     CHECK_ARGS(node->op->isSupported(node->leftType) && \
             node->op->isSupported(node->rightType), \
-            "Unsupported data type!"); \
+            "Unsupported data type [Left: \"%s\"] or [Right: \"%s\"]!", \
+            getTypeString(node->leftType).c_str(), \
+            getTypeString(node->rightType).c_str()); \
 }
 
 // 用于生成一个字符串的hash数值

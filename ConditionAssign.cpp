@@ -9,6 +9,17 @@ std::string debugLogDir;
 std::vector<std::ofstream> debugStream;
 #endif
 
+void printLayersInfo(const std::string layerType,
+        const std::vector<std::string>& layers) {
+    int layerSize = layers.size();
+    sys_log_println(_INFORANK, "-- %s [Total: %d]:\n",
+            layerType.c_str(), layerSize);
+    for (int index = 0; index < layerSize; index++) {
+        sys_log_println(_INFORANK, "[%d/%d]-[%s]\n",
+                index, layerSize, layers[index].c_str());
+    }
+}
+
 int main(int argc, char** argv) {
     setlocale(LC_ALL, "Chinese-simplified");
     if (argc < conf_helper::argList.size() + 1) {
@@ -56,18 +67,10 @@ int main(int argc, char** argv) {
 
     sys_log_println(_INFORANK, "=====================================\n");
     sys_log_println(_INFORANK, "          [ ConditionAssign ]        \n");
-    for (int index = 0; index < inputLayers.size(); index++) {
-        sys_log_println(_INFORANK, "-- InputLayers: [%d]-[%s]\n",
-                index + 1, inputLayers[index].c_str());
-    }
-    for (int index = 0; index < configFiles.size(); index++) {
-        sys_log_println(_INFORANK, "-- ConfigPath: [%d]-[%s]\n",
-                index + 1, configFiles[index].c_str());
-    }
-    for (int index = 0; index < outputLayers.size(); index++) {
-        sys_log_println(_INFORANK, "-- OutputLayers: [%d]-[%s]\n",
-                index + 1, outputLayers[index].c_str());
-    }
+    printLayersInfo("InputLayers", inputLayers);
+    printLayersInfo("ConfigFiles", configFiles);
+    printLayersInfo("OutputLayers", outputLayers);
+    printLayersInfo("PluginLayers", pluginLayers);
     sys_log_println(_INFORANK, "-- ThreadNum: [%d]\n", executorNum);
     sys_log_println(_INFORANK, "-- LogDir: [%s]\n", logDir.c_str());
 

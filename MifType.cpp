@@ -129,7 +129,9 @@ int MifLayerNew::getTagType(const std::string& tagName,
         CHECK_RET(result = checkAddTag(tagName, &colID),
                 "Failed to add new column.");
         if (result > 0) {
-            tagTypeCache_[tagName] = syntax::New;
+            if (ExecutorPool::runParallel_) {
+                tagTypeCache_[tagName] = syntax::New;
+            }
             *type = syntax::New;
             return 0;
         }
@@ -264,7 +266,9 @@ int MifLayerNormal::getTagType(const std::string& tagName,
         CHECK_RET(result = checkAddTag(tagName, &colID, isAssign),
                 "Failed to add new column or tag not exist.");
         if (result > 0) {
-            tagTypeCache_[tagName] = syntax::New;
+            if (ExecutorPool::runParallel_) {
+                tagTypeCache_[tagName] = syntax::New;
+            }
             *type = syntax::New;
             return 0;
         }

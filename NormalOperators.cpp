@@ -15,7 +15,8 @@ int OperatorNot::process(Node* node, MifItem* item) {
     CHECK_ARGS(!node->leftNode && node->rightNode,
             "Bad node-tree structure!");
     CHECK_ARGS(node->op->isSupported(node->rightType),
-            "Unsupported data type.");
+            "Unsupported data type [Right: \"%s\"].",
+            getTypeString(node->rightType).c_str());
     CHECK_RET(result = node->rightNode->op->process(node->rightNode, item),
             "Operator process failed in \"%s %s %s\".",
             node->rightNode->tagName.c_str(),
@@ -29,7 +30,9 @@ int OperatorOr::process(Node* node, MifItem* item) {
     CHECK_ARGS(node->leftNode && node->rightNode, "Bad node-tree structure!");
     CHECK_ARGS(node->op->isSupported(node->leftType) &&
             node->op->isSupported(node->rightType),
-            "Unsupported data type!");
+            "Unsupported data type [Left: \"%s\"] or [Right: \"%s\"]!",
+            getTypeString(node->leftType).c_str(),
+            getTypeString(node->rightType).c_str());
     CHECK_RET(result = node->leftNode->op->process(node->leftNode, item),
             "Operator process failed in \"%s %s %s\".",
             node->leftNode->tagName.c_str(),
@@ -49,7 +52,9 @@ int OperatorAnd::process(Node* node, MifItem* item) {
     CHECK_ARGS(node->leftNode && node->rightNode, "Bad node-tree structure!");
     CHECK_ARGS(node->op->isSupported(node->leftType) &&
             node->op->isSupported(node->rightType),
-            "Unsupported data type!");
+            "Unsupported data type [Left: \"%s\"] or [Right: \"%s\"]!",
+            getTypeString(node->leftType).c_str(),
+            getTypeString(node->rightType).c_str());
     CHECK_RET(result = node->leftNode->op->process(node->leftNode, item),
             "Operator process failed in \"%s %s %s\".",
             node->leftNode->tagName.c_str(),

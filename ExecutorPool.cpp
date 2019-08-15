@@ -93,7 +93,7 @@ int ExecutorPool::init() {
     int inputSize = params_.inputs.size();
     int configSize = params_.configs.size();
     int outputSize = params_.outputs.size();
-    CHECK_ARGS(outputSize <= inputSize, "Input layers' count[%d] %s [%d].",
+    CHECK_ARGS(outputSize >= inputSize, "Input layers' count[%d] %s [%d].",
             inputSize, "can not be larger than the count of output layers",
             outputSize);
     if (inputSize > 1 && configSize == 1) {

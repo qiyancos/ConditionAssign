@@ -17,6 +17,8 @@ namespace condition_assign {
 #define MAX_READY_QUEUE_SIZE 32
 // 最大的MifLayer数目，防止爆内存
 #define MAX_MIFLAYERS 32
+// 是否希望使用并行模式的内存优化，使用性能可能会下降
+#define USE_PARALLEL_MEM_OPTIMIZE
 
 class ConfigSubGroup;
 class ConfigGroup;

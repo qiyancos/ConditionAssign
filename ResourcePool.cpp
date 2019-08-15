@@ -34,7 +34,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
     int sharedID = 0;
     int uniqueID = 0;
     std::map<std::string, int> readOnlyLayers;
-#ifndef USE_MIFITEM_CACHE
+#ifdef USE_PARALLEL_MEM_OPTIMIZE
     if (ExecutorPool::runParallel_) {
         std::map<std::string, int> noOutputLayers;
         uniqueID = inputSize_ + pluginSize_;
@@ -130,9 +130,11 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                         idMapping_[uniqueID] = sharedID++;
                     } else {
                         std::string input = params.inputs[index];
+                        // 没有设置共享并且和当前layer对应，则共享一个Layer
                         if ((*layerInfo)[input].inputIndexes.size() == 1 &&
                                 (*layerInfo)[input].inputIndexes[0] == index) {
                             idMapping_[uniqueID] = idMapping_[index];
+                        // 必须生成新的Layer
                         } else {
                             MifLayer* copySrcLayer =
                                     layers_[idMapping_[index]];
@@ -149,6 +151,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 (*layerInfo)[output].outputIndexes.push_back(index++);
             }
         } else {
+            bool allOutputNew = true;
             for (const std::string& output : params.outputs) {
                 if (layerInfo->find(output) == layerInfo->end()) {
                     (*layerInfo)[output] = LayerInfo();
@@ -161,11 +164,8 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                                 output.size() - 5), copySrcLayer));
                         idMapping_[uniqueID] = sharedID++;
                     } else {
-                        std::string input = params.inputs[0];
-                        MifLayer* copySrcLayer = layers_[idMapping_[0]];
-                        layers_.push_back(new MifLayerNormal(output,
-                                copySrcLayer));
-                        idMapping_[uniqueID] = sharedID++;
+                        allOutputNew = false;
+                        idMapping_[uniqueID] = idMapping_[0];
                     }
                 // 已经注册了当前输出层
                 } else {
@@ -174,8 +174,19 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 outputLayersMap_[output] = idMapping_[uniqueID++];
                 (*layerInfo)[output].outputIndexes.push_back(index++);
             }
+            // 如果串行模式输出均为New，则input和plugin可以共享
+            if (allOutputNew) {
+                const std::string& input = params.inputs[0];
+                if (pluginLayersMap_.find(input) != pluginLayersMap_.end()) {
+                    // 我们没有修改idMapping，是因为外挂表不会使用index查询
+                    int originSharedID = pluginLayersMap_[input];
+                    delete layers_[originSharedID];
+                    layers_.erase(layers_.begin() + originSharedID);
+                    pluginLayersMap_[input] = 0;
+                }
+            }
         }
-#ifndef USE_MIFITEM_CACHE
+#ifdef USE_PARALLEL_MEM_OPTIMIZE
     }
 #endif
     return 0;
@@ -187,24 +198,23 @@ int ResourcePool::initConfigGroup(const ExecutorPool::Params& params,
     std::vector<int> savePoints(configSize_, 0);
     std::vector<int> subGroupMap(configSize_, 0);
     std::map<std::string, int> groupIDMap;
-    if (!ExecutorPool::runParallel_) {
-        // 保存点生成和共享配置的检查
-        int uniqueID = inputSize_ + pluginSize_;
-        std::map<int, int> saveTag;
-        for (int i = outputSize_ - 1; i >= 0; i--) {
-            auto mapIterator = groupIDMap.find(params.configs[i]);
-            if (mapIterator == groupIDMap.end()) {
-                groupIDMap[params.configs[i]] = i;
-                subGroupMap[i] = i;
+    // 保存点生成和共享配置的检查
+    std::map<std::string, int> saveTag;
+    for (int i = outputSize_ - 1; i >= 0; i--) {
+        const std::string& output = params.outputs[i];
+        auto mapIterator = groupIDMap.find(params.configs[i]);
+        if (mapIterator == groupIDMap.end()) {
+            groupIDMap[params.configs[i]] = i;
+            subGroupMap[i] = i;
+        } else {
+            subGroupMap[i] = mapIterator->second;
+        }
+        if (!ExecutorPool::runParallel_) {
+            if (saveTag.find(output) == saveTag.end()){
+                savePoints[i] = i + 1;
+                saveTag[output] = i + 1;
             } else {
-                subGroupMap[i] = mapIterator->second;
-            }
-            int sharedID = idMapping_[uniqueID];
-            if (saveTag.find(sharedID) == saveTag.end()){
-                savePoints[i] = i;
-                saveTag[sharedID] = i;
-            } else {
-                savePoints[i] = saveTag[idMapping_[uniqueID]];
+                savePoints[i] = saveTag[output];
             }
         }
     }
@@ -336,9 +346,9 @@ int ResourcePool::getLayerByIndex(MifLayer** layerPtr,
 int ResourcePool::getSharedIDByIndex(const LayerType layerType, const int index,
         int* sharedID) {
     if (layerType == Input) {
-        CHECK_ARGS(index > -1 && index < inputSize_,
-                "Invalid index[%d] for input layer.", index);
         if (ExecutorPool::runParallel_) {
+            CHECK_ARGS(index > -1 && index < inputSize_,
+                    "Invalid index[%d] for input layer.", index);
             *sharedID = idMapping_[index];
         } else {
             *sharedID = idMapping_[0];

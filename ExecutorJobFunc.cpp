@@ -93,7 +93,7 @@ int ParseConfigFileJob::process(const int executorID) {
             edgeCount, totalCount - edgeCount, subGroups, srcLayers,
             targetLayers, resourcePool_));
     // 在串行模式下需要执行copyLoad
-    if (!ExecutorPool::runParallel_) {
+    if (!ExecutorPool::runParallel_ && (*targetLayers)[0]->isNew()) {
         (*targetLayers)[0]->copyLoad();
     }
     for (MifLayer* srcLayer : *targetLayers) {
@@ -167,7 +167,7 @@ int ParseConfigLinesJob::process(const int executorID) {
                 newJobs.insert(newJobs.end(),
                         resourcePool_->jobCache_[i].begin(),
                         resourcePool_->jobCache_[i].end());
-                resourcePool_->jobCache_.clear();
+                resourcePool_->jobCache_[i].clear();
             }
         }
         delete targetLayers_;
@@ -204,9 +204,10 @@ int ParseGroupJob::process(const int executorID) {
         if (--resourcePool_->parseGroupJobCount_ == 0) {
             std::vector<ExecutorJob*> newJobs;
             for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
-                newJobs.insert(newJobs.end(), resourcePool_->jobCache_[i].begin(),
+                newJobs.insert(newJobs.end(),
+                        resourcePool_->jobCache_[i].begin(),
                         resourcePool_->jobCache_[i].end());
-                resourcePool_->jobCache_.clear();
+                resourcePool_->jobCache_[i].clear();
             }
             if (!newJobs.empty()) {
                 std::lock_guard<std::mutex> candidateGuard(
@@ -304,9 +305,10 @@ int BuildGroupJob::process(const int executorID) {
     if (resourcePool_->parseGroupJobCount_ == 0) {
         std::vector<ExecutorJob*> newJobs;
         for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
-            newJobs.insert(newJobs.end(), resourcePool_->jobCache_[i].begin(),
+            newJobs.insert(newJobs.end(),
+                    resourcePool_->jobCache_[i].begin(),
                     resourcePool_->jobCache_[i].end());
-            resourcePool_->jobCache_.clear();
+            resourcePool_->jobCache_[i].clear();
         }
         if (!newJobs.empty()) {
             std::lock_guard<std::mutex> candidateGuard(
@@ -362,15 +364,15 @@ int ProcessMifItemsJob::process(const int executorID) {
     }
     if ((subGroup_->processedCount_ += itemCount_) == srcLayer_->size()) {
         std::vector<ExecutorJob*> newJobs;
-        if (!ExecutorPool::runParallel_ && 
-                !(resourcePool_->parseConfigFileJobs_.empty())) {
-            newJobs.push_back(resourcePool_->parseConfigFileJobs_.front());
-            resourcePool_->parseConfigFileJobs_.pop();
-        }
         if (*(subGroup_->finishedFileCount_) + 1 >=
                 subGroup_->savePoint_) {
             newJobs.push_back(new SaveLayerJob(subGroup_->targetLayerID_,
                     *(subGroup_->savePath_), resourcePool_));
+        }
+        if (!ExecutorPool::runParallel_ && 
+                !(resourcePool_->parseConfigFileJobs_.empty())) {
+            newJobs.push_back(resourcePool_->parseConfigFileJobs_.front());
+            resourcePool_->parseConfigFileJobs_.pop();
         }
         std::lock_guard<std::mutex> candidateQueueGuard(
                 resourcePool_->candidateQueueLock_);
