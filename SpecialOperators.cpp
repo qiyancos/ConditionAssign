@@ -8,7 +8,7 @@ namespace syntax {
 
 int funcOperatorListInit(const std::string name, Operator* newFuncOp) {
     funcOperatorList[name] = newFuncOp;
-    return 0;
+    return funcOperatorList.size();
 }
 
 int OperatorFunction::process(Node* node, MifItem* item) {

@@ -15,19 +15,17 @@ extern std::map<std::string, Operator*> funcOperatorList;
 int funcOperatorListInit(const std::string name, Operator* newFuncOp);
 
 // 用于运算符内置函数注册的宏
-#define FUNCOP_REG(Name, Type, Score, ...) \
+#define FUNCOP_REG(Name, Type, ...) \
     const std::set<DataType> func_op::FuncOperator##Name::dataTypes_ \
             {__VA_ARGS__}; \
-    const int func_op::FuncOperator##Name::score_ = Score; \
     const Operator::OperatorType func_op::FuncOperator##Name::type_ = Type; \
-    int globalInit##Name = funcOperatorListInit(""#Name"", \
-            new func_op::FuncOperator##Name);
+    const int func_op::FuncOperator##Name::id_ = funcOperatorListInit( \
+            ""#Name"", new func_op::FuncOperator##Name) + 217;
 
-#define OPREG_SPECIAL(Name, Type, Score, ...) \
+#define OPREG_SPECIAL(Name, Type, ...) \
     const std::set<DataType> Operator##Name::dataTypes_ {__VA_ARGS__}; \
-    const int Operator##Name::score_ = Score; \
     const Operator::OperatorType Operator##Name::type_ = Type; \
-    int globalOpReg##Name = operatorListInit(new Operator##Name());
+    const int Operator##Name::id_ = operatorListInit(new Operator##Name());
 
 // 特殊的运算符的声明
 class OperatorFunction : public Operator {
@@ -36,7 +34,7 @@ public:
     ~OperatorFunction() = default;
     OperatorType type() {return type_;}
     std::string str() {return "";}
-    int score() {return score_;}
+    int id() {return id_;}
     int process(Node* node, MifItem* item);
     int find(Operator** newOperatorPtr, const std::string& content,
             std::pair<size_t, size_t>* range, std::string* opName);
@@ -45,8 +43,8 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-    /* 用于记录当前运算符的分数 */
-    static const int score_;
+    /* 用于记录当前运算符的唯一ID */
+    static const int id_;
     /* 用于记录当前运算符的类型 */
     static const OperatorType type_;
 };
@@ -58,7 +56,7 @@ public:
     ~OperatorReplace() = default;
     OperatorType type() {return type_;}
     std::string str();
-    int score() {return score_;}
+    int id() {return id_;}
     int process(Node* node, MifItem* item);
     int find(Operator** newOperatorPtr, const std::string& content,
             std::pair<size_t, size_t>* range, std::string* opName);
@@ -76,8 +74,8 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-    /* 用于记录当前运算符的分数 */
-    static const int score_;
+    /* 用于记录当前运算符的唯一ID */
+    static const int id_;
     /* 用于记录当前运算符的类型 */
     static const OperatorType type_;
     // 记录了进行替换的两个关键变量
@@ -93,7 +91,7 @@ public:
     ~FuncOperatorInRange() = default;
     OperatorType type() {return type_;}
     std::string str() {return "InRange";}
-    int score() {return score_;}
+    int id() {return id_;}
     int process(Node* node, MifItem* item);
     int find(Operator** newOperatorPtr, const std::string& content,
             std::pair<size_t, size_t>* range, std::string* opName);
@@ -111,8 +109,8 @@ public:
 private:
     /* 用于记录当前运算符支持的数据类型 */
     static const std::set<DataType> dataTypes_;
-    /* 用于记录当前运算符的分数 */
-    static const int score_;
+    /* 用于记录当前运算符的唯一ID*/
+    static const int id_;
     /* 用于记录当前运算符的类型 */
     static const OperatorType type_;
     // 记录了进行替换的两个关键变量

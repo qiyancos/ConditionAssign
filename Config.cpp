@@ -20,6 +20,7 @@ ConfigItem::~ConfigItem() {
     }
 }
 
+/*
 int ConfigItem::score() {
     if (score_ == -1) {
         int tempScore = 0;
@@ -32,6 +33,7 @@ int ConfigItem::score() {
     }
     return score_;
 }
+*/
 
 int ConfigItem::addOperator(syntax::Operator* newOperator,
         syntax::Operator** newOperatorPtr) {
@@ -513,14 +515,6 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
     return 0;
 }
 
-int groupKeyGenerate(const std::string& str) {
-    int sum = 0;
-    for (int i = 0; i < str.length(); i++) {
-        sum += (str[i] == ' ' ? 0 : str[i]);
-    }
-    return (sum ^ (str.length() * 1234)) + sum;
-}
-
 int parseGroupArgs(const std::string& content, std::string* layerName,
         std::string* conditions, std::string* oldTagName,
         std::string* newTagName, std::string* tagName) {
@@ -584,14 +578,15 @@ int parseGroupArgs(const std::string& content, std::string* layerName,
 }
 
 int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
-        std::pair<int, Group*>* itemGroup, std::pair<int, Group*>* typeGroup) {
+        std::pair<int64_t, Group*>* itemGroup,
+        std::pair<int64_t, Group*>* typeGroup) {
     std::string layerName, conditions, oldTagName, newTagName, tagName;
     CHECK_RET(parseGroupArgs(content, &layerName, &conditions, &oldTagName,
             &newTagName, &tagName), "Failed to parse group arguments.");
     CHECK_RET(resourcePool->getPluginFullPath(layerName, &layerName),
             "Can not find plugin layer \"%s\".", layerName.c_str());
-    int staticItemGroupKey = groupKeyGenerate(layerName + conditions);
-    int typeGroupKey = groupKeyGenerate(layerName + conditions + tagName);
+    int64_t staticItemGroupKey = syntax::keyGenerate(layerName + conditions);
+    int64_t typeGroupKey = syntax::keyGenerate(layerName + conditions + tagName);
     // 生成Group信息
     MifLayer* pluginLayer;
     CHECK_RET(resourcePool->getLayerByName(&pluginLayer, ResourcePool::Plugin,
@@ -621,6 +616,7 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
             itemGroup->second->info_ = new Group::GroupInfo();
             itemGroup->second->info_->layerName_ = layerName;
             itemGroup->second->info_->tagName_ = tagName;
+            itemGroup->second->groupKey_ = staticItemGroupKey;
             // 解析条件语句
             itemGroup->second->setLayer(pluginLayer);
             std::vector<std::pair<std::string, Group**>*> newGroup;
@@ -635,6 +631,7 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
             itemGroup->first = staticItemGroupKey;
         case 1:
             typeGroup->first = typeGroupKey;
+            typeGroup->second->groupKey_ = typeGroupKey;
         case 2: return 0;
         default:
             CHECK_RET(-1, "Failed to find and insert new groups.");
@@ -642,8 +639,9 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
     } else {
         // 动态Group的处理
         itemGroup->second = new ItemGroup(true);
-        int dynamicItemGroupKey = groupKeyGenerate(layerName + conditions +
+        int64_t dynamicItemGroupKey = syntax::keyGenerate(layerName + conditions +
                     oldTagName + newTagName);
+        itemGroup->second->groupKey_ = dynamicItemGroupKey;
         if (resourcePool->findInsertGroup(dynamicItemGroupKey,
                 &(itemGroup->second)) > -1) {
             return 0;

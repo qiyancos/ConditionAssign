@@ -24,7 +24,7 @@ public:
     ~ConfigItem();
 
     // 获取当前ConfigItem的分数
-    int score();
+    // int score();
     // 添加一个新的运算符到运算符库中
     int addOperator(syntax::Operator* newOperator,
             syntax::Operator** newOperatorPtr = nullptr);
@@ -119,7 +119,8 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
 
 // 解析当前组的基本信息
 int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
-        std::pair<int, Group*>* itemGroup, std::pair<int, Group*>* typeGroup);
+        std::pair<int64_t, Group*>* itemGroup,
+        std::pair<int64_t, Group*>* typeGroup);
 
 } // namespace parser
 

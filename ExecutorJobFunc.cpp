@@ -190,7 +190,7 @@ int ParseConfigLinesJob::process(const int executorID) {
 int ParseGroupJob::process(const int executorID) {
     TEST(executorID);
     // 第一个整数为-1表示当前Group是否已经存在并注册
-    using GroupPair = std::pair<int, Group*>;
+    using GroupPair = std::pair<int64_t, Group*>;
     GroupPair itemGroup(-1, nullptr), typeGroup(-1, nullptr);
     CHECK_RET(parser::parseGroupInfo(groupInfo_->first,
             resourcePool_, &itemGroup, &typeGroup),
@@ -283,21 +283,15 @@ int BuildGroupJob::process(const int executorID) {
         MifItem* workingItem;
         std::vector<int> matchIndexes;
         while (totalCount--) {
-#ifdef USE_MIFITEM_CACHE
             CHECK_RET(pluginLayer_->newMifItem(index, nullptr, &workingItem),
                     "Failed to create new mif item while building group.");
-#else
-            workingItem = new MifItem(index, pluginLayer_, nullptr);
-#endif
             result = satisfyConditions(*(groupInfo->configItem_),
                     workingItem);
             CHECK_RET(result, "Failed to check conditions in mif item.");
             if (result) {
                 matchIndexes.push_back(index);
             }
-#ifndef USE_MIFITEM_CACHE
             delete workingItem;
-#endif
             index++;
         }
         itemGroup_->addElements(matchIndexes);
@@ -339,17 +333,9 @@ int ProcessMifItemsJob::process(const int executorID) {
 #ifdef DEBUG_OP
         std::cout << ">>Process Mif Item: " << itemIndex << std::endl;
 #endif
-#ifdef USE_MIFITEM_CACHE
-        if (srcLayer_->withItemCache()) {
-            CHECK_RET(srcLayer_->newMifItem(itemIndex++, targetLayer_,
-                    &workingItem), "Failed to create %s",
-                    "new mif item while processing mif item.");
-        } else {
-            workingItem = new MifItem(itemIndex++, srcLayer_, targetLayer_);
-        }
-#else
-        workingItem = new MifItem(itemIndex++, srcLayer_, targetLayer_);
-#endif
+        CHECK_RET(srcLayer_->newMifItem(itemIndex++, targetLayer_,
+                &workingItem), "Failed to create %s",
+                "new mif item while processing mif item.");
         for (int configIndex = 0; configIndex < totalConfigCount;
                 configIndex++) {
             int result = 0;
@@ -372,13 +358,7 @@ int ProcessMifItemsJob::process(const int executorID) {
                 break;
             }
         }
-#ifdef USE_MIFITEM_CACHE
-        if (!srcLayer_->withItemCache()) {
-            delete workingItem;
-        }
-#else
         delete workingItem;
-#endif
     }
     if ((subGroup_->processedCount_ += itemCount_) == srcLayer_->size()) {
         std::vector<ExecutorJob*> newJobs;

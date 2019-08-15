@@ -28,6 +28,9 @@ do
     then continue
     fi
     layerName=`basename $layer | sed 's/.conf//g'`
+    if [ ! -f $root/data/$layerName.mif ]
+    then continue
+    fi
     layerNames="$layerName $layerNames"
     eval ${layerName}Index=$index
     Modules[$index]="NULL"

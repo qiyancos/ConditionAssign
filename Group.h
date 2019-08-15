@@ -109,6 +109,8 @@ public:
     Semaphore parseDone_;
     // Group数据是否准备完毕
     Semaphore ready_;
+    // 当前Group的key值
+    int64_t groupKey_;
 
 protected:
     // 元素所在层

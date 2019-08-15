@@ -8,6 +8,24 @@ namespace condition_assign {
 
 double globalDouble = 0.0f;
 
+MifLayer::ItemInfo::ItemInfo() {
+#ifdef USE_MIFITEM_CACHE
+    tagStringCacheLock_ = new std::mutex();
+    tagNumberCacheLock_ = new std::mutex();
+#endif
+    dynamicGroupCacheLock_ = new std::mutex();
+    geometryLock_ = new std::mutex();
+}
+
+MifLayer::ItemInfo::~ItemInfo() {
+#ifdef USE_MIFITEM_CACHE
+    delete tagStringCacheLock_;
+    delete tagNumberCacheLock_;
+#endif
+    delete dynamicGroupCacheLock_;
+    delete geometryLock_;
+}
+
 MifLayer::MifLayer(const std::string& layerPath,
         MifLayer* copySrcLayer) : copySrcLayer_(copySrcLayer),
         layerPath_(layerPath) {
@@ -18,10 +36,6 @@ int MifLayer::size() {
     return mifSize_;
 }
 
-bool MifLayer::withItemCache() {
-    return withItemCache_;
-}
-
 Group::Type MifLayer::getGeoType() {
     return geoType_;
 }
@@ -30,14 +44,8 @@ int MifLayer::newMifItem(const int index, MifLayer* targetLayer,
         MifItem** newItemPtr) {
     CHECK_ARGS(index > -1 && index < mifSize_,
             "Mif item index[%d] out of bound.", index);
-#ifdef USE_MIFITEM_CACHE
-    CHECK_ARGS(withItemCache_,
-            "Can not get new mif item from miflayer without item cache.");
     *newItemPtr = new MifItem(index, this, targetLayer,
             &(itemInfoCache_[index]));
-#else
-    *newItemPtr = new MifItem(index, this, targetLayer);
-#endif
     return 0;
 }
 
@@ -193,11 +201,7 @@ int MifLayerNormal::open() {
                 layerPath_.c_str());
         mifSize_ = mif_.mid.size();
         geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
-#ifdef USE_MIFITEM_CACHE
-        if (withItemCache_) {
-            itemInfoCache_.resize(mifSize_);
-        }
-#endif
+        itemInfoCache_.resize(mifSize_);
         ready_.signalAll();
     } else {
         copySrcLayer_->ready_.wait();
@@ -327,23 +331,9 @@ int MifLayerNormal::getGeometry(wsl::Geometry** val, const int index) {
     return 0;
 }
 
-MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer) :
-        srcLayer_(srcLayer), targetLayer_(targetLayer), index_(index) {
-#ifdef USE_MIFITEM_CACHE
-    info_ = new MifLayer::ItemInfo();
-    newInfo_ = true;
-#endif
-}
-
 MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer,
         MifLayer::ItemInfo* info) :  srcLayer_(srcLayer),
         targetLayer_(targetLayer), index_(index), info_(info) {}
-
-MifItem::~MifItem() {
-    if (newInfo_) {
-        delete info_;
-    }
-}
 
 int MifItem::assignWithTag(const std::string& tagName,
         const std::string& val) {
@@ -352,7 +342,7 @@ int MifItem::assignWithTag(const std::string& tagName,
     CHECK_RET(targetLayer_->assignWithTag(tagName, index_, val),
             "Failed to assign value to tag \"%s\".", tagName.c_str());
 #ifdef USE_MIFITEM_CACHE
-    std::lock_guard<std::mutex> cacheGuard(tagStringCacheLock_);
+    std::lock_guard<std::mutex> cacheGuard(*(info_->tagStringCacheLock_));
     info_->tagStringCache[tagName] = val;
 #endif
     return 0;
@@ -360,7 +350,7 @@ int MifItem::assignWithTag(const std::string& tagName,
 
 int MifItem::getTagVal(const std::string& tagName, std::string* val) {
 #ifdef USE_MIFITEM_CACHE
-    std::lock_guard<std::mutex> cacheGuard(tagStringCacheLock_);
+    std::lock_guard<std::mutex> cacheGuard(*(info_->tagStringCacheLock_));
     auto cacheIterator = info_->tagStringCache.find(tagName);
     if (cacheIterator != info_->tagStringCache.end()) {
         *val = cacheIterator->second;
@@ -382,7 +372,7 @@ int MifItem::getTagVal(const std::string& tagName, std::string* val) {
 
 int MifItem::getTagVal(const std::string& tagName, double* val) {
 #ifdef USE_MIFITEM_CACHE
-    std::lock_guard<std::mutex> cacheGuard(tagNumberCacheLock_);
+    std::lock_guard<std::mutex> cacheGuard(*(info_->tagNumberCacheLock_));
     auto cacheNumberIterator = info_->tagNumberCache.find(tagName);
     if (cacheNumberIterator != info_->tagNumberCache.end()) {
         *val = cacheNumberIterator->second;
@@ -402,22 +392,53 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
     CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
             "Failed to get value of tag \"%s\" from mif layer.",
             tagName.c_str());
-    *val = atof(tagVal.c_str());
+    CHECK_ARGS(syntax::isType(tagVal, val),
+            "Tag \"%s\" value \"%s\" can not be convert to a number.",
+            tagName.c_str(), tagVal.c_str())
     return 0;
 #endif
 }
 
 int MifItem::getGeometry(wsl::Geometry** val) {
-    if (geometry != nullptr) {
-        *val = geometry;
+    if (info_->geometry_ != nullptr) {
+        *val = info_->geometry_;
         return 0;
     } else {
-        std::lock_guard<std::mutex> geoGuard(geometryLock_);
+        std::lock_guard<std::mutex> geoGuard(*(info_->geometryLock_));
         CHECK_RET(srcLayer_->getGeometry(val, index_),
                 "Failed to get geometry from mif layer in item[%d].", index_);
-        geometry = *val;
+        info_->geometry_ = *val;
         // 强制调用对应对象的_cal_
-        globalDouble = geometry->mbr().ll._x_;
+        globalDouble = info_->geometry_->mbr().ll._x_;
+        return 0;
+    }
+}
+
+int MifItem::findBuildDynamicGroup(Group** groupPtr, int64_t dynamicGroupKey,
+        Group* itemGroup) {
+    std::lock_guard<std::mutex> cacheGuard(*(info_->dynamicGroupCacheLock_));
+    auto mapIterator = info_->dynamicGroupCache_.find(dynamicGroupKey);
+    if (mapIterator != info_->dynamicGroupCache_.end()) {
+        *groupPtr = mapIterator->second;
+    } else {
+        CHECK_RET(itemGroup->buildDynamicGroup(groupPtr, this),             
+                "Failed to build dynamic group.");
+        info_->dynamicGroupCache_[dynamicGroupKey] = *groupPtr;
+    }
+    return 0;
+}
+
+int MifItem::findInsertProcessResult(bool** resultPtr, int64_t processKey) {
+    auto mapIterator = processResultCache_.find(processKey);
+    if (mapIterator != processResultCache_.end()) {
+        **resultPtr = mapIterator->second;
+        return 1;
+    } else {
+        if (*resultPtr) {
+            delete *resultPtr;
+        }
+        processResultCache_[processKey] = false;
+        *resultPtr = &(processResultCache_[processKey]);
         return 0;
     }
 }

@@ -178,29 +178,6 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
 #ifndef USE_MIFITEM_CACHE
     }
 #endif
-    CHECK_RET(initLayers(params, readOnlyLayers, *layerInfo),
-            "Faile to init layers' properties.");
-    return 0;
-}
-
-int ResourcePool::initLayers(const ExecutorPool::Params& params,
-        const std::map<std::string, int>& readOnlyLayers,
-        const std::map<std::string, LayerInfo>& layerInfo) {
-#ifdef USE_MIFITEM_CACHE
-    if (!ExecutorPool::runParallel_) {
-        if (layerInfo[params.inputs[0]].outputIndexes.size() > 1) {
-            layers_[0]->setWithItemCache();
-        }
-    }
-#endif
-    for (auto readOnlyLayer : readOnlyLayers) {
-        // 设置输入层的地理类型
-        const LayerInfo& info = layerInfo[readOnlyLayer.first];
-        if (info.inputIndexes.size() + info.pluginIndexes.size() > 1 ||
-                info.pluginIndexes.size() > 0) {
-            layers_[readOnlyLayer.second]->setWithItemCache();
-        }
-    }
     return 0;
 }
 
@@ -251,7 +228,7 @@ int ResourcePool::insertGroup(const int key, Group* newGroup) {
     return 0;
 }
 
-int ResourcePool::findGroup(const int key, Group** groupPtr){
+int ResourcePool::findGroup(const int64_t key, Group** groupPtr){
     std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     auto mapIterator = groupMap_.find(key);
     if (mapIterator == groupMap_.end()) {
@@ -262,8 +239,9 @@ int ResourcePool::findGroup(const int key, Group** groupPtr){
     }
 }
 
-int ResourcePool::findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
-        const int typeGroupKey, Group** typeGroupPtr) {
+int ResourcePool::findInsertGroup(const int64_t itemGroupKey,
+        Group** itemGroupPtr, const int64_t typeGroupKey,
+        Group** typeGroupPtr) {
     int result = 0;
     std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     auto itemIterator = groupMap_.find(itemGroupKey);

@@ -38,10 +38,10 @@ public:
     // 插入生成好的Group到映射中去
     int insertGroup(const int key, Group* newGroup);
     // 根据group的key获取
-    int findGroup(const int key, Group** groupPtr);
+    int findGroup(const int64_t key, Group** groupPtr);
     // 根据group的key获取并插入Group(与解析匹配的功能)
-    int findInsertGroup(const int itemGroupKey, Group** itemGroupPtr,
-            const int typeGroupKey = -1, Group** typeGroupPtr = nullptr);
+    int findInsertGroup(const int64_t itemGroupKey, Group** itemGroupPtr,
+            const int64_t typeGroupKey = -1, Group** typeGroupPtr = nullptr);
     
     // 获取Layer实体的个数
     int getLayersCount();
@@ -81,10 +81,6 @@ private:
     // 根据输入模型设置依赖关系和Layer属性
     int initRunningModel(const ExecutorPool::Params& params,
             std::map<std::string, LayerInfo>* layerInfo);
-    // 初始化Layer的属性信息
-    int initLayers(const ExecutorPool::Params& params,
-            const std::map<std::string, int>& readOnlyLayers,
-            const std::map<std::string, LayerInfo>& layerInfo);
     // 初始化ConfigGroup
     int initConfigGroup(const ExecutorPool::Params& params,
             const std::map<std::string, LayerInfo>& layerInfo);
@@ -107,7 +103,7 @@ private:
     // 所有Group数据缓存的锁
     std::mutex groupMapLock_;
     // 用于缓存Group查找的映射
-    std::map<int, Group*> groupMap_;
+    std::map<int64_t, Group*> groupMap_;
 
     // UniqueID到sharedID的映射
     std::vector<int> idMapping_;

@@ -7,17 +7,16 @@ namespace condition_assign {
 
 namespace syntax {
 
-#define OPREG_NORMAL(Name, Type, Score, String, ...) \
+#define OPREG_NORMAL(Name, Type, String, ...) \
     const std::set<DataType> Operator##Name::dataTypes_ {__VA_ARGS__}; \
     const std::string Operator##Name::str_ = String; \
-    const int Operator##Name::score_ = Score; \
     const Operator::OperatorType Operator##Name::type_ = Type; \
-    int globalOpReg##Name = operatorListInit(new Operator##Name());
+    const int Operator##Name::id_ = operatorListInit(new Operator##Name());
 
-#define OPINIT_NORMAL(Name, Type, Score, String, ...) \
+#define OPINIT_NORMAL(Name, Type, String, ...) \
     const std::set<DataType> Operator##Name::dataTypes_ {__VA_ARGS__}; \
     const std::string Operator##Name::str_ = String; \
-    const int Operator##Name::score_ = Score; \
+    const int Operator##Name::id_ = 0; \
     const Operator::OperatorType Operator##Name::type_ = Type; \
 
 // 定义单个运算符
@@ -28,7 +27,7 @@ namespace syntax {
         ~Operator##Name() = default; \
         std::string str() {return str_;} \
         OperatorType type() {return type_;} \
-        int score() { return score_; } \
+        int id() { return id_; } \
         \
         int process(Node* node, MifItem* item); \
         \
@@ -62,8 +61,8 @@ namespace syntax {
         static const std::set<DataType> dataTypes_; \
         /* 记录了当前运算符对应的字符串 */ \
         static const std::string str_; \
-        /* 用于记录当前运算符的分数 */ \
-        static const int score_; \
+        /* 用于记录当前运算符的唯一ID*/ \
+        static const int id_; \
         /* 用于记录当前运算符的类型 */ \
         static const OperatorType type_; \
     }; \

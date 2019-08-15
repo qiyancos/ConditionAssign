@@ -18,11 +18,31 @@ extern double globalDouble;
 
 class MifLayer {
 public:
-    struct ItemInfo {
+    class ItemInfo {
+    public:
+        // 构造函数
+        ItemInfo();
+        //析构函数
+        ~ItemInfo();
+
+#ifdef USE_MIFITEM_CACHE
+        // 缓存的Tag数值(字符串)映射锁
+        std::mutex* tagStringCacheLock_;
         // 缓存的Tag数值(字符串)映射
-        std::map<std::string, std::string> tagStringCache;
+        std::map<std::string, std::string> tagStringCache_;
+        // 缓存的Tag数值(浮点数)映射锁
+        std::mutex* tagNumberCacheLock_;
         // 缓存的Tag数值(浮点数)映射
-        std::map<std::string, double> tagNumberCache;
+        std::map<std::string, double> tagNumberCache_;
+#endif
+        // 动态Group缓存的锁
+        std::mutex* dynamicGroupCacheLock_;
+        // 动态Group的缓存，放置多次重建
+        std::map<int64_t, Group*> dynamicGroupCache_;
+        // 计算地理位置时的锁
+        std::mutex* geometryLock_;
+        // 缓存的地理坐标信息
+        wsl::Geometry* geometry_ = nullptr;
     };
 
 public:
@@ -33,10 +53,6 @@ public:
     
     // 获取当前layer的大小
     int size();
-    // 判断当前Layer是否拥有ItemCache
-    bool withItemCache();
-    // 设置当前的Layer是否需要ItemCache
-    void setWithItemCache() {withItemCache_ = true;}
     // 设置当前Layer的属性为输入
     void setAsInput() {isInput = true;}
     // 设置当前Layer的属性为输出
@@ -80,8 +96,6 @@ public:
     int mifSize_;
     // 当前MifLayer是否打开
     Semaphore ready_;
-    // 复制载入对应的MifLayer
-    MifLayer* copySrcLayer_;
     // 缓存Tag名称到对应索引的映射关系，快速查找
     std::map<std::string, int> tagColCache_;
     // 缓存的Tag的数据类型
@@ -90,6 +104,8 @@ public:
 protected:
     // mif数据锁
     std::mutex mifLock_;
+    // 复制载入对应的MifLayer
+    MifLayer* copySrcLayer_;
     // 对应文件的路径
     std::string layerPath_;
     
@@ -98,8 +114,6 @@ protected:
     // Tag类型映射缓存的锁
     std::mutex tagTypeCacheLock_;
     
-    // 当前的Layer是否需要itemCache
-    bool withItemCache_;
     // MifItem对应的缓存
     std::vector<ItemInfo> itemInfoCache_;
     
@@ -180,12 +194,10 @@ public:
 class MifItem {
 public:
     // 构造函数
-    MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer);
-    // 构造函数
     MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer,
             MifLayer::ItemInfo* info);
     // 析构函数
-    ~MifItem();
+    ~MifItem() = default;
 
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const std::string& val);
@@ -195,6 +207,11 @@ public:
     int getTagVal(const std::string& tagName, double* val);
     // 获取当前MifItem地理坐标信息
     int getGeometry(wsl::Geometry** val);
+    // 查找是否存在一个动态组，没有则会建立并插入动态组
+    int findBuildDynamicGroup(Group** groupPtr, int64_t dynamicGroupKey,
+            Group* itemGroup);
+    // 查找已有的运算结果
+    int findInsertProcessResult(bool** resultPtr, int64_t processKey);
 
 public:
     // 当前MifItem所属的MifLayer
@@ -205,17 +222,8 @@ public:
     const int index_;
 
 private:
-    // 当前MifItem的info是否是新生成的
-    bool newInfo_ = true;
-    // 缓存的Tag数值(字符串)映射锁
-    std::mutex tagStringCacheLock_;
-    // 缓存的Tag数值(浮点数)映射锁
-    std::mutex tagNumberCacheLock_;
-    // 计算地理位置时的锁
-    std::mutex geometryLock_;
-    
-    // 缓存的地理坐标信息
-    wsl::Geometry* geometry = nullptr;
+    // 用于缓存复杂运算的运算结果
+    std::map<int64_t, bool> processResultCache_;
     // 当前MifItem的info
     MifLayer::ItemInfo* info_ = nullptr;
 };

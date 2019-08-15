@@ -13,9 +13,10 @@ Create on: 2018/08/27
 *************************************************/
 
 #include "htk/str_helpers.h"
+#include "tx_common.h"
+#include "tx_platform.h"
 
-#include <tx_common.h>
-#include <tx_platform.h>
+#include <stdint.h>
 
 #include <locale>
 #include <iostream>

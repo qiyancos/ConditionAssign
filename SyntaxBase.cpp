@@ -8,6 +8,17 @@ namespace condition_assign{
 
 namespace syntax {
 
+// https://blog.csdn.net/g1036583997/article/details/51910598
+// 这里使用的是BKDRHash算法
+int64_t keyGenerate(const std::string& str, int64_t oldHash) {
+    register int64_t hash = oldHash;
+    int index = 0;
+    while(index < str.length()) {
+        hash = hash * 131 + str[index++];
+    }
+    return abs(hash);
+}
+
 std::string getTypeString(const DataType type) {
     switch(type) {
     case Empty: return "Empty";
@@ -60,9 +71,11 @@ template bool isType<std::string>(const std::string&, std::string*);
 
 int operatorListInit(Operator* newOp) {
     operatorList.push_back(newOp);
-    return 0;
+    return operatorList.size();
 }
 
+/*
+// 用于计算计算强度的函数，已关闭
 int calculateScore(const std::vector<Node*>& nodeVec) {
     int score = 0;
     for (Node* node : nodeVec) {
@@ -83,6 +96,7 @@ int calculateScore(const std::vector<Node*>& nodeVec) {
     }
     return score;
 }
+*/
 
 } // namespace syntax
 

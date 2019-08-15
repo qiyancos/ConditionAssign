@@ -29,6 +29,8 @@ namespace syntax {
             "Unsupported data type!"); \
 }
 
+// 用于生成一个字符串的hash数值
+int64_t keyGenerate(const std::string& str, int64_t oldHash = 0);
 // 数据类型
 enum DataType {Empty, New, Number, String, GroupType, Expr};
 // debug使用获取数据类型对应的字符串
@@ -60,7 +62,7 @@ public:
     // 运算符的类型，类型可以辅助解析
     enum OperatorType {Condition, Assign};
     // 获取当前运算符的运算评分
-    virtual int score() = 0;
+    virtual int id() = 0;
     // 获取当前运算符的类型
     virtual OperatorType type() = 0;
     // 根据给定的节点数据，计算运算结果
@@ -111,7 +113,7 @@ extern std::vector<Operator*> operatorList;
 int operatorListInit(Operator* newOp);
 
 // 计算一个节点向量的分数
-int calculateScore(const std::vector<Node*>& nodeVec);
+// int calculateScore(const std::vector<Node*>& nodeVec);
 
 } // namesapce syntax
 
