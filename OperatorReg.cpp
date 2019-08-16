@@ -51,6 +51,7 @@ OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
 // 赋值相关运算符的声明
 OPREG_NORMAL(SelfAdd, Assign, "+=", New, Number, String);
 // 特殊运算符注册
+OPREG_SPECIAL(PartialEqual, Condition, String);
 OPREG_SPECIAL(Replace, Assign, String);
 // 尽量提升Assign等级加快解析匹配速度
 OPREG_NORMAL(Assign, Assign, "=", New, Number, String);

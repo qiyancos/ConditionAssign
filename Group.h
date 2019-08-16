@@ -1,8 +1,10 @@
 #ifndef GROUP_H
 #define GROUP_H
 
-#include "type_factory.h"
 #include "Semaphore.h"
+
+#include "type_factory.h"
+#include "rtree/rtree.h"
 
 #include <vector>
 #include <atomic>
@@ -157,11 +159,17 @@ private:
 
 class GeometryGroup : public Group {
 public:
+    // 普通构造函数
     GeometryGroup();
+    // 析构函数
+    ~GeometryGroup();
+    
     // 基于ItemGroup构造AreaGroup
     int init(const Group& itemGroup, const std::string& tagName);
     // 添加元素
     int addElements(const std::vector<wsl::Geometry*>& newElements);
+    // 用于RTree函数搜索时的CallBack处理函数
+    static int rtreeSearchCallBacl(int id, void* arg);
 
     // 地理位置包含的判断
     int checkOneContain(const Type inputType, wsl::Geometry* src,
@@ -190,7 +198,10 @@ public:
             bool* result);
 
 private:
+    // 存放实际的满足要求的所有地理结构
     std::vector<wsl::Geometry*> group_;
+    // 由当前地理结构构建的RTree
+    RTreeRoot* groupRtree_ = nullptr;
 };
 
 } // namespace condition_assign

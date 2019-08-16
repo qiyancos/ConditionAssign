@@ -13,14 +13,16 @@ CPPFLAGS=-g -O2 -std=c++11 -finline-functions -std=gnu++0x \
         -DDEBUG
 LDFLAGS=-pg
 
-INCLUDE_PATH=-I ../../lib/spatial-base/output \
+INCLUDE_PATH=-I ../../lib/rtree/dist/include \
+        -I ../../lib/spatial-base/output \
 		-I ../../lib/type_factory/output \
 		-I ../../lib/styleparser/output \
 		-I ../../lib/tx_tools/output \
 		-I ../../lib/conf_helper/output \
 		-I ../../lib/htk/dist/include
 				
-LIB_PATH=-L ../../lib/styleparser/output -lstyleparser \
+LIB_PATH=-L ../../lib/rtree/dist/lib -lrtree \
+        -L ../../lib/styleparser/output -lstyleparser \
 		-L ../../lib/spatial-base/output -lwslb_d \
 		-L ../../lib/type_factory/output -ltype_factory_d \
 		-L ../../lib/tx_tools/output -ltx_tools \

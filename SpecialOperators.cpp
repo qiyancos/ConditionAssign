@@ -39,6 +39,59 @@ int OperatorFunction::find(Operator** newOperatorPtr,
             opName);
 }
 
+OperatorPartialEqual::OperatorPartialEqual(const int startIndex,
+        const int length) : Operator(), startIndex_(startIndex),
+        length_(length) {}
+
+std::string OperatorPartialEqual::str() {
+    std::stringstream symbol;
+    symbol << "[" << startIndex_ << ":";
+    symbol << length_ << "]==";
+    return symbol.str();
+}
+
+int OperatorPartialEqual::process(Node* node, MifItem* item) {
+    BINARYOP_CHECK();
+    std::string leftVal;
+    CHECK_RET(item->getTagVal(node->tagName, &leftVal),
+            "Tag [%s] not found!", node->tagName.c_str());
+    if (startIndex_ + length_ > leftVal.size()) {
+        return 0;
+    }
+    return leftVal.substr(startIndex_, length_) == node->value.stringValue;
+}
+
+int OperatorPartialEqual::find(Operator** newOperatorPtr,
+        const std::string& content, std::pair<size_t, size_t>* range,
+        std::string* opName) {
+    *opName = "OperatorPartialEqual";
+    size_t leftBracketIndex = content.find("[");
+    size_t colonIndex = content.find(":");
+    size_t rightBracketIndex = content.find("]==");
+    if (leftBracketIndex == std::string::npos ||
+            colonIndex == std::string::npos ||
+            rightBracketIndex == std::string::npos) {
+        return 0;
+    }
+    int startPosLength = colonIndex - leftBracketIndex - 1;
+    int lengthLength = rightBracketIndex - colonIndex - 1;
+    CHECK_ARGS(startPosLength > 0 && lengthLength > 0,
+            "Can not find start position or end position.");
+    range->first = leftBracketIndex;
+    range->second = rightBracketIndex + 2;
+    std::string startIndexString = content.substr(leftBracketIndex + 1,
+            startPosLength);
+    std::string lengthStr = content.substr(colonIndex + 1, lengthLength);
+    CHECK_ARGS(isType(startIndexString, &startIndex_),
+            "Start postion \"%s\" can not be converted to number.",
+            startIndexString.c_str());
+    CHECK_ARGS(isType(lengthStr, &length_),
+            "Length \"%s\" can not be converted to number.",
+            startIndexString.c_str());\
+    *newOperatorPtr = new OperatorPartialEqual(startIndex_, length_);
+    return 1;
+}
+
 OperatorReplace::OperatorReplace(const int startIndex, const int length) :
         Operator(), startIndex_(startIndex), length_(length) {}
 

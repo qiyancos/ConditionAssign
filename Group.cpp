@@ -246,6 +246,11 @@ int TagGroup::checkAllContain(const std::string& src, bool* result) {
 
 GeometryGroup::GeometryGroup() : Group(Item) {}
 
+GeometryGroup::~GeometryGroup() {
+    if (groupRtree_)
+    RTreeDestroy(groupRtree_);
+}
+
 int GeometryGroup::init(const Group& itemGroup, const std::string& tagName) {
     CHECK_ARGS(itemGroup.getGroupType() == Item,
             "Cannot expand from group with no item-type.");
@@ -254,11 +259,16 @@ int GeometryGroup::init(const Group& itemGroup, const std::string& tagName) {
     MifLayer* srcLayer = group.getLayer();
     type_ = srcLayer->getGeoType();
     wsl::Geometry* geoVal;
+    if (!groupRtree_) {
+        groupRtree_ = RTreeCreate();
+    }
+    int elementID = 1;
     for (int index : group.group_) {
         CHECK_RET(srcLayer->getGeometry(&geoVal, index),
             "Failed to get geometry from mif layer in item[%d].", index);
-        // 强制调用对应对象的_cal_
-        globalDouble = geoVal->mbr().ll._x_;
+        Rect rect {geoVal->mbr().ll.x(), geoVal->mbr().ll.y(),
+                geoVal->mbr().ru.x(), geoVal->mbr().ru.y()};
+        RTreeInsertRect(groupRtree_, &rect, elementID++, 0);
         group_.push_back(geoVal);
     }
     size_ = group_.size();
@@ -272,230 +282,323 @@ int GeometryGroup::init(const Group& itemGroup, const std::string& tagName) {
 int GeometryGroup::addElements(
         const std::vector<wsl::Geometry*>& newElements) {
     group_.insert(group_.end(), newElements.begin(), newElements.end());
+    int elementID = size_ + 1;
+    if (!groupRtree_) {
+        groupRtree_ = RTreeCreate();
+    }
+    for (wsl::Geometry* element : newElements) {
+        Rect rect {element->mbr().ll.x(), element->mbr().ll.y(),
+                element->mbr().ru.x(), element->mbr().ru.y()};
+        RTreeInsertRect(groupRtree_, &rect, elementID++, 0);
+    }
     size_ += newElements.size();
     return 0;
 }
 
+int rtreeSearchCallBack(int id, void* arg) {
+    std::vector<int>* vecPtr = reinterpret_cast<std::vector<int>*>(arg);
+    vecPtr->push_back(id - 1);
+    return 1;
+}
+
 int GeometryGroup::checkOneContain(const Type inputType, wsl::Geometry* src,
         bool* result) {
+    *result = false;
     if (!size_) {
-        *result = false;
         return 0;
     }
     CHECK_ARGS(static_cast<int>(inputType) >= static_cast<int>(type_) &&
             (inputType != Line || type_ != Line),
             "Unsupported geometry type for position processing.");
-    if (inputType == Area) {
-        for (wsl::Geometry* target : group_) {
-            if (wsl::intersect(target, src) == wsl::CONTAIN) {
-                *result = true;
-                return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        if (inputType == Area) {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(target, src) == wsl::CONTAIN) {
+                    *result = true;
+                    return 0;
+                }
+            }
+        } else {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(target, src) == wsl::INTERSECT) {
+                    *result = true;
+                    return 0;
+                }
             }
         }
-        *result = false;
-    } else {
-        for (wsl::Geometry* target : group_) {
-            if (wsl::intersect(target, src) == wsl::INTERSECT) {
-                *result = true;
-                return 0;
-            }
-        }
-        *result = false;
     }
     return 0;
 }
 
 int GeometryGroup::checkAllContain(const Type inputType, wsl::Geometry* src,
         bool* result) {
+    *result = false;
     if (!size_) {
-        *result = false;
         return 0;
     }
     CHECK_ARGS(static_cast<int>(inputType) >= static_cast<int>(type_) &&
             (inputType != Line || type_ != Line),
             "Unsupported geometry type for position processing.");
-    if (inputType == Area) {
-        for (wsl::Geometry* target : group_) {
-            if (wsl::intersect(target, src) != wsl::CONTAIN) {
-                *result = false;
-                return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        if (inputType == Area) {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(target, src) != wsl::CONTAIN) {
+                    *result = false;
+                    return 0;
+                }
             }
-        }
-        *result = true;
-    } else {
-        for (wsl::Geometry* target : group_) {
-            if (wsl::intersect(target, src) != wsl::INTERSECT) {
-                *result = false;
-                return 0;
+            *result = true;
+        } else {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(target, src) != wsl::INTERSECT) {
+                    *result = false;
+                    return 0;
+                }
             }
+            *result = true;
         }
-        *result = true;
     }
     return 0;
 }
 
 int GeometryGroup::checkOneContained(const Type inputType, wsl::Geometry* src,
         bool* result) {
-    if (size_ == 0) {
-        *result = false;
+    *result = false;
+    if (!size_) {
         return 0;
     }
     CHECK_ARGS(static_cast<int>(inputType) <= static_cast<int>(type_) &&
             (inputType != Line || type_ != Line),
             "Unsupported geometry type for position processing.");
-    if (type_ == Area) {
-        for (wsl::Geometry* target : group_) {
-            if (wsl::intersect(src, target) == wsl::CONTAIN) {
-                *result = true;
-                return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        if (type_ == Area) {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(src, target) == wsl::CONTAIN) {
+                    *result = true;
+                    return 0;
+                }
+            }
+        } else {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(src, target) == wsl::INTERSECT) {
+                    *result = true;
+                    return 0;
+                }
             }
         }
-        *result = false;
-    } else {
-        for (wsl::Geometry* target : group_) {
-            if (wsl::intersect(src, target) == wsl::INTERSECT) {
-                *result = true;
-                return 0;
-            }
-        }
-        *result = false;
     }
     return 0;
 }
 
 int GeometryGroup::checkAllContained(const Type inputType, wsl::Geometry* src,
         bool* result) {
-    if (size_ == 0) {
-        *result = false;
+    *result = false;
+    if (!size_) {
         return 0;
     }
     CHECK_ARGS(static_cast<int>(inputType) <= static_cast<int>(type_) &&
             (inputType != Line || type_ != Line),
             "Unsupported geometry type for position processing.");
-    if (type_ == Area) {
-        for (wsl::Geometry* target : group_) {
-            if (wsl::intersect(src, target) != wsl::CONTAIN) {
-                *result = false;
-                return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        if (type_ == Area) {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(target, src) != wsl::CONTAIN) {
+                    *result = false;
+                    return 0;
+                }
             }
-        }
-        *result = true;
-    } else {
-        for (wsl::Geometry* target : group_) {
-            if (wsl::intersect(src, target) != wsl::INTERSECT) {
-                *result = false;
-                return 0;
+            *result = true;
+        } else {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(target, src) != wsl::INTERSECT) {
+                    *result = false;
+                    return 0;
+                }
             }
+            *result = true;
         }
-        *result = true;
     }
     return 0;
 }
 
 int GeometryGroup::checkOneIntersect(const Type inputType, wsl::Geometry* src,
         bool* result) {
+    *result = false;
     if (size_ == 0) {
-        *result = false;
         return 0;
     }
     CHECK_ARGS(inputType != Point && type_ != Point,
             "Unsupported geometry type for position processing.");
-    for (wsl::Geometry* target : group_) {
-        if (wsl::intersect(src, target) == wsl::INTERSECT) {
-            *result = true;
-            return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        for (int checkIndex : checkList) {
+            target = group_[checkIndex];
+            if (wsl::intersect(src, target) == wsl::INTERSECT) {
+                *result = true;
+                return 0;
+            }
         }
     }
-    *result = false;
     return 0;
 }
 
 int GeometryGroup::checkAllIntersect(const Type inputType, wsl::Geometry* src,
         bool* result) {
+    *result = false;
     if (size_ == 0) {
-        *result = false;
         return 0;
     }
     CHECK_ARGS(inputType != Point && type_ != Point,
             "Unsupported geometry type for position processing.");
-    for (wsl::Geometry* target : group_) {
-        if (wsl::intersect(src, target) != wsl::INTERSECT) {
-            *result = false;
-            return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        for (int checkIndex : checkList) {
+            target = group_[checkIndex];
+            if (wsl::intersect(src, target) != wsl::INTERSECT) {
+                return 0;
+            }
+            *result = true;
         }
     }
-    *result = true;
     return 0;
 }
 
 int GeometryGroup::checkOneAtEdge(const Type inputType, wsl::Geometry* src,
         bool* result) {
+    *result = false;
     if (size_ == 0) {
-        *result = false;
         return 0;
     }
     CHECK_ARGS((inputType == Point && type_ == Area) ||
             (inputType == Area && type_ == Point),
             "Unsupported geometry type for position processing.");
-    for (wsl::Geometry* target : group_) {
-        if (wsl::intersect(src, target) == wsl::ONE_POINT) {
-            *result = true;
-            return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        for (int checkIndex : checkList) {
+            target = group_[checkIndex];
+            if (wsl::intersect(src, target) == wsl::ONE_POINT) {
+                *result = true;
+                return 0;
+            }
         }
     }
-    *result = false;
     return 0;
 }
 
 int GeometryGroup::checkAllAtEdge(const Type inputType, wsl::Geometry* src,
         bool* result) {
+    *result = false;
     if (size_ == 0) {
-        *result = false;
         return 0;
     }
     CHECK_ARGS((inputType == Point && type_ == Area) ||
             (inputType == Area && type_ == Point),
             "Unsupported geometry type for position processing.");
-    for (wsl::Geometry* target : group_) {
-        if (wsl::intersect(src, target) != wsl::ONE_POINT) {
-            *result = false;
-            return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        for (int checkIndex : checkList) {
+            target = group_[checkIndex];
+            if (wsl::intersect(src, target) != wsl::ONE_POINT) {
+                return 0;
+            }
+            *result = true;
         }
     }
-    *result = true;
     return 0;
 }
 
 
 int GeometryGroup::checkOneDeparture(const Type inputType, wsl::Geometry* src,
         bool* result) {
+    *result = true;
     if (size_ == 0) {
-        *result = false;
         return 0;
     }
-    for (wsl::Geometry* target : group_) {
-        if (wsl::intersect(src, target) == wsl::DEPARTURE) {
-            *result = true;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        if (checkList.size() < size_) {
             return 0;
+        } else {
+            for (int checkIndex : checkList) {
+                target = group_[checkIndex];
+                if (wsl::intersect(src, target) == wsl::DEPARTURE) {
+                    return 0;
+                }
+            }
+            *result = false;
         }
     }
-    *result = false;
     return 0;
 }
 
 int GeometryGroup::checkAllDeparture(const Type inputType, wsl::Geometry* src,
         bool* result) {
+    *result = true;
     if (size_ == 0) {
-        *result = false;
         return 0;
     }
-    for (wsl::Geometry* target : group_) {
-        if (wsl::intersect(src, target) != wsl::DEPARTURE) {
-            *result = false;
-            return 0;
+    Rect srcRect {src->mbr().ll.x(), src->mbr().ll.y(),
+            src->mbr().ru.x(), src->mbr().ru.y()};
+    std::vector<int> checkList;
+    wsl::Geometry* target;
+    if (RTreeSearch(groupRtree_, groupRtree_->nodeRoot, &srcRect,
+            rtreeSearchCallBack, &checkList)) {
+        for (int checkIndex : checkList) {
+            target = group_[checkIndex];
+            if (wsl::intersect(src, target) != wsl::DEPARTURE) {
+                *result = false;
+                return 0;
+            }
         }
     }
-    *result = true;
     return 0;
 }
 

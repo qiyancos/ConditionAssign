@@ -412,8 +412,8 @@ int MifItem::getGeometry(wsl::Geometry** val) {
         CHECK_RET(srcLayer_->getGeometry(val, index_),
                 "Failed to get geometry from mif layer in item[%d].", index_);
         info_->geometry_ = *val;
-        // 强制调用对应对象的_cal_
-        globalDouble = info_->geometry_->mbr().ll._x_;
+        // 强制调用_cal_函数
+        globalDouble = (*val)->mbr().ll.x();
         return 0;
     }
 }
