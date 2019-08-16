@@ -614,8 +614,16 @@ int OperatorAssign::process(Node* node, MifItem* item) {
     std::string newVal = "\"";
     newVal = node->rightType != Number ? newVal +
             node->value.stringValue + "\"" : node->value.stringValue;
-    CHECK_RET(item->assignWithTag(node->tagName, newVal),
-            "Failed to assign value to tag \"%s\".", node->tagName.c_str());
+    if (node->leftType == Number && node->rightType == node->leftType) {
+        CHECK_RET(item->assignWithNumber(node->tagName,
+                node->value.numberValue),
+                "Failed to assign number to tag \"%s\".",
+                node->tagName.c_str());
+    } else {
+        CHECK_RET(item->assignWithTag(node->tagName, newVal),
+                "Failed to assign value to tag \"%s\".",
+                node->tagName.c_str());
+    }
     return 1;
 }
 
@@ -634,25 +642,18 @@ int OperatorSelfAdd::process(Node* node, MifItem* item) {
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
         leftVal += node->value.numberValue;
-        int intLeftVal = static_cast<int>(leftVal);
-        if (abs(leftVal - intLeftVal) < 1e-8) {
-            tempStream << intLeftVal;
-        } else {
-            tempStream << leftVal;
-        }
-        int lackZeros = leftValString.length() - tempStream.str().length();
-        if (lackZeros > 0) {
-            prefix.append(lackZeros, '0');
-        }
-        leftValString = prefix + tempStream.str();
+        CHECK_RET(item->assignWithNumber(node->tagName, leftVal),
+                "Failed to assign number to tag \"%s\".",
+                node->tagName.c_str());
     } else {
         leftValString += node->value.stringValue;
         std::string newVal = "\"";
         leftValString = node->leftType != Number ? newVal +
             leftValString + "\"" : leftValString;
+        CHECK_RET(item->assignWithTag(node->tagName, leftValString),
+                "Failed to assign value to tag \"%s\".",
+                node->tagName.c_str());
     }
-    CHECK_RET(item->assignWithTag(node->tagName, leftValString),
-            "Failed to assign value to tag \"%s\".", node->tagName.c_str());
     return 1;
 }
 

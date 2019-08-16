@@ -72,6 +72,9 @@ public:
     virtual int copyLoad() = 0;
     // 保存对应的Layer的数据
     virtual int save(const std::string layerPath = "") = 0;
+    // 对于坐标或者普通的字段进行数值赋值
+    virtual int assignWithNumber(const std::string& tagName, const int index,
+            const double& val) = 0;
     // 依据字段名进行赋值操作
     virtual int assignWithTag(const std::string& tagName, const int index,
             const std::string& val) = 0;
@@ -84,6 +87,9 @@ public:
     // 获取当前MifItem的某个字段的内容
     virtual int getTagVal(const std::string& tagName, const int index,
             std::string* val) = 0;
+    // 获取当前MifItem的某个字段的数值
+    virtual int getTagVal(const std::string& tagName, const int index,
+            double* val) = 0;
     // 获取当前MifItem地理坐标信息
     virtual int getGeometry(wsl::Geometry** val, const int index) = 0;
     // 判断当前的MifLayer是不是新打开的
@@ -142,6 +148,9 @@ public:
     int copyLoad();
     // 保存对应的Layer的数据
     int save(const std::string layerPath = "");
+    // 对于坐标或者普通的字段进行数值赋值
+    int assignWithNumber(const std::string& tagName, const int index,
+            const double& val);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
@@ -154,6 +163,9 @@ public:
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const std::string& tagName, const int index,
             std::string* val);
+    // 获取当前MifItem的某个字段的数值
+    int getTagVal(const std::string& tagName, const int index,
+            double* val);
     // 获取当前MifItem地理坐标信息
     int getGeometry(wsl::Geometry** val, const int index);
     // 判断当前的MifLayer是不是新打开的
@@ -175,6 +187,9 @@ public:
     int copyLoad();
     // 保存对应的Layer的数据
     int save(const std::string layerPath = "");
+    // 对于坐标或者普通的字段进行数值赋值
+    int assignWithNumber(const std::string& tagName, const int index,
+            const double& val);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
@@ -187,6 +202,9 @@ public:
     // 获取当前MifItem的某个字段的内容
     int getTagVal(const std::string& tagName, const int index,
             std::string* val);
+    // 获取当前MifItem的某个字段的数值
+    int getTagVal(const std::string& tagName, const int index,
+            double* val);
     // 获取当前MifItem的某个字段的类型
     int getGeometry(wsl::Geometry** val, const int index);
 };
@@ -199,6 +217,8 @@ public:
     // 析构函数
     ~MifItem() = default;
 
+    // 依据字段名进数值行赋值操作
+    int assignWithNumber(const std::string& tagName, const double& val);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const std::string& val);
     // 获取当前MifItem的某个字段的内容

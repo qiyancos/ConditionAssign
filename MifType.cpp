@@ -96,10 +96,54 @@ int MifLayerNew::save(const std::string layerPath) {
     return 0;
 }
 
+int MifLayerNew::assignWithNumber(const std::string& tagName,
+        const int index, const double& val) {
+    CHECK_ARGS((index < mifSize_ && index >= 0),
+            "Index[%d] out of bound.", index);
+    std::lock_guard<std::mutex> mifGuard(mifLock_);
+    mif_.mid.push_back(copySrcLayer_->mif_.mid[index]);
+    mif_.data.geo_vec.push_back(copySrcLayer_->mif_.data.geo_vec[index] ==
+            NULL ? NULL : copySrcLayer_->mif_.data.geo_vec[index]->clone());
+    if (tagName != "X" && tagName != "Y") {
+        int colID;
+        auto colCacheIterator = tagColCache_.find(tagName);
+        CHECK_ARGS(colCacheIterator != tagColCache_.end(),
+                "Failed to get column id of tag \"%s\".", tagName.c_str());
+        colID = colCacheIterator->second;
+        int intVal = static_cast<int>(val);
+        if (abs(val - intVal < 1e-8)) {
+            mif_.mid[mifSize_][colID] = std::to_string(intVal);
+        } else {
+            std::string leftValString, valString;
+            valString = std::to_string(val);
+            CHECK_RET(copySrcLayer_->getTagVal(tagName, index, &leftValString),
+                    "Failed to get string value from %s \"%s\".",
+                    "copySrcLayer for tag", tagName.c_str());
+            int lackZeros = leftValString.length() - valString.length();
+            std::string prefix = "";
+            if (lackZeros > 0) {
+                prefix.append(lackZeros, '0');
+            }
+            valString = prefix + valString;
+            mif_.mid[mifSize_][colID] = valString;
+        }
+    } else {
+        if (tagName == "X") {
+            mif_.data.geo_vec[mifSize_]->at(0).at(0).setx(val);
+        } else {
+            mif_.data.geo_vec[mifSize_]->at(0).at(0).sety(val);
+        }
+    }
+    mifSize_++;
+    return 0;
+}
+
 int MifLayerNew::assignWithTag(const std::string& tagName,
         const int index, const std::string& val) {
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
+    CHECK_ARGS(tagName != "X" && tagName != "Y",
+            "Calling wrong function for coordination exchange.");
     int colID;
     auto colCacheIterator = tagColCache_.find(tagName);
     CHECK_ARGS(colCacheIterator != tagColCache_.end(),
@@ -117,6 +161,10 @@ int MifLayerNew::assignWithTag(const std::string& tagName,
 int MifLayerNew::getTagType(const std::string& tagName,
         syntax::DataType* type, bool isAssign) {
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
+    if (tagName == "X" || tagName == "Y") {
+        *type = syntax::Number;
+        return 0;
+    }
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
     if (cacheIterator != tagTypeCache_.end()) {
@@ -183,6 +231,12 @@ int MifLayerNew::getTagVal(const std::string& tagName,
     return 0;
 }
 
+int MifLayerNew::getTagVal(const std::string& tagName,
+        const int index, double* val) {
+    CHECK_RET(-1, "This function should never be called.");
+    return 0;
+}
+
 int MifLayerNew::getGeometry(wsl::Geometry** val, const int index) {
     CHECK_RET(-1, "This function should never be called.");
     return 0;
@@ -238,10 +292,49 @@ int MifLayerNormal::save(const std::string layerPath) {
     return 0;
 }
 
+int MifLayerNormal::assignWithNumber(const std::string& tagName,
+        const int index, const double& val) {
+    CHECK_ARGS((index < mifSize_ && index >= 0),
+            "Index[%d] out of bound.", index);
+    if (tagName != "X" && tagName != "Y") {
+        int colID;
+        auto colCacheIterator = tagColCache_.find(tagName);
+        CHECK_ARGS(colCacheIterator != tagColCache_.end(),
+                "Failed to get column id of tag \"%s\".", tagName.c_str());
+        colID = colCacheIterator->second;
+        int intVal = static_cast<int>(val);
+        if (abs(val - intVal < 1e-8)) {
+            mif_.mid[index][colID] = std::to_string(intVal);
+        } else {
+            std::string leftValString, valString;
+            valString = std::to_string(val);
+            CHECK_RET(copySrcLayer_->getTagVal(tagName, index, &leftValString),
+                    "Failed to get string value from %s \"%s\".",
+                    "copySrcLayer for tag", tagName.c_str());
+            int lackZeros = leftValString.length() - valString.length();
+            std::string prefix = "";
+            if (lackZeros > 0) {
+                prefix.append(lackZeros, '0');
+            }
+            valString = prefix + valString;
+            mif_.mid[mifSize_][colID] = valString;
+        }
+    } else {
+        if (tagName == "X") {
+            mif_.data.geo_vec[index]->at(0).at(0).setx(val);
+        } else {
+            mif_.data.geo_vec[index]->at(0).at(0).sety(val);
+        }
+    }
+    return 0;
+}
+
 int MifLayerNormal::assignWithTag(const std::string& tagName,
         const int index, const std::string& val) {
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
+    CHECK_ARGS(tagName != "X" && tagName != "Y",
+            "Calling wrong function for coordination exchange.");
     int colID;
     auto colCacheIterator = tagColCache_.find(tagName);
     CHECK_ARGS(colCacheIterator != tagColCache_.end(),
@@ -254,6 +347,10 @@ int MifLayerNormal::assignWithTag(const std::string& tagName,
 int MifLayerNormal::getTagType(const std::string& tagName,
         syntax::DataType* type, bool isAssign) {
     CHECK_ARGS(mifSize_ > 0, "No available mif item for judging data type.");
+    if (tagName == "X" || tagName == "Y") {
+        *type = syntax::Number;
+        return 0;
+    }
     std::lock_guard<std::mutex> typeCacheGuard(tagTypeCacheLock_);
     auto cacheIterator = tagTypeCache_.find(tagName);
     if (cacheIterator != tagTypeCache_.end()) {
@@ -328,6 +425,20 @@ int MifLayerNormal::getTagVal(const std::string& tagName,
     return 0;
 }
 
+int MifLayerNormal::getTagVal(const std::string& tagName,
+        const int index, double* val) {
+    CHECK_ARGS((index < mifSize_ && index >= 0),
+            "Index[%d] out of bound.", index);
+    CHECK_ARGS(tagName == "X" || tagName == "Y",
+            "Function only support for coordination calculation.");
+    if (tagName == "X") {
+        *val = mif_.data.geo_vec[index]->at(0).at(0).x();
+    } else {
+        *val = mif_.data.geo_vec[index]->at(0).at(0).y();
+    }
+    return 0;
+}
+
 int MifLayerNormal::getGeometry(wsl::Geometry** val, const int index) {
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
@@ -338,6 +449,19 @@ int MifLayerNormal::getGeometry(wsl::Geometry** val, const int index) {
 MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer,
         MifLayer::ItemInfo* info) :  srcLayer_(srcLayer),
         targetLayer_(targetLayer), index_(index), info_(info) {}
+
+int MifItem::assignWithNumber(const std::string& tagName,
+        const double& val) {
+    CHECK_ARGS(targetLayer_ != nullptr,
+            "Can not assign number to tag in an empty target layer.");
+    CHECK_RET(targetLayer_->assignWithNumber(tagName, index_, val),
+            "Failed to assign number to tag \"%s\".", tagName.c_str());
+#ifdef USE_MIFITEM_CACHE
+    std::lock_guard<std::mutex> cacheGuard(*(info_->tagNumberCacheLock_));
+    info_->tagNumberCache[tagName] = val;
+#endif
+    return 0;
+}
 
 int MifItem::assignWithTag(const std::string& tagName,
         const std::string& val) {
@@ -381,6 +505,12 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
     if (cacheNumberIterator != info_->tagNumberCache.end()) {
         *val = cacheNumberIterator->second;
         return 0;
+    } else if (tagName == "X" || tagName == "Y") {
+        CHECK_RET(srcLayer_->getTagVal(tagName, index_, val),
+                "Failed to get value of tag \"%s\" from mif layer.",
+                tagName.c_str());
+        info_->tagNumberCache[tagName] = *val;
+        return 0;
     } else {
         std::string tagVal;
         CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
@@ -392,13 +522,19 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
         return 0;
     }
 #else
-    std::string tagVal;
-    CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
-            "Failed to get value of tag \"%s\" from mif layer.",
-            tagName.c_str());
-    CHECK_ARGS(syntax::isType(tagVal, val),
-            "Tag \"%s\" value \"%s\" can not be convert to a number.",
-            tagName.c_str(), tagVal.c_str())
+    if (tagName == "X" || tagName == "Y") {
+        CHECK_RET(srcLayer_->getTagVal(tagName, index_, val),
+                "Failed to get value of tag \"%s\" from mif layer.",
+                tagName.c_str());
+    } else {
+        std::string tagVal;
+        CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
+                "Failed to get value of tag \"%s\" from mif layer.",
+                tagName.c_str());
+        CHECK_ARGS(syntax::isType(tagVal, val),
+                "Tag \"%s\" value \"%s\" can not be convert to a number.",
+                tagName.c_str(), tagVal.c_str())
+    }
     return 0;
 #endif
 }

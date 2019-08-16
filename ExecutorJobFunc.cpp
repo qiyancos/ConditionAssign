@@ -333,7 +333,8 @@ int ProcessMifItemsJob::process(const int executorID) {
     const int totalConfigCount = configItemGroup.size();
     while (itemCount--) {
 #ifdef DEBUG_OP
-        std::cout << ">>Process Mif Item: " << itemIndex << std::endl;
+        std::cout << ">>Process Mif Item: " << itemIndex << "/" <<
+                srcLayer_->size() << std::endl;
 #endif
         CHECK_RET(srcLayer_->newMifItem(itemIndex++, targetLayer_,
                 &workingItem), "Failed to create %s",
