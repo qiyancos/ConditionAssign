@@ -65,7 +65,8 @@ int ParseConfigFileJob::process(const int executorID) {
             new std::vector<std::pair<std::string,int>>();
     int lineNumber = 1;
     while (getline(configFileStream, content)) {
-        if (content.length() > 0 && htk::trim(content, " ")[0] != '#') {
+        if (content.length() > 0 && htk::trim(htk::trim(content, " "), "\t")[0]
+                != '#') {
             fullContent->push_back(std::pair<std::string, int>(
                     content, lineNumber));
             subGroup->group_->push_back(std::pair<int, ConfigItem*>(lineNumber,
@@ -348,10 +349,11 @@ int ProcessMifItemsJob::process(const int executorID) {
             ConfigItem* configItem = configItemGroup[configIndex].second;
             if (!configItem) continue;
             result = satisfyConditions(*configItem, workingItem);
-            CHECK_RET(result, "Failed to %s \"%s\"[line: %d].",
+            CHECK_RET(result, "Failed to %s \"%s\"[line: %d] %s [%d].",
                     "check conditions from config file",
                     subGroup_->filePath_->c_str(),
-                    configItemGroup[configIndex].first);
+                    configItemGroup[configIndex].first,
+                    "for mifitem", itemIndex);
             if (result) {
 #ifdef DEBUG_OP
                 std::cout << "++Match!" << std::endl;

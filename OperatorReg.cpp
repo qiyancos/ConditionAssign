@@ -32,6 +32,8 @@ OPREG_NORMAL(GeoDepartureAll, Condition, "&<>[]", Empty, GroupType);
 
 // 正则匹配运算拥有最高的优先级
 OPREG_NORMAL(RegularExpr, Condition, ":=", String);
+// PartialEqual需要有比Equal更高的优先级
+OPREG_SPECIAL(PartialEqual, Condition, String);
 // 比较运算符声明
 OPREG_NORMAL(Equal, Condition, "==", New, Number, String);
 OPREG_NORMAL(NotEqual, Condition, "!=", New, Number, String);
@@ -51,9 +53,8 @@ OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
 // 赋值相关运算符的声明
 OPREG_NORMAL(SelfAdd, Assign, "+=", New, Number, String);
 // 特殊运算符注册
-OPREG_SPECIAL(PartialEqual, Condition, String);
 OPREG_SPECIAL(Replace, Assign, String);
-// 尽量提升Assign等级加快解析匹配速度
+// Assign等级较低，防止出现错误的识别
 OPREG_NORMAL(Assign, Assign, "=", New, Number, String);
 
 } // namespace syntax

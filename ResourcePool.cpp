@@ -47,7 +47,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
             if (layerInfo->find(output) == layerInfo->end()) {
                 (*layerInfo)[output] = LayerInfo();
             }
-            if (htk::endswith(output, "*NEW*")) {
+            if (htk::endswith(output, "<NEW>")) {
                 if (noOutputLayers.find(input) != noOutputLayers.end()) { 
                     idMapping_[i] = noOutputLayers[input];
                 } else {
@@ -123,7 +123,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 }
                 // 没有注册当前输出层
                 if (outputLayersMap_.find(output) == outputLayersMap_.end()) {
-                    if (htk::endswith(output, "*NEW*")) {
+                    if (htk::endswith(output, "<NEW>")) {
                         MifLayer* copySrcLayer = layers_[idMapping_[index]];
                         layers_.push_back(new MifLayerNew(output.substr(0,
                                 output.size() - 5), copySrcLayer));
@@ -158,7 +158,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                 }
                 // 没有注册当前输出层
                 if (outputLayersMap_.find(output) == outputLayersMap_.end()) {
-                    if (htk::endswith(output, "*NEW*")) {
+                    if (htk::endswith(output, "<NEW>")) {
                         MifLayer* copySrcLayer = layers_[idMapping_[0]];
                         layers_.push_back(new MifLayerNew(output.substr(0,
                                 output.size() - 5), copySrcLayer));
