@@ -358,6 +358,18 @@ int ProcessMifItemsJob::process(const int executorID) {
 #ifdef DEBUG_OP
                 std::cout << "++Match!" << std::endl;
 #endif
+#ifdef DEBUG_MATCH_INFO
+                {
+                    std::lock_guard<std::mutex> debugMatchInfoGuard(
+                            debugMatchInfoLock);
+                    debugMatchInfoStream << "Condition in file \"" <<
+                            *(subGroup_->filePath_) << "\" [line: " <<
+                            configItemGroup[configIndex].first << 
+                            "] matched for mifitem[" << itemIndex <<
+                            "] in layer \"" << srcLayer_->layerPath_ <<
+                            "\"." << std::endl;
+                }
+#endif
                 CHECK_RET(applyAssigns(*configItem, workingItem),
                         "Failed apply assign expr to mif item.");
                 break;

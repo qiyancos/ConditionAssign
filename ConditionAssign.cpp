@@ -9,6 +9,12 @@ std::string debugLogDir;
 std::vector<std::ofstream> debugStream;
 #endif
 
+#ifdef DEBUG_MATCH_INFO
+std::string debugMatchInfoDir;
+std::mutex debugMatchInfoLock;
+std::ofstream debugMatchInfoStream;
+#endif
+
 void printLayersInfo(const std::string layerType,
         const std::vector<std::string>& layers) {
     int layerSize = layers.size();
@@ -63,6 +69,12 @@ int main(int argc, char** argv) {
             std::ofstream::out));
     debugStream.push_back(std::ofstream((debugLogDir + "/rc.log").c_str(),
             std::ofstream::out));
+#endif
+
+#ifdef DEBUG_MATCH_INFO
+    debugMatchInfoDir = logDir + "/" + htk::trim(std::string(date_str), " ");
+    debugMatchInfoStream = std::ofstream((debugMatchInfoDir +
+            "_match_info.log").c_str(), std::ofstream::out);
 #endif
 
     sys_log_println(_INFORANK, "=====================================\n");

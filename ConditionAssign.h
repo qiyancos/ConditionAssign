@@ -37,6 +37,13 @@ extern std::vector<std::ofstream> debugStream;
 extern std::string debugLogDir;
 #endif // DEBUG
 
+#ifdef DEBUG_MATCH_INFO
+#include <mutex>
+extern std::string debugMatchInfoDir;
+extern std::mutex debugMatchInfoLock;
+extern std::ofstream debugMatchInfoStream;
+#endif
+
 namespace condition_assign {
 
 // 下面定义了四个检查函数

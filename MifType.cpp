@@ -27,8 +27,8 @@ MifLayer::ItemInfo::~ItemInfo() {
 }
 
 MifLayer::MifLayer(const std::string& layerPath,
-        MifLayer* copySrcLayer) : copySrcLayer_(copySrcLayer),
-        layerPath_(layerPath) {
+        MifLayer* copySrcLayer) : layerPath_(layerPath),
+        copySrcLayer_(copySrcLayer) {
     ready_.init(0, Semaphore::OnceForAll);
 }
 

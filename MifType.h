@@ -96,6 +96,8 @@ public:
     virtual bool isNew() {return false;}
 
 public:
+    // 对应文件的路径
+    std::string layerPath_;
     // Layer数据结构
     wgt::MIF mif_;
     // mif中的item的个数
@@ -112,8 +114,6 @@ protected:
     std::mutex mifLock_;
     // 复制载入对应的MifLayer
     MifLayer* copySrcLayer_;
-    // 对应文件的路径
-    std::string layerPath_;
     
     // 缓存Tag名称到对应索引的映射关系锁
     std::mutex tagColCacheLock_;
