@@ -43,6 +43,18 @@ DataType getDataType(const std::string data, std::string* stringVal = nullptr,
 // 判断一个数值是给定类型
 template<typename T> bool isType(const std::string& data, T* result);
 
+// 用于判断一个浮点数是否可以约分为整数
+inline bool canRoundToInt(const double val, int* intVal) {
+    int intTemp = static_cast<int>(val);
+    if (abs(val - intTemp) > 0.999) {
+        *intVal = ++intTemp;
+        return abs(val - intTemp) < MAXERROR;
+    } else {
+        *intVal = intTemp;
+        return abs(val - intTemp) < MAXERROR;
+    }
+}
+
 // 用于比较两个浮点数
 inline bool floatEqual(const double a, const double b) {
     return abs(a - b) < MAXERROR;

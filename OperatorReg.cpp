@@ -37,6 +37,8 @@ OPREG_SPECIAL(PartialEqual, Condition, String);
 // 比较运算符声明
 OPREG_NORMAL(Equal, Condition, "==", New, Number, String);
 OPREG_NORMAL(NotEqual, Condition, "!=", New, Number, String);
+// Tag包含运算声明
+OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
 // 特殊运算符注册(由于是中转函数，其类型没有关系)
 OPREG_SPECIAL(Function, Assign, Number, String, GroupType);
 // 数字大小比较运算声明
@@ -48,8 +50,6 @@ OPREG_NORMAL(GreaterThan, Condition, ">", Number);
 OPREG_NORMAL(Contain, Condition, "%=%", String);
 OPREG_NORMAL(IsPrefix, Condition, "%=", String);
 OPREG_NORMAL(IsSuffix, Condition, "=%", String);
-// Tag包含运算声明
-OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
 // 赋值相关运算符的声明
 OPREG_NORMAL(SelfAdd, Assign, "+=", New, Number, String);
 // 特殊运算符注册

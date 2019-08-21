@@ -73,8 +73,8 @@ public:
     // 保存对应的Layer的数据
     virtual int save(const std::string layerPath = "") = 0;
     // 对于坐标或者普通的字段进行数值赋值
-    virtual int assignWithNumber(const std::string& tagName, const int index,
-            const double& val) = 0;
+    virtual int assignWithNumber(const std::string& tagName,
+            MifLayer* srcLayer, const int index, const double& val) = 0;
     // 依据字段名进行赋值操作
     virtual int assignWithTag(const std::string& tagName, const int index,
             const std::string& val) = 0;
@@ -149,8 +149,8 @@ public:
     // 保存对应的Layer的数据
     int save(const std::string layerPath = "");
     // 对于坐标或者普通的字段进行数值赋值
-    int assignWithNumber(const std::string& tagName, const int index,
-            const double& val);
+    int assignWithNumber(const std::string& tagName, MifLayer* srcLayer,
+            const int index, const double& val);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);
@@ -188,8 +188,8 @@ public:
     // 保存对应的Layer的数据
     int save(const std::string layerPath = "");
     // 对于坐标或者普通的字段进行数值赋值
-    int assignWithNumber(const std::string& tagName, const int index,
-            const double& val);
+    int assignWithNumber(const std::string& tagName, MifLayer* srcLayer,
+            const int index, const double& val);
     // 依据字段名进行赋值操作
     int assignWithTag(const std::string& tagName, const int index,
             const std::string& val);

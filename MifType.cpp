@@ -97,7 +97,7 @@ int MifLayerNew::save(const std::string layerPath) {
 }
 
 int MifLayerNew::assignWithNumber(const std::string& tagName,
-        const int index, const double& val) {
+        MifLayer* srcLayer, const int index, const double& val) {
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
     std::lock_guard<std::mutex> mifGuard(mifLock_);
@@ -110,12 +110,10 @@ int MifLayerNew::assignWithNumber(const std::string& tagName,
         CHECK_ARGS(colCacheIterator != tagColCache_.end(),
                 "Failed to get column id of tag \"%s\".", tagName.c_str());
         colID = colCacheIterator->second;
-        int intVal = static_cast<int>(val);
-        if (abs(val - intVal < 1e-8)) {
-            mif_.mid[mifSize_][colID] = std::to_string(intVal);
-        } else {
-            std::string leftValString, valString;
-            valString = std::to_string(val);
+        int intVal;
+        std::string leftValString, valString;
+        if (syntax::canRoundToInt(val, &intVal)) {
+            valString = std::to_string(intVal);
             CHECK_RET(copySrcLayer_->getTagVal(tagName, index, &leftValString),
                     "Failed to get string value from %s \"%s\".",
                     "copySrcLayer for tag", tagName.c_str());
@@ -125,8 +123,10 @@ int MifLayerNew::assignWithNumber(const std::string& tagName,
                 prefix.append(lackZeros, '0');
             }
             valString = prefix + valString;
-            mif_.mid[mifSize_][colID] = valString;
+        } else {
+            valString = std::to_string(val);
         }
+        mif_.mid[mifSize_][colID] = valString;
     } else {
         if (tagName == "X") {
             mif_.data.geo_vec[mifSize_]->at(0).at(0).setx(val);
@@ -293,7 +293,7 @@ int MifLayerNormal::save(const std::string layerPath) {
 }
 
 int MifLayerNormal::assignWithNumber(const std::string& tagName,
-        const int index, const double& val) {
+        MifLayer* srcLayer, const int index, const double& val) {
     CHECK_ARGS((index < mifSize_ && index >= 0),
             "Index[%d] out of bound.", index);
     if (tagName != "X" && tagName != "Y") {
@@ -302,13 +302,11 @@ int MifLayerNormal::assignWithNumber(const std::string& tagName,
         CHECK_ARGS(colCacheIterator != tagColCache_.end(),
                 "Failed to get column id of tag \"%s\".", tagName.c_str());
         colID = colCacheIterator->second;
-        int intVal = static_cast<int>(val);
-        if (abs(val - intVal < 1e-8)) {
-            mif_.mid[index][colID] = std::to_string(intVal);
-        } else {
-            std::string leftValString, valString;
-            valString = std::to_string(val);
-            CHECK_RET(copySrcLayer_->getTagVal(tagName, index, &leftValString),
+        int intVal;
+        std::string leftValString, valString;
+        if (syntax::canRoundToInt(val, &intVal)) {
+            valString = std::to_string(intVal);
+            CHECK_RET(srcLayer->getTagVal(tagName, index, &leftValString),
                     "Failed to get string value from %s \"%s\".",
                     "copySrcLayer for tag", tagName.c_str());
             int lackZeros = leftValString.length() - valString.length();
@@ -317,8 +315,10 @@ int MifLayerNormal::assignWithNumber(const std::string& tagName,
                 prefix.append(lackZeros, '0');
             }
             valString = prefix + valString;
-            mif_.mid[mifSize_][colID] = valString;
+        } else {
+            valString = std::to_string(val);
         }
+        mif_.mid[index][colID] = valString;
     } else {
         if (tagName == "X") {
             mif_.data.geo_vec[index]->at(0).at(0).setx(val);
@@ -454,7 +454,7 @@ int MifItem::assignWithNumber(const std::string& tagName,
         const double& val) {
     CHECK_ARGS(targetLayer_ != nullptr,
             "Can not assign number to tag in an empty target layer.");
-    CHECK_RET(targetLayer_->assignWithNumber(tagName, index_, val),
+    CHECK_RET(targetLayer_->assignWithNumber(tagName, srcLayer_, index_, val),
             "Failed to assign number to tag \"%s\".", tagName.c_str());
 #ifdef USE_MIFITEM_CACHE
     std::lock_guard<std::mutex> cacheGuard(*(info_->tagNumberCacheLock_));

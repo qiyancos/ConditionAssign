@@ -334,7 +334,7 @@ int ProcessMifItemsJob::process(const int executorID) {
     const int totalConfigCount = configItemGroup.size();
     while (itemCount--) {
 #ifdef DEBUG_OP
-        std::cout << ">>Process Mif Item: " << itemIndex << "/" <<
+        std::cout << ">>Process Mif Item: " << itemIndex + 1 << "/" <<
                 srcLayer_->size() << std::endl;
 #endif
         CHECK_RET(srcLayer_->newMifItem(itemIndex++, targetLayer_,
