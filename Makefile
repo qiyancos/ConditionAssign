@@ -10,7 +10,7 @@ CPPFLAGS=-g -O2 -std=c++11 -finline-functions -std=gnu++0x \
 		-fpermissive -fPIC -DLINUX -D_USE_DOUBLE_POINT_ \
 		-Wno-unused-parameter -Wno-unused-function \
         -Wno-overloaded-virtual -Wno-sign-compare \
-        -DDEBUG -DDEBUG_OP
+        -DDEBUG
 
 LDFLAGS=-pg
 

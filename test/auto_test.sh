@@ -64,7 +64,7 @@ testNew(){
                 ${logPath} ${ConfPaths[$index]} $pluginLayers
     else
         timeNew=`(time $root/../bin/ConditionAssign ${Modules[$index]} \
-                ${SourceLayers[$index]} ${targetLayer} ${executorCnt} \
+                NULL ${SourceLayers[$index]} ${targetLayer} ${executorCnt} \
                 ${logPath} ${ConfPaths[$index]} $pluginLayers) 2>&1 | \
                 awk '/real/ {print $2}'`
         cat $root/log_New/log_$date.txt

@@ -72,9 +72,10 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef DEBUG_MATCH_INFO
-    debugMatchInfoDir = logDir + "/" + htk::trim(std::string(date_str), " ");
-    debugMatchInfoStream = std::ofstream((debugMatchInfoDir +
-            "_match_info.log").c_str(), std::ofstream::out);
+    debugMatchInfoDir = logDir + "/match_info_" +
+            htk::trim(std::string(date_str), " ") + ".log";
+    debugMatchInfoStream = std::ofstream((debugMatchInfoDir).c_str(),
+            std::ofstream::out);
 #endif
 
     sys_log_println(_INFORANK, "=====================================\n");

@@ -24,6 +24,15 @@ int SaveLayerJob::process(const int executorID) {
     CHECK_RET(layer->save(savePath_),
             "Failed to save output layer[%d] to path \"%s\".",
             sharedID_, savePath_.c_str());
+    if (!ExecutorPool::runParallel_ && 
+            !(resourcePool_->parseConfigFileJobs_.empty())) {
+        std::lock_guard<std::mutex> candidateQueueGuard(
+                resourcePool_->candidateQueueLock_);
+        resourcePool_->candidateQueue_.push(
+                resourcePool_->parseConfigFileJobs_.front());
+        resourcePool_->parseConfigFileJobs_.pop();
+        resourcePool_->newCandidateJob_->signalAll();
+    }
     return 0;
 }
 
@@ -378,23 +387,13 @@ int ProcessMifItemsJob::process(const int executorID) {
         delete workingItem;
     }
     if ((subGroup_->processedCount_ += itemCount_) == srcLayer_->size()) {
-        std::vector<ExecutorJob*> newJobs;
         if (*(subGroup_->finishedFileCount_) + 1 >=
                 subGroup_->savePoint_) {
-            newJobs.push_back(new SaveLayerJob(subGroup_->targetLayerID_,
+            std::lock_guard<std::mutex> candidateQueueGuard(
+                    resourcePool_->candidateQueueLock_);
+            resourcePool_->candidateQueue_.push(
+                    new SaveLayerJob(subGroup_->targetLayerID_,
                     *(subGroup_->savePath_), resourcePool_));
-        }
-        if (!ExecutorPool::runParallel_ && 
-                !(resourcePool_->parseConfigFileJobs_.empty())) {
-            newJobs.push_back(resourcePool_->parseConfigFileJobs_.front());
-            resourcePool_->parseConfigFileJobs_.pop();
-        }
-        std::lock_guard<std::mutex> candidateQueueGuard(
-                resourcePool_->candidateQueueLock_);
-        if (!newJobs.empty()) {
-            for (ExecutorJob* job : newJobs) {
-                resourcePool_->candidateQueue_.push(job);
-            }
             resourcePool_->newCandidateJob_->signalAll();
         }
         (*(subGroup_->finishedFileCount_))++;

@@ -504,7 +504,9 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
             line.c_str());
     if (partitions[1].length() == 0) {
         CHECK_WARN(false,
-            "Config line without assign expressions will never work.");
+            "Config in file \"%s [line: %d]\" does not have %s",
+            subGroup->filePath_->c_str(), (*(subGroup->group_))[index].first,
+            "assign expressions, it will never work.");
         return 0;
     }
     ConfigItem* configItem = new ConfigItem();
