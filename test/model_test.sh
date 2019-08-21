@@ -72,7 +72,7 @@ do
     rm -rf $root/log_New/log_*.txt
     echo ">> Running with new condition assign:"
     logPath="$root/log_New"
-    echo -n "$root/../bin/ConditionsAssign NULL $srcLayers $targetLayers "
+    echo -n "$root/../bin/ConditionsAssign NULL NULL $srcLayers $targetLayers "
     echo "${executorCnt} $logPath $confFiles $pluginLayers"
     if [ ${1}x = -rawx -o ${2}x = -rawx ]
     then

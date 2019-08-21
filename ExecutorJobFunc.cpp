@@ -24,6 +24,7 @@ int SaveLayerJob::process(const int executorID) {
     CHECK_RET(layer->save(savePath_),
             "Failed to save output layer[%d] to path \"%s\".",
             sharedID_, savePath_.c_str());
+    std::cout << "Test" << std::endl;
     if (!ExecutorPool::runParallel_ && 
             !(resourcePool_->parseConfigFileJobs_.empty())) {
         std::lock_guard<std::mutex> candidateQueueGuard(
@@ -394,6 +395,14 @@ int ProcessMifItemsJob::process(const int executorID) {
             resourcePool_->candidateQueue_.push(
                     new SaveLayerJob(subGroup_->targetLayerID_,
                     *(subGroup_->savePath_), resourcePool_));
+            resourcePool_->newCandidateJob_->signalAll();
+        } else if (!ExecutorPool::runParallel_ && 
+            !(resourcePool_->parseConfigFileJobs_.empty())) {
+            std::lock_guard<std::mutex> candidateQueueGuard(
+                    resourcePool_->candidateQueueLock_);
+            resourcePool_->candidateQueue_.push(
+                    resourcePool_->parseConfigFileJobs_.front());
+            resourcePool_->parseConfigFileJobs_.pop();
             resourcePool_->newCandidateJob_->signalAll();
         }
         (*(subGroup_->finishedFileCount_))++;

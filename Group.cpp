@@ -153,7 +153,8 @@ int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
     std::vector<std::string> oldTagGroup = htk::split(oldTagVal, "|");
     std::set<std::string> oldTagMap(oldTagGroup.begin(), oldTagGroup.end());
     std::vector<int> matchIndexes;
-    if (size_ == 0) {
+    if (++size_ == 1) {
+        std::lock_guard<std::mutex> groupGuard(groupLock_);
         MifItem* workingItem;
         for (int index = 0; index < layer_->size(); index++) {
             CHECK_RET(layer_->newMifItem(index, nullptr, &workingItem),
@@ -163,11 +164,13 @@ int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
                 CHECK_RET(workingItem->getTagVal(info_->newTagName_,
                         &newTagVal), "Failed to get value of tag \"%s\" %s",
                         info_->newTagName_.c_str(), "from plugin layer.");
+                group_.push_back(index);
                 if (oldTagMap.find(newTagVal) != oldTagMap.end()) {
                     matchIndexes.push_back(index);
                 }
             }
         }
+        size_ = group_.size();
     } else {
         MifItem* workingItem;
         for (int index : group_) {

@@ -122,7 +122,7 @@ protected:
     // 当前Group是不是一个动态Group
     bool dynamic_ = false;
     // 当前Group的元素个数
-    int size_ = 0;
+    std::atomic<int> size_ {0};
 };
 
 class ItemGroup : public Group {
