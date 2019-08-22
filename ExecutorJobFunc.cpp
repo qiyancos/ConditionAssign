@@ -7,6 +7,7 @@ namespace condition_assign {
 namespace job {
 
 int LoadLayerJob::process(const int executorID) {
+    TIMER();
     TEST(executorID);
     MifLayer* layer;
     CHECK_RET(resourcePool_->getLayerBySharedID(&layer, sharedID_),
@@ -17,6 +18,7 @@ int LoadLayerJob::process(const int executorID) {
 }
 
 int SaveLayerJob::process(const int executorID) {
+    TIMER();
     TEST(executorID);
     MifLayer* layer;
     CHECK_RET(resourcePool_->getLayerBySharedID(&layer, sharedID_),

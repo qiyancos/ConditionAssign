@@ -119,7 +119,9 @@ int calculateScore(const std::vector<Node*>& nodeVec) {
 int satisfyConditions(const ConfigItem& configItem, MifItem* item) {
     int result;
     syntax::Node* mainNode = configItem.conditionMainNode_;
-    CHECK_ARGS(mainNode, "Failed to get main node of conditions.");
+    if (!mainNode) {
+        return true;
+    }
     CHECK_ARGS(mainNode->op, "Found main node without operator.");
     CHECK_RET(result = mainNode->op->process(mainNode, item),
             "Operator process failed in \"%s %s %s\".",

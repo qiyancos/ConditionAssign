@@ -85,6 +85,9 @@ namespace condition_assign {
 // 计时测试使用的宏，计算构造和析构间的时间（微秒）
 #ifdef USE_TIMER
 
+#define TIME_STAMP() \
+    timer::printTimeStamp(__func__, __FILE__, __LINE__);
+
 #define TIMER() \
     timer newTimer(__func__, __FILE__, __LINE__);
 
@@ -104,6 +107,17 @@ public:
         std::cout << funcName_ << ") Total time: ";
         std::cout << static_cast<double>(duration.count());
         std::cout << " Micro Second." << std::endl;
+    }
+
+    static void printTimeStamp(const std::string funcName,
+            const std::string fileName, const int line) {
+        struct timeval tv;  
+        gettimeofday(&tv,NULL);
+        int min = tv.tv_sec / 60 % 60;
+        double second = tv.tv_sec % 60;
+        second += static_cast<double>(tv.tv_usec) / 1000000;
+        std::cout << "[" << fileName << ":" << line << "] In func <" <<
+                funcName << ">, time: " << min << ":" << second << std::endl;
     }
 
 private:

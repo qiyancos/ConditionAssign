@@ -458,7 +458,7 @@ int MifItem::assignWithNumber(const std::string& tagName,
             "Failed to assign number to tag \"%s\".", tagName.c_str());
 #ifdef USE_MIFITEM_CACHE
     std::lock_guard<std::mutex> cacheGuard(*(info_->tagNumberCacheLock_));
-    info_->tagNumberCache[tagName] = val;
+    info_->tagNumberCache_[tagName] = val;
 #endif
     return 0;
 }
@@ -471,7 +471,7 @@ int MifItem::assignWithTag(const std::string& tagName,
             "Failed to assign value to tag \"%s\".", tagName.c_str());
 #ifdef USE_MIFITEM_CACHE
     std::lock_guard<std::mutex> cacheGuard(*(info_->tagStringCacheLock_));
-    info_->tagStringCache[tagName] = val;
+    info_->tagStringCache_[tagName] = val;
 #endif
     return 0;
 }
@@ -479,15 +479,15 @@ int MifItem::assignWithTag(const std::string& tagName,
 int MifItem::getTagVal(const std::string& tagName, std::string* val) {
 #ifdef USE_MIFITEM_CACHE
     std::lock_guard<std::mutex> cacheGuard(*(info_->tagStringCacheLock_));
-    auto cacheIterator = info_->tagStringCache.find(tagName);
-    if (cacheIterator != info_->tagStringCache.end()) {
+    auto cacheIterator = info_->tagStringCache_.find(tagName);
+    if (cacheIterator != info_->tagStringCache_.end()) {
         *val = cacheIterator->second;
         return 0;
     } else {
         CHECK_RET(srcLayer_->getTagVal(tagName, index_, val),
                 "Failed to get value of tag \"%s\" from mif layer.",
                 tagName.c_str());
-        info_->tagStringCache[tagName] = *val;
+        info_->tagStringCache_[tagName] = *val;
         return 0;
     }
 #else
@@ -501,15 +501,15 @@ int MifItem::getTagVal(const std::string& tagName, std::string* val) {
 int MifItem::getTagVal(const std::string& tagName, double* val) {
 #ifdef USE_MIFITEM_CACHE
     std::lock_guard<std::mutex> cacheGuard(*(info_->tagNumberCacheLock_));
-    auto cacheNumberIterator = info_->tagNumberCache.find(tagName);
-    if (cacheNumberIterator != info_->tagNumberCache.end()) {
+    auto cacheNumberIterator = info_->tagNumberCache_.find(tagName);
+    if (cacheNumberIterator != info_->tagNumberCache_.end()) {
         *val = cacheNumberIterator->second;
         return 0;
     } else if (tagName == "X" || tagName == "Y") {
         CHECK_RET(srcLayer_->getTagVal(tagName, index_, val),
                 "Failed to get value of tag \"%s\" from mif layer.",
                 tagName.c_str());
-        info_->tagNumberCache[tagName] = *val;
+        info_->tagNumberCache_[tagName] = *val;
         return 0;
     } else {
         std::string tagVal;
@@ -518,7 +518,7 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
                 tagName.c_str());
         CHECK_ARGS(syntax::isType(tagVal, val),
                 "Trying to get tag value \"%s\" as a number.", tagVal.c_str());
-        info_->tagNumberCache[tagName] = *val;
+        info_->tagNumberCache_[tagName] = *val;
         return 0;
     }
 #else
