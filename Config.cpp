@@ -352,6 +352,8 @@ int linkExpr(const syntax::Operator::OperatorType opType,
                             "Lack of expression after logic operator.");
                 }
                 reduceDepth--;
+                CHECK_ARGS(reduceDepth >= 0, "Lack of left bracket %s%d",
+                        "with right bracket in position: ", delim.first);
                 break;
             case LeftBracket:
                 if (lastDelim) {
