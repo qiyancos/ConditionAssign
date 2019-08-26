@@ -421,6 +421,8 @@ int linkExpr(const syntax::Operator::OperatorType opType,
         CHECK_ARGS(delimeters.back().second == RightBracket,
                 "Expression ends with non expected operator or delimeter.");
     }
+    CHECK_ARGS(reduceDepth == 0, "Lack left or right bracket in \"%s\"",
+            content.c_str());
     CHECK_ARGS(nodeStack.size() == 1, "No node or too many nodes left for %s",
             "main node setting in nodestack");
     if (opType == syntax::Operator::Condition) {
@@ -428,8 +430,6 @@ int linkExpr(const syntax::Operator::OperatorType opType,
     } else {
         configItem->assignMainNode_ = nodeStack.front();
     }
-    CHECK_ARGS(reduceDepth == 0, "Lack left or right bracket in \"%s\"",
-            content.c_str());
     return 0;
 }
 
