@@ -59,6 +59,9 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
                         output.size() - 5), layers_[idMapping_[i]]));
                 idMapping_[i + uniqueID] = sharedID++;
             } else {
+                if (noOutputLayers.find(input) != noOutputLayers.end()) {
+                    noOutputLayers.erase(input);
+                }
                 layers_.push_back(new MifLayerNormal(input));
                 idMapping_[i] = sharedID;
                 idMapping_[i + uniqueID] = sharedID++;

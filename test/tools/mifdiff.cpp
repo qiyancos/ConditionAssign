@@ -1,8 +1,8 @@
+#include "program_helper.h"
 #include "spatial-base.h"
 #include "type_factory.h"
 #include "md5_helper.h"
 #include "htk/str_helpers.h"
-#include "progress.h"
 
 #include <vector>
 #include <string>
@@ -60,7 +60,7 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
         return false;
     }
     std::cout << "Start checking mid file." << std::endl;
-    Progress progressCounter(mifSize);
+    program_helper::Progress progressCounter(mifSize);
     for (int mifIndex = 0; mifIndex < mifSize; mifIndex++) {
         for (int colID = 0; colID < colSize; colID++) {
             std::string tagVal1 = htk::trim(mif1.mid[mifIndex][colID], "\"");
@@ -92,4 +92,5 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "Result Not Match" << std::endl;
     }
+    return 0;
 }

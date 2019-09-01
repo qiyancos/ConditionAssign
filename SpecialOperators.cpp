@@ -163,6 +163,7 @@ int FuncOperatorInRange::process(Node* node, MifItem* item) {
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Tag [%s] not found!", node->tagName.c_str());
+    leftVal = htk::trim(leftVal, "\"");
     return rangeOfNum_.find(leftVal) != rangeOfNum_.end();
 }
 

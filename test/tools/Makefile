@@ -22,17 +22,26 @@ LIB_PATH=-L ../../../../lib/styleparser/output -lstyleparser \
         -L ../../../../lib/spatial-base/output -lwslb_d \
 		-L ../../../../lib/tx_tools/output -ltx_tools \
 		-L ../../../../lib/conf_helper/output -lconf_helper \
-		-L ../../../../lib/htk/dist/lib -lhtk
+		-L ../../../../lib/htk/dist/lib -lhtk -lreadline
 
 LDFLAGS=$(LIB_PATH) -lm -lpthread
 
 .PHONY: all clean
 
 #OBJNAME: 可以是代码库名，也可以是二进制可执行程序名
-all: mifdiff
+all: init bin/mifdiff bin/mifsearch bin/test
 
-mifdiff: mifdiff.cpp progress.h
-	$(GCC) $< $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
+init:
+	mkdir -p ./bin
+
+bin/test: test.cpp program_helper.cpp
+	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
+
+bin/mifdiff: mifdiff.cpp program_helper.cpp
+	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
+
+bin/mifsearch: mifsearch.cpp program_helper.cpp
+	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
 
 clean:
-	rm -rf ./mifdiff	
+	rm -rf ./bin
