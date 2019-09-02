@@ -37,10 +37,10 @@ init:
 bin/test: test.cpp program_helper.cpp
 	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
 
-bin/mifdiff: mifdiff.cpp program_helper.cpp
+bin/mifdiff: mifdiff.cpp program_helper.cpp mif_helper.cpp
 	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
 
-bin/mifsearch: mifsearch.cpp program_helper.cpp
+bin/mifsearch: mifsearch.cpp program_helper.cpp mif_helper.cpp
 	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
 
 clean:

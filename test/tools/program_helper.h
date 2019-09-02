@@ -1,23 +1,10 @@
 #ifndef PROGRAM_HELPER_H
 #define PRPGRAM_HELPER_H
 
-#include <htk/str_helpers.h>
-
-#include <unistd.h>
-#include <dirent.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/ioctl.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-
-#include <iostream>
-#include <mutex>
-#include <set>
-#include <vector>
 #include <string>
+#include <vector>
+#include <mutex>
 #include <map>
-#include <cmath>
 
 #define CHECK_EXIT(expr, info, ...) { \
     int errCode = expr; \
@@ -62,8 +49,18 @@ namespace program_helper {
 void printWithTypeSetting(const std::vector<std::string>& candidates,
         const bool withID = false);
 
+// 判断字符串是否是给定的类型，并进行转换
 template<typename T>
 bool isType(const std::string& data, T* result);
+
+// 执行命令行指令并获取输出信息
+int executeCommand(const std::string& cmd,
+        std::vector<std::string>* stdoutBuffer = nullptr,
+        std::vector<std::string>* stderrBuffer = nullptr);
+
+// 获取当前文件夹下的所有文件/文件夹名
+int listDir(const std::string& dir, std::vector<std::string>* files,
+        const bool detail = false);
 
 // 多线程支持的自适应进度条显示类
 class Progress {
@@ -151,10 +148,6 @@ private:
     // 开启编号选择
     static const std::string openNumberInst_;
 };
-
-// 获取当前文件夹下的所有文件/文件夹名
-int listDir(const std::string& dir, std::vector<std::string>* files,
-        const bool detail = false);
 
 // 基于之搜索栏的选择函数
 int manualSelect(const std::vector<std::string>& srcOptions,

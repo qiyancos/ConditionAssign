@@ -1,36 +1,9 @@
 #include "program_helper.h"
+#include "mif_helper.h"
 
-class SearchEngine {
-public:
-    // 构造函数
-    SearchEngine(const bool printDetail, const std::string& dataPath,
-            const std::vector<std::string>& cityNames,
-            const std::vector<std::string>& layerNames) :
-            printDetail_(printDetail), dataPath_(dataPath),
-            cityNames_(cityNames), layerNames_(layerNames) {}
-    // 从所选城市中获取所有可用的Layer
-    static int getAllLayers(const std::string& dataPath,
-            const std::vector<std::string>& cityNames,
-            std::vector<std::string>* allLayers) {
-    }
-    // 借用awk处理过滤操作
-    int process() {
-        std::cout << "Please input the condition for searching:" << std::endl;
-    }
-    // 汇报统计结果
-    int report() {
-    }
-
-private:
-    // 是否需要打印具体的匹配结果
-    const bool printDetail_;
-    // 搜索数据源路径
-    const std::string dataPath_;
-    // 需要搜索的城市名集合
-    const std::vector<std::string> cityNames_;
-    // 需要搜索的Layer名称集合
-    const std::vector<std::string> layerNames_;
-};
+#include <iostream>
+#include <string>
+#include <vector>
 
 int selectCity(const std::string& dataPath,
         std::vector<std::string>* cityNames) {
@@ -46,7 +19,8 @@ int selectLayer(const std::string& dataPath,
         const std::vector<std::string>& cityNames,
         std::vector<std::string>* layerNames) {
     std::vector<std::string> allLayerNames;
-    CHECK_RET(SearchEngine::getAllLayers(dataPath, cityNames, &allLayerNames),
+    CHECK_RET(mif_helper::SearchEngine::getAllLayers(dataPath,
+            cityNames, &allLayerNames),
             "Failed to find available layer in \"%s\".", dataPath.c_str());
     CHECK_RET(program_helper::manualSelect(allLayerNames, layerNames),
             "Failed to select target layers.");
@@ -54,23 +28,25 @@ int selectLayer(const std::string& dataPath,
 }
 
 int main(int argc, char** argv) {
-    if (argc != 3 && argc != 2) {
-        std::cerr << "Usage: " << argv[0]  << " [OPTION] <path_of_data>" <<
-                std::endl;
-        std::cerr << "       Root path should hold the directory of" <<
-                "different cities." << std::endl;
+    if (argc != 4 && argc != 3) {
+        std::cerr << "Usage: " << argv[0]  << " <thread number> [OPTION]" << 
+                " <path_of_data>" << std::endl;
         std::cerr << "       -d, --detail\t\tPrint detail for match info." <<
                 std::endl;
+        std::cerr << "\nRoot path should hold the directory of" <<
+                "different cities." << std::endl;
         return 0;
     }
     bool printDetail = false;
-    std::string dataPath(argv[1]);
-    if (argc == 3) {
+    const int threadNum = atoi(argv[1]);
+    CHECK_ARGS(threadNum > 0, "Illegal thread number \"%s\".", argv[1]);
+    std::string dataPath(argv[2]);
+    if (argc == 4) {
         if (dataPath == "-d" || dataPath == "--detail") {
             printDetail = true;
-            dataPath = argv[2];
+            dataPath = argv[3];
         } else {
-            std::cerr << "Unknown arguments: " << argv[1] << std::endl;
+            std::cerr << "Unknown arguments: " << argv[2] << std::endl;
             return -1;
         }
     }
@@ -79,7 +55,8 @@ int main(int argc, char** argv) {
     CHECK_RET(selectCity(dataPath, &cityNames), "Fail to select city names.");
     CHECK_RET(selectLayer(dataPath, cityNames, &layerNames),
             "Fail to select layer names.");
-    SearchEngine engine(printDetail, dataPath, cityNames, layerNames);
+    mif_helper::SearchEngine engine(threadNum, printDetail, dataPath,
+            cityNames, layerNames);
     engine.process();
     engine.report();
 }

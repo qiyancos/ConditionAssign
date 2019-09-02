@@ -1,6 +1,88 @@
 #include "program_helper.h"
 
+#include "htk/str_helpers.h"
+
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include <iostream>
+#include <vector>
+#include <set>
+#include <cmath>
+#include <cstdlib>
+#include <readline/readline.h>
+#include <readline/history.h>
+
 namespace program_helper {
+
+int listDir(const std::string& dir, std::vector<std::string>* files,
+        const bool detail) {
+    CHECK_EXIT(access(dir.c_str(), R_OK) < 0,
+            "Data path \"%s\" not exist or not readable.", dir.c_str());
+    DIR* targetDir = opendir(dir.c_str());
+    CHECK_ARGS(targetDir != NULL, "Failed to open dir \"%s\".", dir.c_str());
+    struct dirent* targetEntry;
+    std::string fileName;
+    while ((targetEntry = readdir(targetDir)) != NULL) {
+        fileName = std::string(targetEntry->d_name);
+        if (detail || fileName[0] != '.') {
+            files->push_back(std::string(targetEntry->d_name));
+        }
+    }
+    closedir(targetDir);
+    return 0;
+}
+
+template<typename T>
+bool isType(const std::string& data, T* result) {
+    std::stringstream streamTemp(data);
+    T typeTemp;
+    char charTemp;
+    T* typeTempPtr = result == nullptr ? &typeTemp : result;
+    if (!(streamTemp >> *typeTempPtr)) {
+        return false;
+    } else if (streamTemp >> charTemp) {
+        return false;
+    }
+    return true;
+}
+
+template bool isType<int>(const std::string&, int*);
+template bool isType<double>(const std::string&, double*);
+template bool isType<std::string>(const std::string&, std::string*);
+
+int executeCommand(const std::string& cmd,
+        std::vector<std::string>* stdoutBuffer,
+        std::vector<std::string>* stderrBuffer) {
+    if (stdoutBuffer) {
+        char buffer[1024];   
+        char pipeBuffer[1024] {0};   
+        FILE *stdoutFile;   
+        strcpy(pipeBuffer, cmd.c_str());   
+        CHECK_ARGS((stdoutFile = popen(pipeBuffer, "r")) != NULL,
+                "Faile to execute command \"%s\" with stdout pipe opened.",
+                cmd.c_str());   
+        while(fgets(buffer, 1024, stdoutFile) != NULL) {   
+            stdoutBuffer->push_back(std::string(buffer));
+        }
+        pclose(stdoutFile);   
+        return 0;
+    }
+    if (stderrBuffer) {
+        CHECK_ARGS(false,
+                "Execute command and return with stderr not implemented.");
+    }
+    if (stderrBuffer && stdoutBuffer) {
+        CHECK_ARGS(false,
+                "Execute command and return with stderr not implemented.");
+    }
+    CHECK_ARGS(system(cmd.c_str()) == 0,
+            "Failed to execute command \"%s\".", cmd.c_str());
+    return 0;
+}
 
 int setType(const int lines, const std::vector<int>& typeLength,
         const int terminalWidth, std::vector<int>* columnLength = nullptr) {
@@ -126,24 +208,6 @@ void printWithTypeSetting(const std::vector<std::string>& candidates,
     }
 }
 
-template<typename T>
-bool isType(const std::string& data, T* result) {
-    std::stringstream streamTemp(data);
-    T typeTemp;
-    char charTemp;
-    T* typeTempPtr = result == nullptr ? &typeTemp : result;
-    if (!(streamTemp >> *typeTempPtr)) {
-        return false;
-    } else if (streamTemp >> charTemp) {
-        return false;
-    }
-    return true;
-}
-
-template bool isType<int>(const std::string&, int*);
-template bool isType<double>(const std::string&, double*);
-template bool isType<std::string>(const std::string&, std::string*);
-
 Progress::Progress(const int totalCount) : totalCount_(totalCount) {
     for (int i = 0; i < 50; i++) {
         progressBar_[i] = '-';
@@ -199,8 +263,8 @@ int SimpleSearchBar::deleteSearchBar() {
     }
 }
 
-int SimpleSearchBar::init(const bool useAll = true,
-        const bool useNumber = false, const bool useName = true) {
+int SimpleSearchBar::init(const bool useAll, const bool useNumber,
+        const bool useName) {
     CHECK_WARN(useAll || useNumber || useName, "Search Bar will not %s",
             "work well as no search method is given.");
     useAll_ = useAll;
@@ -208,6 +272,7 @@ int SimpleSearchBar::init(const bool useAll = true,
     useName_ = useName;
     rl_attempted_completion_over = 0;
     rl_attempted_completion_function = autoComplete;
+    return 0;
 }
 
 int SimpleSearchBar::setSearchLib(
@@ -367,24 +432,6 @@ const std::string SimpleSearchBar::selectAllInst_ = "#All";
 const std::string SimpleSearchBar::showLibInst_ = "#Show";
 const std::string SimpleSearchBar::closeNumberInst_ = "#NoNumber";
 const std::string SimpleSearchBar::openNumberInst_ = "#UseNumber";
-
-int listDir(const std::string& dir, std::vector<std::string>* files,
-        const bool detail) {
-    CHECK_EXIT(access(dir.c_str(), R_OK) < 0,
-            "Data path \"%s\" not exist or not readable.", dir.c_str());
-    DIR* targetDir = opendir(dir.c_str());
-    CHECK_ARGS(targetDir != NULL, "Failed to open dir \"%s\".", dir.c_str());
-    struct dirent* targetEntry;
-    std::string fileName;
-    while ((targetEntry = readdir(targetDir)) != NULL) {
-        fileName = std::string(targetEntry->d_name);
-        if (detail || fileName[0] != '.') {
-            files->push_back(std::string(targetEntry->d_name));
-        }
-    }
-    closedir(targetDir);
-    return 0;
-}
 
 int manualSelect(const std::vector<std::string>& srcOptions,
         std::vector<std::string>* selectResult) {

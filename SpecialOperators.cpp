@@ -175,7 +175,7 @@ int FuncOperatorInRange::find(Operator** newOperatorPtr,
             content.size() - range->second - 1);
     size_t minusIndex = arguments.find("-");
     CHECK_ARGS(minusIndex != std::string::npos, "Can not find %s \"%s\".",
-            "delimeter in function arguments", arguments.c_str());
+            "delimiter in function arguments", arguments.c_str());
     std::string startNumberStr = arguments.substr(0, minusIndex);
     std::string endNumberStr = arguments.substr(minusIndex + 1,
             arguments.size() - minusIndex - 1);

@@ -102,8 +102,8 @@ ConfigGroup::~ConfigGroup() {
 
 namespace parser {
 
-int findDelimeter(const syntax::Operator::OperatorType opType,
-        const std::string& content, std::vector<Delimeter>* delimeters,
+int findDelimiter(const syntax::Operator::OperatorType opType,
+        const std::string& content, std::vector<Delimiter>* delimiters,
         std::string* result) {
     size_t index = 0, newIndex = 0;
     const char* contentStr = content.c_str();
@@ -137,7 +137,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
             switch (contentStr[index]) {
             case ' ': index++; break;
             case ';':
-                delimeters->push_back(Delimeter(newIndex++, Semicolon));
+                delimiters->push_back(Delimiter(newIndex++, Semicolon));
                 result->append(1, ';');
                 index++;
                 break;
@@ -145,7 +145,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                 temp = contentStr[index++];
                 CHECK_ARGS(temp == '&' || temp == '<' || temp == '[',
                             "Operator \"&\" not supported.");
-                delimeters->push_back(Delimeter(newIndex++, And));
+                delimiters->push_back(Delimiter(newIndex++, And));
                 result->append(1, '&');
                 if (temp == '&') {
                     index++;
@@ -159,7 +159,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                 CHECK_ARGS(opType == syntax::Operator::Condition,
                         "Operator \"||\" not supported in %s",
                         "assign expressions.");
-                delimeters->push_back(Delimeter(newIndex++, Or));
+                delimiters->push_back(Delimiter(newIndex++, Or));
                 index++;
                 newIndex++;
                 result->append(2, '|');
@@ -169,7 +169,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                     CHECK_ARGS(opType == syntax::Operator::Condition,
                             "Operator \"!\" not supported in %s",
                             "assign expressions.");
-                    delimeters->push_back(Delimeter(newIndex, Not));
+                    delimiters->push_back(Delimiter(newIndex, Not));
                 }
                 newIndex++;
                 result->append(1, '!');
@@ -178,7 +178,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                 temp = newIndex == 0 ? -1 : (*result)[newIndex - 1];
                 if (temp == -1 || temp == '(' || temp == '|' ||
                         temp == '&' || temp == '!') {
-                    delimeters->push_back(Delimeter(newIndex++, LeftBracket));
+                    delimiters->push_back(Delimiter(newIndex++, LeftBracket));
                 } else {
                     intoString = 3;
                 }
@@ -186,7 +186,7 @@ int findDelimeter(const syntax::Operator::OperatorType opType,
                 index++;
                 break;
             case ')':
-                delimeters->push_back(Delimeter(newIndex++, RightBracket));
+                delimiters->push_back(Delimiter(newIndex++, RightBracket));
                 result->append(1, ')');
                 index++;
                 break;
@@ -287,14 +287,14 @@ int reduceExpr(std::vector<syntax::Node*>* nodeStack, const int reduceDepth) {
 
 int linkExpr(const syntax::Operator::OperatorType opType,
         const std::string& content, ConfigItem* configItem,
-        const std::vector<Delimeter>& delimeters,
+        const std::vector<Delimiter>& delimiters,
         std::vector<Expression>* exprs) {
     int reduceDepth = 0, index = 0;
     syntax::Node* newNode;
     std::vector<syntax::Node*> nodeStack;
-    const Delimeter* lastDelim = nullptr;
-    for (int i = 0; i < delimeters.size(); i++) {
-        const Delimeter& delim = delimeters[i];
+    const Delimiter* lastDelim = nullptr;
+    for (int i = 0; i < delimiters.size(); i++) {
+        const Delimiter& delim = delimiters[i];
         // 表明中间存在需要解析的简单表达式
 #ifdef DEBUG_OP
         std::cout << "Left: " << content.substr(index,
@@ -377,7 +377,7 @@ int linkExpr(const syntax::Operator::OperatorType opType,
             default:
                 if (lastDelim) {
                     CHECK_ARGS(lastDelim->second == RightBracket,
-                            "Invalid operator or delimeter before %s",
+                            "Invalid operator or delimiter before %s",
                             "binary logic operator.");
                 }
                 configItem->addCondition(new syntax::Node(), &newNode);
@@ -420,8 +420,8 @@ int linkExpr(const syntax::Operator::OperatorType opType,
         CHECK_RET(reduceExpr(&nodeStack, reduceDepth),
                 "Failed to shift-reduce in depth[%d].", reduceDepth);
     } else {
-        CHECK_ARGS(delimeters.back().second == RightBracket,
-                "Expression ends with non expected operator or delimeter.");
+        CHECK_ARGS(delimiters.back().second == RightBracket,
+                "Expression ends with non expected operator or delimiter.");
     }
     CHECK_ARGS(reduceDepth == 0, "Lack left or right bracket in \"%s\"",
             content.c_str());
@@ -438,19 +438,19 @@ int linkExpr(const syntax::Operator::OperatorType opType,
 int parseConditions(const std::string& content, ConfigItem* configItem,
         ResourcePool* resourcePool, std::vector<MifLayer*>* srcLayers,
         std::vector<std::pair<std::string, Group**>*>* newGroups) {
-    std::vector<Delimeter> delimeters;
+    std::vector<Delimiter> delimiters;
     std::string newContent("");
-    CHECK_RET(findDelimeter(syntax::Operator::Condition, content,
-            &delimeters, &newContent),
-            "Failed to split content with delimeters.");
+    CHECK_RET(findDelimiter(syntax::Operator::Condition, content,
+            &delimiters, &newContent),
+            "Failed to split content with delimiters.");
     if (newContent.length() == 0) {
         configItem->addCondition(nullptr);
         return 0;
     }
     std::vector<Expression> exprs;
-    if (delimeters.size() != 0) {
+    if (delimiters.size() != 0) {
         CHECK_RET(linkExpr(syntax::Operator::Condition, newContent,
-                configItem, delimeters, &exprs),
+                configItem, delimiters, &exprs),
                 "Failed split config line into expressions.");
     } else {
         syntax::Node* newNode;
@@ -468,14 +468,14 @@ int parseConditions(const std::string& content, ConfigItem* configItem,
 
 int parseAssigns(const std::string& content, ConfigItem* configItem,
         ResourcePool* resourcePool, std::vector<MifLayer*>* targetLayers) {
-    std::vector<Delimeter> delimeters;
+    std::vector<Delimiter> delimiters;
     std::string newContent("");
-    CHECK_RET(findDelimeter(syntax::Operator::Assign, content, &delimeters,
-            &newContent), "Failed to split content with delimeters.");
+    CHECK_RET(findDelimiter(syntax::Operator::Assign, content, &delimiters,
+            &newContent), "Failed to split content with delimiters.");
     std::vector<Expression> exprs;
-    if (delimeters.size() != 0) {
+    if (delimiters.size() != 0) {
         CHECK_RET(linkExpr(syntax::Operator::Assign, newContent, configItem,
-                delimeters, &exprs),
+                delimiters, &exprs),
                 "Failed split config line into expressions.");
     } else {
         syntax::Node* newNode;

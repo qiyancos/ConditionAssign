@@ -106,7 +106,7 @@ namespace parser {
 // 双目逻辑运算符类型
 enum DelimType {Null, Not, And, Or, Semicolon, LeftBracket, RightBracket};
 // 双目逻辑运算符类型和位置信息
-using Delimeter = std::pair<int, DelimType>;
+using Delimiter = std::pair<int, DelimType>;
 // 代解析的简单表达式形式
 using Expression = std::pair<std::string, syntax::Node*>;
 

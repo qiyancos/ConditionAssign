@@ -1,5 +1,9 @@
 #include "program_helper.h"
 
+#include <iostream>
+#include <string>
+#include <vector>
+
 int main(int argc, char** argv) {
     if (argc < 2) return 0;
     std::vector<std::string> options;
