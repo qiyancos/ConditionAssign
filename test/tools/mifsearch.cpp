@@ -10,8 +10,12 @@ int selectCity(const std::string& dataPath,
     std::vector<std::string> allCityNames;
     CHECK_RET(program_helper::listDir(dataPath, &allCityNames),
             "Failed to list files and dirs in \"%s\".", dataPath.c_str());
+    std::cout << "Please select the cities in which you want to search:\n";
     CHECK_RET(program_helper::manualSelect(allCityNames, cityNames),
             "Failed to select target cities.");
+    std::cout << "-- The following cities have been selected:\n";
+    program_helper::printWithTypeSetting(*cityNames);
+    std::cout << std::endl;
     return 0;
 }
 
@@ -22,20 +26,35 @@ int selectLayer(const std::string& dataPath,
     CHECK_RET(mif_helper::SearchEngine::getAllLayers(dataPath,
             cityNames, &allLayerNames),
             "Failed to find available layer in \"%s\".", dataPath.c_str());
+    std::cout << "Please select the layers in which you want to search:\n";
     CHECK_RET(program_helper::manualSelect(allLayerNames, layerNames),
             "Failed to select target layers.");
+    std::cout << "-- The following layers have been selected:\n";
+    program_helper::printWithTypeSetting(*layerNames);
+    std::cout << std::endl;
     return 0;
 }
 
+void printHelpInfo(const std::string binaryPath) {
+    std::cerr << "Usage: " << binaryPath  << " <thread number> [OPTION]" << 
+            " <path_of_data>" << std::endl;
+    std::cerr << "       -d, --detail\t\tPrint detail for match info." <<
+            std::endl;
+    std::cerr << "Root path should hold the directory of" <<
+            "different cities." << std::endl;
+    return 0;
+}        
+
 int main(int argc, char** argv) {
-    if (argc != 4 && argc != 3) {
-        std::cerr << "Usage: " << argv[0]  << " <thread number> [OPTION]" << 
-                " <path_of_data>" << std::endl;
-        std::cerr << "       -d, --detail\t\tPrint detail for match info." <<
-                std::endl;
-        std::cerr << "\nRoot path should hold the directory of" <<
-                "different cities." << std::endl;
+    if (argc == 2 && (std::string(argv[1]) == "-h" ||
+            std::string(argv[1]) == "--help")) {
+        printHelpInfo(argv[0]);
         return 0;
+    }
+    if (argc != 4 && argc != 3) {
+        std::cerr << "Error: Too few or too many arguments." << std::endl;
+        printHelpInfo(argv[0]);
+        return -1;
     }
     bool printDetail = false;
     const int threadNum = atoi(argv[1]);
@@ -57,6 +76,6 @@ int main(int argc, char** argv) {
             "Fail to select layer names.");
     mif_helper::SearchEngine engine(threadNum, printDetail, dataPath,
             cityNames, layerNames);
-    engine.process();
-    engine.report();
+    CHECK_RET(engine.process(), "Search engine process failed.");
+    CHECK_RET(engine.report(), "Search engine report failed.");
 }

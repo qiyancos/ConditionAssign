@@ -57,6 +57,7 @@ template bool isType<std::string>(const std::string&, std::string*);
 int executeCommand(const std::string& cmd,
         std::vector<std::string>* stdoutBuffer,
         std::vector<std::string>* stderrBuffer) {
+    // std::cout << cmd << std::endl;
     if (stdoutBuffer) {
         char buffer[1024];   
         char pipeBuffer[1024] {0};   
@@ -257,6 +258,7 @@ int SimpleSearchBar::deleteSearchBar() {
     std::lock_guard<std::mutex> initGuard(initLock_);
     if (onlyBar_) {
         delete onlyBar_;
+        onlyBar_ = nullptr;
         return 1;
     } else {
         return 0;
@@ -330,6 +332,10 @@ void SimpleSearchBar::printHelpInfo() {
 }
 
 int SimpleSearchBar::findResult(const std::string& input, std::vector<int>* results) {
+    if (input.size() == 0) {
+        std::cerr << "Input is empty. Please reinput." << std::endl;
+        return -1;
+    }
     std::set<int> resultIndex;
     add_history(input.c_str());
     std::vector<std::string> options = htk::split(input, " ", "\t");

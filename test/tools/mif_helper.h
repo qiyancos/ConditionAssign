@@ -83,8 +83,12 @@ private:
     int processResult();
 
     // 对不同的Layer生成并执行的指令
+    static int worker(SearchEngine* engine, const int startIndex,
+            const int endIndex, const int threadId);
+    
+    // 对不同的Layer生成并执行的指令
     static int executeCommand(SearchEngine* engine, const int startIndex,
-        const int endIndex);
+            const int endIndex);
 
 private:
     // 完整的统计结果
@@ -102,6 +106,9 @@ private:
 private:
     // 搜索引擎的线程数
     const int threadNum_;
+    // 线程的返回状态
+    std::vector<int> threadStates_;
+
     // 是否需要打印具体的匹配结果
     const bool printDetail_;
     // 搜索数据源路径
