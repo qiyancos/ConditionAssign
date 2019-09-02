@@ -39,4 +39,4 @@ test/log*
 test/data
 conf/*.conf
 *.swp
-test/tools/mifdiff
+test/tools/bin
