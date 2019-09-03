@@ -4,7 +4,8 @@ MAC=64
 BOOST=$(THIRD)/boost
 
 GCC=g++
-CPPFLAGS=-g -O2 -std=c++11 -finline-functions -std=gnu++0x \
+
+CPPFLAGS=-g -O2 -std=c++11 -finline-functions \
 		-Wall -W -Wshadow -Wpointer-arith \
 		-Wcast-qual -Wwrite-strings -Woverloaded-virtual \
 		-Wno-unused-parameter -Wno-unused-function \
@@ -22,9 +23,9 @@ LIB_PATH=-L ../../../../lib/styleparser/output -lstyleparser \
         -L ../../../../lib/spatial-base/output -lwslb_d \
 		-L ../../../../lib/tx_tools/output -ltx_tools \
 		-L ../../../../lib/conf_helper/output -lconf_helper \
-		-L ../../../../lib/htk/dist/lib -lhtk -lreadline
+		-L ../../../../lib/htk/dist/lib -lhtk
 
-LDFLAGS=$(LIB_PATH) -lm -lpthread
+LDFLAGS=$(LIB_PATH) -lm -lpthread -lreadline -ltinfo
 
 .PHONY: all clean
 
@@ -40,7 +41,10 @@ bin/test: test.cpp program_helper.cpp
 bin/mifdiff: mifdiff.cpp program_helper.cpp mif_helper.cpp
 	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
 
-bin/mifsearch: mifsearch.cpp program_helper.cpp mif_helper.cpp
+bin/mifsearch: bin/mifsearch.bin mifsearch.sh
+	./build_mifsearch.sh
+
+bin/mifsearch.bin: mifsearch.cpp program_helper.cpp mif_helper.cpp
 	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
 
 clean:

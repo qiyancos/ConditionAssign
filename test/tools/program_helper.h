@@ -67,6 +67,8 @@ class Progress {
 public:
     // 构造函数
     Progress(const int totalCount);
+    // 析构函数
+    ~Progress();
     // 添加新的进度数值
     void addProgress(const int newProgress);
 
@@ -76,16 +78,27 @@ private:
 
     // 支持多线程进度条
     std::mutex progressLock_;
-    // 当前进度的百分比
-    double percentage_ = 0;
+    
+    // 当前进度条的总长度
+    int barLength_;
     // 当前要写的barCount
     int barCount_ = 0;
     // 进度条
-    char progressBar_[51] {0};
+    char* progressBar_;
+    
+    // 当前进度的百分比
+    double percentage_ = 0;
     // 当前进度的实际数值
     int progressCount_ = 0;
     // 总进度数值
     const int totalCount_;
+
+    // 进度条为空显示的字符
+    static const char emptyBarUnit;
+    // 进度条占用时显示的字符
+    static const char fullBarUnit;
+    // 进度条的最长长度
+    static const int maxLength;
 };
 
 
