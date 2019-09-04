@@ -16,8 +16,9 @@ int main(int argc, char** argv) {
     if (mif_helper::checkSameMif(mifFile1, mifFile2) &&
             mif_helper::checkSameMid(mifFile1, mifFile2)) {
         std::cout << "Result Match" << std::endl;
+        return 0;
     } else {
         std::cout << "Result Not Match" << std::endl;
+        return -1;
     }
-    return 0;
 }

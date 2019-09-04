@@ -30,13 +30,10 @@ LDFLAGS=$(LIB_PATH) -lm -lpthread -lreadline -ltinfo
 .PHONY: all clean
 
 #OBJNAME: 可以是代码库名，也可以是二进制可执行程序名
-all: init bin/mifdiff bin/mifsearch bin/test
+all: init bin/mifdiff bin/mifsearch
 
 init:
 	mkdir -p ./bin
-
-bin/test: test.cpp program_helper.cpp
-	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
 
 bin/mifdiff: mifdiff.cpp program_helper.cpp mif_helper.cpp
 	$(GCC) $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
