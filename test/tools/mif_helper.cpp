@@ -237,10 +237,12 @@ int SearchEngine::process() {
     }
     int startIndex = 0, endIndex;
     int totalJobCnt = jobQueue_.size();
+    progressBar_ = new program_helper::Progress(totalJobCnt);
     int avgJobCnt = totalJobCnt / threadNum_;
     avgJobCnt = avgJobCnt == 0 ? 1 : avgJobCnt;
     std::vector<std::thread> threadList;
     threadStates_.resize(threadNum_);
+    std::cout << "-- Start processing... " << std::endl;
     for (int i = 0; i < threadNum_; i++) {
         endIndex = startIndex + avgJobCnt;
         threadList.push_back(std::thread(worker, this, startIndex,
@@ -253,6 +255,7 @@ int SearchEngine::process() {
     for (auto& thread : threadList) {
         thread.join();
     }
+    delete progressBar_;
     int index = 0;
     for (const int states : threadStates_) {
         CHECK_RET(states,
@@ -264,19 +267,8 @@ int SearchEngine::process() {
 }
 
 int SearchEngine::report() {
-    std::cout << "Final Report: " << std::endl;
+    std::cout << "\nFinal Report: " << std::endl;
     std::cout << "================================================\n";
-    std::cout << "-- Total: " << totalSum_ << std::endl;
-    std::cout << "-- City Summary: " << std::endl;
-    for (auto iterCity : sumCity_) {
-        std::cout << "    " << iterCity.first << "\t" <<
-                iterCity.second << std::endl;
-    }
-    std::cout << "-- Layer Summary: " << std::endl;
-    for (auto iterLayer : sumLayer_) {
-        std::cout << "    " << iterLayer.first << "\t" <<
-                iterLayer.second << std::endl;
-    }
     std::cout << "-- Layer Detail: " << std::endl;
     for (auto iterCity : sumCityLayer_) {
         std::cout << "    " << iterCity.first << ":\n";
@@ -289,6 +281,17 @@ int SearchEngine::report() {
             }
         }
     }
+    std::cout << "-- City Summary: " << std::endl;
+    for (auto iterCity : sumCity_) {
+        std::cout << "    " << iterCity.first << "\t" <<
+                iterCity.second << std::endl;
+    }
+    std::cout << "-- Layer Summary: " << std::endl;
+    for (auto iterLayer : sumLayer_) {
+        std::cout << "    " << iterLayer.first << "\t" <<
+                iterLayer.second << std::endl;
+    }
+    std::cout << "-- Total: " << totalSum_ << std::endl;
     std::cout << "================================================\n";
     if (printDetail_) {
         std::cout << "-- Detail Report:" << std::endl;
@@ -314,7 +317,7 @@ int SearchEngine::processResult() {
         sumCity_[iterCity.first] = 0;
         sumCityLayer_[iterCity.first] = std::map<std::string, int>();
         for(auto iterLayer : iterCity.second) {
-            if (sumLayer_.find(iterLayer.first) != sumLayer_.end()) {
+            if (sumLayer_.find(iterLayer.first) == sumLayer_.end()) {
                 sumLayer_[iterLayer.first] = 0;
             }
             int sumTemp = iterLayer.second.size();
@@ -345,7 +348,8 @@ int SearchEngine::executeCommand(SearchEngine* engine, const int startIndex,
         std::vector<std::string>* result = engine->jobQueue_[i].second;
         if (access(layerPath.c_str(), R_OK) < 0) {
             result->push_back("-1");
-            return 0;
+            engine->progressBar_->addProgress(1);
+            continue;
         }
         CHECK_ARGS(result->empty(),
                 "Result should always be empty before process.");
@@ -358,20 +362,23 @@ int SearchEngine::executeCommand(SearchEngine* engine, const int startIndex,
         // 依据config信息生成awk指令
         std::string finalCommand = std::string("awk -F \"") +
                 mifHeader.delimiter + "\" '{if (";
-        int index = 0;
+        bool tagNotExist = false;
         for (const auto& config : engine->configs_) {
             if (mifHeader.colNameMap.find(config.first) ==
                     mifHeader.colNameMap.end()) {
-                return 0;
+                engine->progressBar_->addProgress(1);
+                tagNotExist = true;
             } else {
+                if (finalCommand[finalCommand.size() - 1] != '(') {
+                    finalCommand += " && ";
+                }
                 finalCommand += std::string("$") +
                         std::to_string(mifHeader.colNameMap[config.first] + 1)
                         + " ~ \"" + config.second + "\" ";
-                if (index != engine->configs_.size() - 1) {
-                    finalCommand += " && ";
-                }
             }
-            index++;
+        }
+        if (tagNotExist) {
+            continue;
         }
         std::string midPath;
         if (htk::endswith(layerPath, ".mif")) {
@@ -383,6 +390,7 @@ int SearchEngine::executeCommand(SearchEngine* engine, const int startIndex,
         // 执行指令并收取结果
         CHECK_RET(program_helper::executeCommand(finalCommand, result),
                 "Failed to execute command \"%s\".", finalCommand.c_str());
+        engine->progressBar_->addProgress(1);
     }
     return 0;
 }

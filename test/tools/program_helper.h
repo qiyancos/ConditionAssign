@@ -1,5 +1,5 @@
 #ifndef PROGRAM_HELPER_H
-#define PRPGRAM_HELPER_H
+#define PROGRAM_HELPER_H
 
 #include <string>
 #include <vector>

@@ -1,6 +1,8 @@
 #ifndef MIF_HELPER_H
 #define MIF_HELPER_H
 
+#include "program_helper.h"
+
 #include <string>
 #include <vector>
 #include <map>
@@ -63,7 +65,7 @@ public:
             threadNum_(threadNum), printDetail_(printDetail),
             dataPath_(dataPath), cityNames_(cityNames),
             layerNames_(layerNames) {}
-    
+
     // 从所选城市中获取所有可用的Layer
     static int getAllLayers(const std::string& dataPath,
             const std::vector<std::string>& cityNames,
@@ -108,6 +110,8 @@ private:
     const int threadNum_;
     // 线程的返回状态
     std::vector<int> threadStates_;
+    // 搜索引擎的进度条
+    program_helper::Progress* progressBar_ = nullptr;
 
     // 是否需要打印具体的匹配结果
     const bool printDetail_;

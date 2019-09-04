@@ -3,9 +3,10 @@ set -e
 # 获取当前执行文件的路径
 tempDir=/tmp
 root=`dirname $0`
-cd $root
+pushd $root
 root=$PWD
 thisFile=$root/`basename $0`
+popd
 
 # 合并文件相关信息
 startLine="START_LINE"

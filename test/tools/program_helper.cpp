@@ -156,7 +156,7 @@ std::vector<std::string>* getTypeSetting(
     struct winsize terminalSize;
     // 获取当前的终端大小
     if (getTerminalSize(&terminalSize) < 0) {
-        return nullptr;
+        terminalSize.ws_col = 80;
     }
     std::vector<int> typeLength;
     std::vector<std::string> idString;
@@ -389,6 +389,9 @@ int SimpleSearchBar::findResult(const std::string& input, std::vector<int>* resu
     int numberTemp = 0, endIndex = 0;
     size_t barIndex = 0;
     for (const std::string& option : options) {
+        if (option.size() == 0 ) {
+            continue;
+        }
         // 查找名字
         if (searchMap_.find(option) != searchMap_.end()) {
             resultIndex.insert(searchMap_[option]);
