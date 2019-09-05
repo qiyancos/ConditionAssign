@@ -32,9 +32,8 @@ initTest() {
         fi
     fi
    
-    # TODO
-    srcDataPath=$dataPath/
-    resultDataPath=$dataPath/
+    srcDataPath=$dataPath/01_basic/05_ReCatalog
+    resultDataPath=$dataPath/02_image/01_catalog_rank
     if [ x$runSingle = x1 ]
     then
         if [ x$3 = x ]
