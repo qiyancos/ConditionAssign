@@ -61,7 +61,8 @@ int MifLayerNew::open() {
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         mif_.header = copySrcLayer_->mif_.header;
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
-        if (copySrcLayer_->mif_.data.geo_vec[0]) {
+        if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
+                copySrcLayer_->mif_.data.geo_vec[0]) {
             geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
         }
         ready_.signalAll();
@@ -76,7 +77,8 @@ int MifLayerNew::copyLoad() {
         tagTypeCache_ = copySrcLayer_->tagTypeCache_;
         mif_.header = copySrcLayer_->mif_.header;
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
-        if (!copySrcLayer_->mif_.data.geo_vec[0]) {
+        if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
+                copySrcLayer_->mif_.data.geo_vec[0]) {
             geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
         }
         ready_.signalAll();
@@ -180,7 +182,7 @@ int MifLayerNew::getTagType(const std::string& tagName,
         int result;
         CHECK_RET(result = checkAddTag(tagName, &colID),
                 "Failed to add new column.");
-        if (result > 0) {
+        if (result > 0 || mifSize_ == 0) {
             if (ExecutorPool::runParallel_) {
                 tagTypeCache_[tagName] = syntax::New;
             }
@@ -260,7 +262,7 @@ int MifLayerNormal::open() {
                 "Error occurred while openning mif layer \"%s\".",
                 layerPath_.c_str());
         mifSize_ = mif_.mid.size();
-        if (mif_.data.geo_vec[0]) {
+        if (!mif_.data.geo_vec.empty() && mif_.data.geo_vec[0]) {
             geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
         }
         itemInfoCache_.resize(mifSize_);
@@ -269,7 +271,7 @@ int MifLayerNormal::open() {
         copySrcLayer_->ready_.wait();
         mif_ = copySrcLayer_->mif_;
         mifSize_ = copySrcLayer_->mifSize_;
-        if (mif_.data.geo_vec[0]) {
+        if (!mif_.data.geo_vec.empty() && mif_.data.geo_vec[0]) {
             geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
         }
         tagColCache_ = copySrcLayer_->tagColCache_;
@@ -370,7 +372,7 @@ int MifLayerNormal::getTagType(const std::string& tagName,
         int result;
         CHECK_RET(result = checkAddTag(tagName, &colID, isAssign),
                 "Failed to add new column or tag not exist.");
-        if (result > 0) {
+        if (result > 0 || mifSize_ == 0) {
             if (ExecutorPool::runParallel_) {
                 tagTypeCache_[tagName] = syntax::New;
             }
