@@ -41,7 +41,7 @@ void printHelpInfo(const std::string binaryPath) {
     std::cerr << "       -d, --detail\t\tPrint detail for match info." <<
             std::endl;
     std::cerr << "Root path should hold the directory of" <<
-            "different cities." << std::endl;
+            " different cities." << std::endl;
     return 0;
 }        
 

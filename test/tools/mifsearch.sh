@@ -44,12 +44,12 @@ then
 fi
 
 # 修改动态链接库地址并执行主进程
-libcVersion=(`ldd --version | awk '/Ubuntu GLIBC/ {print $5}' | sed 's/\./ /g'`)
-if [ ${libcVersion[0]} = 2 -a ${libcVersion[1]} -ge 14 ]
-then
-    $tempDir/binary_temp $*
-else
+# libcVersion=(`ldd --version | awk '/Ubuntu GLIBC/ {print $5}' | sed 's/\./ /g'`)
+# if [ ${libcVersion[0]} = 2 -a ${libcVersion[1]} -ge 14 ]
+# then
+#     $tempDir/binary_temp $*
+# else
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$tempDir/lib_temp
     $tempDir/binary_temp $*
-fi
+# fi
 exit
