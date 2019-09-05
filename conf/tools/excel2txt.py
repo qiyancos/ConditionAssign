@@ -42,7 +42,7 @@ def convertOldToNew(condition):
         elif inString == 0:
             if condition[index] == '=' and \
                     condition[index - 1] not in changeList:
-                if condition[index + 1] == '=':
+                if index != len(condition) - 1 and condition[index + 1] == '=':
                     index += 1
                 result += '='
             elif condition[index] == '=' and condition[index - 1] == ':':

@@ -1,5 +1,10 @@
 待完成：
-    添加函数支持复杂的Group特征提取以及处理
+    添加函数支持复杂的Group特征提取以及处理:
+        1. relate_aoi_area, 获取一个POI对应的AOI元素的面积（需要判断POI是否有对应AOI）
+        2. belong_max_aoi_category, 获取一个POI所在AOI中面积最大的对应的category_code
+        3. in_built_up_region，是否在建成区中，无需函数
+        4. in_water_region，是否在水系面上面，无需函数
+        5. master_category_code，寻找当前点主节点对应的category_code
     支持道路复杂分级匹配函数，可以先按照简单函数配置
     区域包含基于面积大小确定
     支持匹配项tag内容作为赋值源数据
