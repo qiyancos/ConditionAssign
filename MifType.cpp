@@ -61,7 +61,9 @@ int MifLayerNew::open() {
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         mif_.header = copySrcLayer_->mif_.header;
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
-        geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
+        if (copySrcLayer_->mif_.data.geo_vec[0]) {
+            geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
+        }
         ready_.signalAll();
     }
     return 0;
@@ -74,7 +76,9 @@ int MifLayerNew::copyLoad() {
         tagTypeCache_ = copySrcLayer_->tagTypeCache_;
         mif_.header = copySrcLayer_->mif_.header;
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
-        geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
+        if (!copySrcLayer_->mif_.data.geo_vec[0]) {
+            geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
+        }
         ready_.signalAll();
     }
     return 0;
@@ -256,14 +260,18 @@ int MifLayerNormal::open() {
                 "Error occurred while openning mif layer \"%s\".",
                 layerPath_.c_str());
         mifSize_ = mif_.mid.size();
-        geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
+        if (mif_.data.geo_vec[0]) {
+            geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
+        }
         itemInfoCache_.resize(mifSize_);
         ready_.signalAll();
     } else {
         copySrcLayer_->ready_.wait();
         mif_ = copySrcLayer_->mif_;
         mifSize_ = copySrcLayer_->mifSize_;
-        geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
+        if (mif_.data.geo_vec[0]) {
+            geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
+        }
         tagColCache_ = copySrcLayer_->tagColCache_;
         tagTypeCache_ = copySrcLayer_->tagTypeCache_;
         ready_.signalAll();

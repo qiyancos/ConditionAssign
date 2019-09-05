@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
 
     // …Ë÷√»’÷æ
     char date_str[256];
-    strftime(date_str, sizeof(date_str), "%Y%m%d", localtime(&start));
+    strftime(date_str, sizeof(date_str), "%Y%m%d%H%M", localtime(&start));
     sys_log_path(logDir.c_str(), date_str);
 #ifdef DEBUG
     debugLogDir = logDir;

@@ -16,7 +16,7 @@ OPINIT_NORMAL(Or, Condition, "||", Expr);
 OPINIT_NORMAL(And, Condition, "&&", Expr);
 
 // 函数运算符的声明与注册
-FUNCOP_REG(InRange, Condition, Number, String);
+FUNCOP_REG(InRange, Condition, New, Number, String);
 
 // 地理关系运算声明(极高优先级防止匹配group内的运算符)
 OPREG_NORMAL(GeoContain, Condition, "<[]>", Empty, GroupType);

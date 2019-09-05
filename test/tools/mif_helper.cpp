@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <cmath>
 #include <fstream>
 #include <thread>
 
@@ -121,8 +122,31 @@ int formalizeFileName(std::string* mifFile, std::string* midFile) {
 }
 
 bool checkSameMif(const std::string& file1, const std::string& file2) {
+#ifdef STRICT_DIFF
     std::string md5sum1 = md5file(file1);
     std::string md5sum2 = md5file(file2);
+#else
+    char buffer[1024];
+    FILE* file1Ptr = fopen(file1.c_str(), "r");
+    std::string keyWord;
+    while (1) {
+        fgets(buffer, 1024, file1Ptr);
+        keyWord = htk::trim(htk::trim(std::string(buffer), " "), "\n");
+        if (keyWord == "data" || keyWord == "Data") {
+            break;
+        }
+    }
+    FILE* file2Ptr = fopen(file2.c_str(), "r");
+    while (1) {
+        fgets(buffer, 1024, file2Ptr);
+        keyWord = htk::trim(htk::trim(std::string(buffer), " "), "\n");
+        if (keyWord == "data" || keyWord == "Data") {
+            break;
+        }
+    }
+    std::string md5sum1 = md5file(file1Ptr);
+    std::string md5sum2 = md5file(file2Ptr);
+#endif
     if (md5sum1 == md5sum2) {
         std::cout << "Mif file match!" << std::endl;
         return true;
@@ -131,6 +155,10 @@ bool checkSameMif(const std::string& file1, const std::string& file2) {
                 md5sum2 << "]!" << std::endl;
         return false;
     }
+#ifndef STRICT_DIFF
+    fclose(file1Ptr);
+    fclose(file2Ptr);
+#endif
 }
 
 bool checkSameMid(const std::string& file1, const std::string& file2) {
@@ -151,13 +179,18 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
         return false;
     }
     int colSize = mif1.mid[0].size();
+#ifdef STRICT_DIFF
     if (colSize != mif2.mid[0].size()) {
         std::cout << "Column size mismatch [" << colSize << ":" <<
                 mif2.mid[0].size() << "]!" << std::endl;
         return false;
     }
+#else
+    std::cout << "Loss check will not compare number of tags." << std::endl;
+#endif
     std::cout << "Start checking mid file." << std::endl;
     program_helper::Progress progressCounter(mifSize);
+#ifdef STRICT_DIFF
     for (int mifIndex = 0; mifIndex < mifSize; mifIndex++) {
         for (int colID = 0; colID < colSize; colID++) {
             std::string tagVal1 = htk::trim(mif1.mid[mifIndex][colID], "\"");
@@ -171,6 +204,41 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
         }
         progressCounter.addProgress(1);
     }
+#else
+    const std::vector<std::string> checkTag {"catalog", "name"};
+    std::vector<std::pair<int, int>> checkTagIndex;
+    for (auto& tag : checkTag) {
+        std::pair<int, int> result;
+        result.first = mif1.header.col_name_map.find(tag) == 
+                mif1.header.col_name_map.end() ? -1 :
+                mif1.header.col_name_map[tag];
+        result.second = mif2.header.col_name_map.find(tag) == 
+                mif2.header.col_name_map.end() ? -1 :
+                mif2.header.col_name_map[tag];
+    }
+    for (int mifIndex = 0; mifIndex < mifSize; mifIndex++) {
+        for (auto& colID : checkTagIndex) {
+            if (colID.first + colID.second < 0) {
+                if (colID.first + colID.second == -2) {
+                    continue;
+                } else {
+                    std::cout << "Tag not all exist in both mif file." << std::endl;
+                    return false;
+                }
+            }
+            std::string tagVal1 = htk::trim(mif1.mid[mifIndex][colID.first], "\"");
+            std::string tagVal2 = htk::trim(mif2.mid[mifIndex][colID.second], "\"");
+            if (tagVal1 != tagVal2) {
+                std::cout << "Tag mismatch [\"" << tagVal1 << "\" : \"" <<
+                        tagVal2 << "\"] in mif item (" << mifIndex + 1 <<
+                        ", " << colID.first + 1 << ":" << colID.second + 1 <<
+                        ")." << std::endl;
+                return false;
+            }
+        }
+        progressCounter.addProgress(1);
+    }   
+#endif
     return true;
 }
 

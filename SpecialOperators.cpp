@@ -160,6 +160,9 @@ FuncOperatorInRange::FuncOperatorInRange(const int startNumber,
 
 int FuncOperatorInRange::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
+    if (node->leftType == New) {
+        return false;
+    }
     std::string leftVal;
     CHECK_RET(item->getTagVal(node->tagName, &leftVal),
             "Tag [%s] not found!", node->tagName.c_str());
