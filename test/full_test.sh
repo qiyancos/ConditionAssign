@@ -1,5 +1,4 @@
 #! /bin/bash
-set -e
 
 initTest() {
     root=`dirname $0`
@@ -19,7 +18,7 @@ initTest() {
         echo "    -s, --single running single test"
         exit 0
     else
-        if [ x$1 = -sx -o $1x = --singlex ]
+        if [ x$1 = "x-s" -o x$1 = "x--single" ]
         then
             runSingle=1
             dataPath=$2
@@ -55,6 +54,10 @@ initTest() {
     layers=`ls $root/conf | sed "s/\.conf//g"`
     mkdir -p $root/log
     mkdir -p $root/data
+
+	if [ -f $root/skip_list.txt ]
+	then skipList=$root/skip_list.txt
+	fi
 }
 
 singleTest() {
@@ -86,27 +89,52 @@ singleTest() {
     echo
 }
 
+checkSkip() {
+	if [ x$skipList = x ]
+	then echo 0
+	elif [ "x`grep $2 $skipList`" = x$2 ]
+	then echo 1
+	elif [ "x`grep $1 $skipList | grep $2`" != x ]
+	then echo 1
+	else echo 0
+	fi
+}
+
 initTest $*
 if [ x$runSingle = x1 ]
 then
     echo "Please select the layer you want to test (C_POI is not available)."
     select layer in $layers
     do
-        if [ -f $srcDataPath/$cities/$layer.mif ]
-        then singleTest $cities $layer
-        else echo ">> Layer $layer not exists in city $cities"
-        fi
-        break
+		if [ `checkSkip $cities $layer` = 0 ]
+		then
+			if [ -f $srcDataPath/$cities/$layer.mif ]
+        	then
+				set -e
+				singleTest $cities $layer
+				set +e
+        	else echo ">> Layer $layer not exists in city $cities"
+        	fi
+        else echo ">> Skip layer $layer in city $cities"
+		fi
+		break
     done
 else
 	for city in $cities
     do
         for layer in $layers
         do
-			if [ -f $srcDataPath/$city/$layer.mif ]
-            then singleTest $city $layer
-            else echo ">> Layer $layer not exists in city $city"
-            fi
-        done
+			if [ `checkSkip $city $layer` = 0 ]
+			then
+				if [ -f $srcDataPath/$city/$layer.mif ]
+            	then
+					set -e
+					singleTest $city $layer
+            		set +e
+				else echo ">> Layer $layer not exists in city $city"
+            	fi
+        	else echo ">> Skip layer $layer in city $city"
+			fi
+		done
     done
 fi
