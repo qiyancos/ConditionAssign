@@ -18,6 +18,8 @@ OPINIT_NORMAL(And, Condition, "&&", Expr);
 // 函数运算符的声明与注册
 FUNCOP_REG(InRange, Condition, New, Number, String);
 
+// Tag包含运算声明
+OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
 // 地理关系运算声明(极高优先级防止匹配group内的运算符)
 OPREG_NORMAL(GeoContain, Condition, "<[]>", Empty, GroupType);
 OPREG_NORMAL(GeoContainAll, Condition, "&<[]>", Empty, GroupType);
@@ -37,8 +39,6 @@ OPREG_SPECIAL(PartialEqual, Condition, String);
 // 比较运算符声明
 OPREG_NORMAL(Equal, Condition, "==", New, Number, String);
 OPREG_NORMAL(NotEqual, Condition, "!=", New, Number, String);
-// Tag包含运算声明
-OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
 // 特殊运算符注册(由于是中转函数，其类型没有关系)
 OPREG_SPECIAL(Function, Assign, Number, String, GroupType);
 // 数字大小比较运算声明

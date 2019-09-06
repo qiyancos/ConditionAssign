@@ -70,5 +70,8 @@ $(OUTPUT_OBJ)/%.o	: %.cpp
 $(OUTPUT_OBJ)/%.o	: %.c
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH) 		
 	
-$(OUTPUT)/$(EXENAME) : $(OBJ)
-	$(GCC) -o $(OUTPUT)/$(EXENAME) $(OBJ) -Xlinker "-(" $(LIB_PATH) $(LDFLAGS) -rdynamic -Xlinker  "-)" 
+$(OUTPUT)/$(EXENAME) : $(OUTPUT)/$(EXENAME).bin ./ConditionAssign.sh
+	./build_condition_assign.sh
+
+$(OUTPUT)/$(EXENAME).bin : $(OBJ)
+	$(GCC) -o $@ $(OBJ) -Xlinker "-(" $(LIB_PATH) $(LDFLAGS) -rdynamic -Xlinker  "-)" 

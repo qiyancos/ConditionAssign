@@ -72,14 +72,14 @@ do
     rm -rf $root/log_New/log_*.txt
     echo ">> Running with new condition assign:"
     logPath="$root/log_New"
-    echo -n "$root/../bin/ConditionsAssign NULL NULL $srcLayers $targetLayers "
+    echo -n "$root/../bin/ConditionAssign.bin NULL NULL $srcLayers $targetLayers "
     echo "${executorCnt} $logPath $confFiles $pluginLayers"
     if [ ${1}x = -rawx -o ${2}x = -rawx ]
     then
-        $root/../bin/ConditionAssign NULL NULL $srcLayers $targetLayers \
+        $root/../bin/ConditionAssign.bin NULL NULL $srcLayers $targetLayers \
                 ${executorCnt} $logPath $confFiles $pluginLayers
     else
-        timeNew=`(time $root/../bin/ConditionAssign NULL NULL $srcLayers \
+        timeNew=`(time $root/../bin/ConditionAssign.bin NULL NULL $srcLayers \
                 $targetLayers ${executorCnt} $logPath $confFiles \
                 $pluginLayers) 2>&1 | awk '/real/ {print $2}'`
         cat $root/log_New/log_$date.txt

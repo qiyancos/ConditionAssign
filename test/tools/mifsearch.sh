@@ -16,40 +16,40 @@ md5sumLib="MD5_LIB"
 libLength="LENGTH_LIB"
 
 # 进行文件拆解
-if [ ! -f $tempDir/binary_temp ]
+if [ ! -f $tempDir/mifsearch ]
 then
     echo ">> Building new mifsearch..."
     head -n $[startLine + binaryLength] $thisFile | \
-            tail -n $[binaryLength + 1] > $tempDir/binary_temp
-    chmod +x $tempDir/binary_temp
-elif [ `md5sum $tempDir/binary_temp | awk '{print $1}'` != $md5sumBinary ]
+            tail -n $[binaryLength + 1] > $tempDir/mifsearch
+    chmod +x $tempDir/mifsearch
+elif [ `md5sum $tempDir/mifsearch | awk '{print $1}'` != $md5sumBinary ]
 then
     echo ">> Updating new mifsearch..."
     head -n $[startLine + binaryLength] $thisFile | \
-            tail -n $[binaryLength + 1] > $tempDir/binary_temp
-    chmod +x $tempDir/binary_temp
+            tail -n $[binaryLength + 1] > $tempDir/mifsearch
+    chmod +x $tempDir/mifsearch
 fi
 
-mkdir -p $tempDir/lib_temp
-if [ ! -f $tempDir/lib_temp/libc.so.6 ]
+mkdir -p $tempDir/libmifsearch
+if [ ! -f $tempDir/libmifsearch/libc.so.6 ]
 then
     echo ">> Building new lib used by mifsearch..."
-    tail -n $[libLength + 1] $thisFile > $tempDir/lib_temp/libc.so.6
-    chmod +x $tempDir/lib_temp/libc.so.6
-elif [ `md5sum $tempDir/lib_temp/libc.so.6 | awk '{print $1}'` != $md5sumLib ]
+    tail -n $[libLength + 1] $thisFile > $tempDir/libmifsearch/libc.so.6
+    chmod +x $tempDir/libmifsearch/libc.so.6
+elif [ `md5sum $tempDir/libmifsearch/libc.so.6 | awk '{print $1}'` != $md5sumLib ]
 then
     echo ">> Updating new lib used by mifsearch..."
-    tail -n $[libLength + 1] $thisFile > $tempDir/lib_temp/libc.so.6
-    chmod +x $tempDir/lib_temp/libc.so.6
+    tail -n $[libLength + 1] $thisFile > $tempDir/libmifsearch/libc.so.6
+    chmod +x $tempDir/libmifsearch/libc.so.6
 fi
 
 # 修改动态链接库地址并执行主进程
-# libcVersion=(`ldd --version | awk '/Ubuntu GLIBC/ {print $5}' | sed 's/\./ /g'`)
-# if [ ${libcVersion[0]} = 2 -a ${libcVersion[1]} -ge 14 ]
-# then
-#     $tempDir/binary_temp $*
-# else
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$tempDir/lib_temp
-    $tempDir/binary_temp $*
-# fi
+libcVersion=(`ldd --version | sed -n 1p`)
+libcVersion=(`echo ${libcVersion[$[${#libcVersion[*]} - 1]]} | sed 's/\./ /g'`)
+if [ ${libcVersion[0]} -lt 2 -o ${libcVersion[1]} -lt 14 ]
+then export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$tempDir/libmifsearch
+fi
+threadNum=`lscpu | awk '/^CPU\(s\):/{print $2}'`
+threadNUm=$[threadNum * 8 / 10]
+$tempDir/mifsearch $threadNum $*
 exit

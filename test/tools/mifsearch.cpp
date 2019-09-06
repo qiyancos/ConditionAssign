@@ -36,7 +36,7 @@ int selectLayer(const std::string& dataPath,
 }
 
 void printHelpInfo(const std::string binaryPath) {
-    std::cerr << "Usage: " << binaryPath  << " <thread number> [OPTION]" << 
+    std::cerr << "Usage: " << binaryPath  << " [OPTION]" << 
             " <path_of_data>" << std::endl;
     std::cerr << "       -d, --detail\t\tPrint detail for match info." <<
             std::endl;

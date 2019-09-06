@@ -24,7 +24,6 @@ int SaveLayerJob::process(const int executorID) {
     CHECK_RET(layer->save(savePath_),
             "Failed to save output layer[%d] to path \"%s\".",
             sharedID_, savePath_.c_str());
-    std::cout << "Test" << std::endl;
     if (!ExecutorPool::runParallel_ && 
             !(resourcePool_->parseConfigFileJobs_.empty())) {
         std::lock_guard<std::mutex> candidateQueueGuard(

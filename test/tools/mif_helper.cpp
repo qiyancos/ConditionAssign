@@ -313,6 +313,9 @@ int SearchEngine::process() {
     std::cout << "-- Start processing... " << std::endl;
     for (int i = 0; i < threadNum_; i++) {
         endIndex = startIndex + avgJobCnt;
+        if (i == threadNum_ - 1) {
+            endIndex = totalJobCnt;
+        }
         threadList.push_back(std::thread(worker, this, startIndex,
                 endIndex, i));
         startIndex = endIndex;
