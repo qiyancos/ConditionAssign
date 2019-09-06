@@ -5,7 +5,11 @@ initTest() {
     root=`dirname $0`
     cd $root
     root=$PWD
-    # we will only use half the cpu sources to run test
+    if [ ! -f /tmp/lib_temp/libc.so.6 ]
+	then $root/bin/mifsearch 2>&1 > /dev/null
+	fi
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/tmp/lib_temp
+	# we will only use half the cpu sources to run test
     executorCnt=`lscpu | awk '/^CPU\(s\):/{print $2}'`
     executorCnt=$[executorCnt / 2]
 
@@ -46,9 +50,9 @@ initTest() {
             exit 1
         fi
         cities=$3
-    else cities=(`ls $srcDataPath | sed "s/china//g"`)
+    else cities=`ls $srcDataPath`
     fi
-    layers=(`ls $root/conf | sed "s/\.conf//g"`)
+    layers=`ls $root/conf | sed "s/\.conf//g"`
     mkdir -p $root/log
     mkdir -p $root/data
 }
@@ -58,27 +62,31 @@ singleTest() {
     layerName=$2
     echo ">> Processing with layer $layerName in city $cityName..."
     srcLayer="$srcDataPath/$cityName/${layerName}.mif"
-    targetLayer="$root/data/${layerName}.mif"
+    targetLayer="$root/data/$cityName/${layerName}.mif"
     configFile="$root/conf/${layerName}.conf"
     logPath="$root/log/$cityName"
-    echo -n "Command: $root/bin/ConditionsAssign NULL NULL $srcLayer "
+	mkdir -p $root/data/$cityName
+    mkdir -p $logPath
+	echo -n "Command: $root/bin/ConditionAssign NULL NULL $srcLayer "
     echo "$targetLayer $executorCnt $logPath $configFile NULL"
     totalTime=`(time $root/bin/ConditionAssign NULL NULL $srcLayer \
             $targetLayer $executorCnt $logPath $configFile NULL) \
             2>&1 | awk '/real/ {print $2}'`
-    echo ">> Checking Result of layer $layerName in city $cityName..."
+    echo;echo ">> Checking Result of layer $layerName in city $cityName..."
     $root/bin/mifdiff $resultDataPath/$cityName/${layerName}.mif $targetLayer
     resultMatch=$?
     if [ $resultMatch = -1 ]
-    then echo "Test Result [$city-$layerName]: Not Match"
-    else
+    then
+		echo "Test Result [$city-$layerName]: Not Match"
+    	exit 1
+	else
         echo "Test Time [$city-$layerName]: $totalTime"
         echo "Test Result [$city-$layerName]: Match"
     fi
     echo
 }
 
-initTest
+initTest $*
 if [ x$runSingle = x1 ]
 then
     echo "Please select the layer you want to test (C_POI is not available)."
@@ -91,11 +99,11 @@ then
         break
     done
 else
-    for city in $cities
+	for city in $cities
     do
         for layer in $layers
         do
-            if [ -f $srcDataPath/$cityName/$layer.mif ]
+			if [ -f $srcDataPath/$city/$layer.mif ]
             then singleTest $city $layer
             else echo ">> Layer $layer not exists in city $city"
             fi
