@@ -174,7 +174,7 @@ int FuncOperatorInRange::find(Operator** newOperatorPtr,
         const std::string& content, std::pair<size_t, size_t>* range,
         std::string* opName) {
     *opName = "FuncOperatorInRange";
-    std::string arguments = content.substr(range->second + 1,
+    const std::string arguments = content.substr(range->second + 1,
             content.size() - range->second - 1);
     size_t minusIndex = arguments.find("-");
     CHECK_ARGS(minusIndex != std::string::npos, "Can not find %s \"%s\".",

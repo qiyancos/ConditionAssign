@@ -249,8 +249,18 @@ int parseExpr(const syntax::Operator::OperatorType opType,
                         content.size() - range.second);
                 if (node->value.stringValue.find(")->") != std::string::npos) {
                     node->rightType = syntax::GroupType;
-                    newGroups->push_back(new std::pair<std::string, Group**>(
+                    const size_t argDelimIndex =
+                            node->value.stringValue.find("@");
+                    if (argDelimIndex == std::string::npos) {
+                        newGroups->push_back(
+                            new std::pair<std::string, Group**>(
                             node->value.stringValue, &(node->value.groupPtr)));
+                    } else {
+                        newGroups->push_back(
+                            new std::pair<std::string, Group**>(
+                            node->value.stringValue.substr(0, argDelimIndex),
+                            &(node->value.groupPtr)));
+                    }
                 } else {
                     node->rightType = syntax::getDataType(
                             node->value.stringValue,
