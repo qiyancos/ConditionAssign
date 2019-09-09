@@ -180,6 +180,40 @@ private:
     static const OperatorType type_;
 };
 
+class FuncOperatorSetCoord : public Operator {
+public:
+    enum Method {Avg};
+    FuncOperatorSetCoord() : Operator() {}
+    FuncOperatorSetCoord(const Method method);
+    ~FuncOperatorSetCoord() = default;
+    OperatorType type() {return type_;}
+    std::string str() {return "<SetCoord>";}
+    int id() {return id_;}
+    int process(Node* node, MifItem* item);
+    int find(Operator** newOperatorPtr, const std::string& content,
+            std::pair<size_t, size_t>* range, std::string* opName);
+    bool isSupported(const DataType type) {
+        if (dataTypes_.find(type) != dataTypes_.end()) {
+            return true;
+        } else if (type == Number && dataTypes_.find(String) !=
+                dataTypes_.end()){
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+private:
+    /* 用于记录当前运算符支持的数据类型 */
+    static const std::set<DataType> dataTypes_;
+    /* 用于记录当前运算符的唯一ID*/
+    static const int id_;
+    /* 用于记录当前运算符的类型 */
+    static const OperatorType type_;
+    // 处理的方法
+    const Method method_ = Avg;
+};
+
 } // namespace func_op
 
 } // namespace syntax

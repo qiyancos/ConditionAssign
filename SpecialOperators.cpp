@@ -205,6 +205,71 @@ int FuncOperatorEmpty::find(Operator** newOperatorPtr,
     return 1;
 }
 
+FuncOperatorSetCoord::FuncOperatorSetCoord(const Method method) :
+        method_(method) {}
+
+int FuncOperatorSetCoord::process(Node* node, MifItem* item) {
+    bool* result = new bool();
+    BINARYOP_CHECK();
+    double newX, newY;
+    Group* groupPtr = node->value.groupPtr;
+    Group* dynamicGroup = nullptr;
+    // 缓存计算检查
+    int64_t groupKey;
+    if (groupPtr->isDynamic()) {
+        groupKey = keyGenerate(groupPtr->info_->tagName_,
+                groupPtr->groupKey_);
+    } else {
+        groupKey = groupPtr->groupKey_;
+    }
+    if (item->findInsertProcessResult(&result, groupKey * 131 + id_)) {
+        return *result;
+    }
+    groupPtr->ready_.wait();
+    if (groupPtr->isDynamic()) {
+        CHECK_RET(item->findBuildDynamicGroup(&dynamicGroup, groupKey,
+                groupPtr), "Failed to get or build dynamic group.");
+        groupPtr = dynamicGroup;
+    }
+    CHECK_ARGS(groupPtr->getGroupType() == Group::Point,
+            "Unsupported geometry type for coord setting.");
+    switch(method_) {
+    case Avg:
+        newX = newY = 0.0;
+        for (auto& geometry :
+                reinterpret_cast<GeometryGroup*>(groupPtr)->group_) {
+            newX += geometry->at(0).at(0).x();
+            newY += geometry->at(0).at(0).y();
+        }
+        newX /= groupPtr->size();
+        newY /= groupPtr->size();
+    }
+    std::string tagName = "x";
+    CHECK_RET(item->assignWithNumber(tagName, newX), "Failed to set x coord.");
+    tagName = "y";
+    CHECK_RET(item->assignWithNumber(tagName, newY), "Failed to set y coord.");
+    if (dynamicGroup) {
+        delete dynamicGroup;
+    }
+    return 1;
+}
+
+int FuncOperatorSetCoord::find(Operator** newOperatorPtr,
+        const std::string& content, std::pair<size_t, size_t>* range,
+        std::string* opName) {
+    *opName = "FuncOperatorSetCoord";
+    const std::string arguments = content.substr(range->second + 1,
+            content.size() - range->second - 1);
+    const size_t argDelimIndex = arguments.find("@");
+    Method method = Avg;
+    if (argDelimIndex != std::string::npos) {
+        const std::string methodStr = arguments.substr(argDelimIndex);
+        CHECK_ARGS(methodStr == "avg" || methodStr == "Avg",
+                "Unrecognized method \"%s\".", methodStr.c_str());
+    }
+    *newOperatorPtr = new FuncOperatorSetCoord(method);
+    return 1;
+}
 } // namespace func_op
 
 } // namespace syntax

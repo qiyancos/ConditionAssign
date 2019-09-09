@@ -18,6 +18,7 @@ OPINIT_NORMAL(And, Condition, "&&", Expr);
 // 函数运算符的声明与注册
 FUNCOP_REG(InRange, Condition, New, Number, String);
 FUNCOP_REG(Empty, Assign, New, Number, String, GroupType);
+FUNCOP_REG(SetCoord, Assign, Empty, GroupType);
 
 // Tag包含运算声明
 OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
