@@ -193,6 +193,18 @@ int FuncOperatorInRange::find(Operator** newOperatorPtr,
     return 1;
 }
 
+int FuncOperatorEmpty::process(Node* node, MifItem* item) {
+    return 1;
+}
+
+int FuncOperatorEmpty::find(Operator** newOperatorPtr,
+        const std::string& content, std::pair<size_t, size_t>* range,
+        std::string* opName) {
+    *opName = "FuncOperatorEmpty";
+    *newOperatorPtr = new FuncOperatorEmpty();
+    return 1;
+}
+
 } // namespace func_op
 
 } // namespace syntax

@@ -11,7 +11,11 @@ make -j8
 originConfigs=`ls $root/conf/*.conf`
 if [ ${1}x = x ]
 then MaxExecutors="1 4 8 16"
-else MaxExecutors=$1
+else
+    MaxExecutors=$1
+    if [ $1 = -so -o $2 = -so ]
+    then singleOutput=1
+    fi
 fi
 
 for conf in $originConfigs
@@ -54,13 +58,18 @@ do
         do pluginLayers="$pluginLayers;$plugin"
         done
     fi
-    targetLayers="$targetLayers;$root/data/${layer}_Out_New.mif"
+    if [ x$singleOutput = x1 ]
+    then targetLayers="$root/data/${layer}_Out_New.mif"
+    else targetLayers="$targetLayers;$root/data/${layer}_Out_New.mif"
+    fi
     confFiles="$confFiles;$root/conf/$layer.conf"
 done
 
 confFiles=${confFiles:1:$[${#confFiles} - 1]}
 srcLayers=${srcLayers:1:$[${#srcLayers} - 1]}
-targetLayers=${targetLayers:1:$[${#targetLayers} - 1]}
+if [ x$singleOutput = x ]
+then targetLayers=${targetLayers:1:$[${#targetLayers} - 1]}
+fi
 pluginLayers=${pluginLayers:1:$[${#pluginLayers} - 1]}
 if [ x$pluginLayers = x ]
 then pluginLayers=NULL 
@@ -74,7 +83,7 @@ do
     logPath="$root/log_New"
     echo -n "$root/../bin/ConditionAssign.bin NULL NULL $srcLayers $targetLayers "
     echo "${executorCnt} $logPath $confFiles $pluginLayers"
-    if [ ${1}x = -rawx -o ${2}x = -rawx ]
+    if [ ${1}x = -rawx -o ${2}x = -rawx -o ${3}x = -rawx ]
     then
         $root/../bin/ConditionAssign.bin NULL NULL $srcLayers $targetLayers \
                 ${executorCnt} $logPath $confFiles $pluginLayers

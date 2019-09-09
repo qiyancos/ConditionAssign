@@ -17,6 +17,7 @@ OPINIT_NORMAL(And, Condition, "&&", Expr);
 
 // 函数运算符的声明与注册
 FUNCOP_REG(InRange, Condition, New, Number, String);
+FUNCOP_REG(Empty, Assign, New, Number, String, GroupType);
 
 // Tag包含运算声明
 OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
@@ -40,7 +41,7 @@ OPREG_SPECIAL(PartialEqual, Condition, String);
 OPREG_NORMAL(Equal, Condition, "==", New, Number, String);
 OPREG_NORMAL(NotEqual, Condition, "!=", New, Number, String);
 // 特殊运算符注册(由于是中转函数，其类型没有关系)
-OPREG_SPECIAL(Function, Assign, Number, String, GroupType);
+OPREG_SPECIAL(Function, Assign, New, Number, String, GroupType);
 // 数字大小比较运算声明
 OPREG_NORMAL(LessEqual, Condition, "<=", Number);
 OPREG_NORMAL(LessThan, Condition, "<", Number);

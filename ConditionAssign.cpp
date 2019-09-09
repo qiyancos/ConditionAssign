@@ -58,11 +58,13 @@ int main(int argc, char** argv) {
 
     time_t start = 0, end = 0;
     time(&start);
-
+    end = start + 8 * 3600;
+    struct tm *timeStruct = gmtime(&end);
+    
     // …Ë÷√»’÷æ
-    char date_str[256];
-    strftime(date_str, sizeof(date_str), "%Y%m%d%H%M", localtime(&start));
-    sys_log_path(logDir.c_str(), date_str);
+    char dateStr[256];
+    strftime(dateStr, sizeof(dateStr), "%Y%m%d%H%M", timeStruct);
+    sys_log_path(logDir.c_str(), dateStr);
 #ifdef DEBUG
     debugLogDir = logDir;
     debugStream.push_back(std::ofstream((debugLogDir + "/main.log").c_str(),
@@ -73,7 +75,7 @@ int main(int argc, char** argv) {
 
 #ifdef DEBUG_MATCH_INFO
     debugMatchInfoDir = logDir + "/match_info_" +
-            htk::trim(std::string(date_str), " ") + ".log";
+            htk::trim(std::string(dateStr), " ") + ".log";
     debugMatchInfoStream = std::ofstream((debugMatchInfoDir).c_str(),
             std::ofstream::out);
 #endif

@@ -123,7 +123,7 @@ public:
     FuncOperatorInRange(const int startNumber, const int endNumber);
     ~FuncOperatorInRange() = default;
     OperatorType type() {return type_;}
-    std::string str() {return "InRange";}
+    std::string str() {return "<InRange>";}
     int id() {return id_;}
     int process(Node* node, MifItem* item);
     int find(Operator** newOperatorPtr, const std::string& content,
@@ -148,6 +148,36 @@ private:
     static const OperatorType type_;
     // 记录了进行替换的两个关键变量
     std::set<std::string> rangeOfNum_;
+};
+
+class FuncOperatorEmpty : public Operator {
+public:
+    FuncOperatorEmpty() : Operator() {}
+    ~FuncOperatorEmpty() = default;
+    OperatorType type() {return type_;}
+    std::string str() {return "<Empty>";}
+    int id() {return id_;}
+    int process(Node* node, MifItem* item);
+    int find(Operator** newOperatorPtr, const std::string& content,
+            std::pair<size_t, size_t>* range, std::string* opName);
+    bool isSupported(const DataType type) {
+        if (dataTypes_.find(type) != dataTypes_.end()) {
+            return true;
+        } else if (type == Number && dataTypes_.find(String) !=
+                dataTypes_.end()){
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+private:
+    /* 用于记录当前运算符支持的数据类型 */
+    static const std::set<DataType> dataTypes_;
+    /* 用于记录当前运算符的唯一ID*/
+    static const int id_;
+    /* 用于记录当前运算符的类型 */
+    static const OperatorType type_;
 };
 
 } // namespace func_op

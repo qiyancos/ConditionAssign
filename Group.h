@@ -153,7 +153,7 @@ public:
     int checkOneContain(const std::string& src, bool* result);
     int checkAllContain(const std::string& src, bool* result);
 
-private:
+public:
     std::set<std::string> group_;
 };
 
@@ -197,7 +197,7 @@ public:
     int checkAllDeparture(const Type inputType, wsl::Geometry* src,
             bool* result);
 
-private:
+public:
     // 存放实际的满足要求的所有地理结构
     std::vector<wsl::Geometry*> group_;
     // 由当前地理结构构建的RTree
