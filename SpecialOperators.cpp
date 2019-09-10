@@ -209,30 +209,22 @@ FuncOperatorSetCoord::FuncOperatorSetCoord(const Method method) :
         method_(method) {}
 
 int FuncOperatorSetCoord::process(Node* node, MifItem* item) {
-    bool* result = new bool();
     BINARYOP_CHECK();
     double newX, newY;
     Group* groupPtr = node->value.groupPtr;
     Group* dynamicGroup = nullptr;
-    // 缓存计算检查
-    int64_t groupKey;
-    if (groupPtr->isDynamic()) {
-        groupKey = keyGenerate(groupPtr->info_->tagName_,
-                groupPtr->groupKey_);
-    } else {
-        groupKey = groupPtr->groupKey_;
-    }
-    if (item->findInsertProcessResult(&result, groupKey * 131 + id_)) {
-        return *result;
-    }
+    int64_t groupKey = keyGenerate(groupPtr->info_->tagName_,
+            groupPtr->groupKey_);
     groupPtr->ready_.wait();
     if (groupPtr->isDynamic()) {
         CHECK_RET(item->findBuildDynamicGroup(&dynamicGroup, groupKey,
                 groupPtr), "Failed to get or build dynamic group.");
         groupPtr = dynamicGroup;
     }
+    CHECK_ARGS(item->srcLayer_->getGeoType() == Group::Point,
+            "Unsupported layer geometry type for coord setting.");
     CHECK_ARGS(groupPtr->getGroupType() == Group::Point,
-            "Unsupported geometry type for coord setting.");
+            "Unsupported group geometry type for coord setting.");
     switch(method_) {
     case Avg:
         newX = newY = 0.0;
