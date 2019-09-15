@@ -39,4 +39,5 @@ test/log*
 test/data
 conf/*.conf
 *.swp
+script/mainrun
 test/tools/bin
