@@ -9,6 +9,12 @@ int ResourcePool::init(const ExecutorPool::Params& params,
     pluginSize_ = params.plugins.size();
     outputSize_ = params.outputs.size();
     outputLayersPath_ = params.outputs;
+    for (std::string& outputLayerPath : outputLayersPath_) {
+        if (htk::endswith(outputLayerPath, "<NEW>")) {
+            outputLayerPath=outputLayerPath.substr(0,
+                    outputLayerPath.size() - 5);
+        }
+    }
     idMapping_.resize(inputSize_ + pluginSize_ + outputSize_);
     jobCache_.resize(configSize_);
     std::map<std::string, LayerInfo> layerInfo;
@@ -192,6 +198,13 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
 #ifdef USE_PARALLEL_MEM_OPTIMIZE
     }
 #endif
+    for (auto mapIter : outputLayersMap_) {
+        const std::string& layerPath = mapIter.first;
+        if (htk::endswith(layerPath, "<NEW>")) {
+            outputLayersMap_[layerPath.substr(0, layerPath.size() - 5)] =
+                mapIter.second;
+        }
+    }
     return 0;
 }
 

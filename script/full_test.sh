@@ -2,7 +2,7 @@
 
 initTest() {
     root=`dirname $0`
-    cd $root
+    cd $root/..
     root=$PWD
     if [ ! -f /tmp/lib_temp/libc.so.6 ]
     then $root/bin/mifsearch 2>&1 > /dev/null
@@ -61,23 +61,27 @@ initTest() {
     if [ x$runCheckPoint = x1 ]
     then startCity=$3
     fi
+    layers=`ls $root/conf | sed "s/\.conf//g"`
     mkdir -p $root/log
     mkdir -p $root/data
+
     if [ -f $root/skip_list.txt ]
     then skipList=$root/skip_list.txt
     fi
-	layer=C_POI
 }
 
 poiTest() {
     cityName=$1
     layerName=$2
+    if [ $layerName != C_POI_0 ]
+    then return
+    fi
+    layerName="C_POI"
     echo ">> Processing with layer $layerName in city $cityName..."
     # Run POIFeature
     srcLayer="$srcDataPath/$cityName/${layerName}.mif"
     targetLayer="$root/data/$cityName/${layerName}.mif"
     cp $srcLayer $targetLayer
-    cp $srcDataPath/$cityName/${layerName}.mid $root/data/$cityName/${layerName}.mid
     cp -frap $dataPath/01_basic/02_Result/$cityName/ALL_Name_Area.mid \
             $root/data/$cityName/C_AOI_FULL.mid
     cp -frap $dataPath/01_basic/02_Result/$cityName/ALL_Name_Area.mif \
@@ -119,6 +123,40 @@ poiTest() {
     echo
 }
 
+singleTest() {
+    cityName=$1
+    layerName=$2
+    if [[ $layerName =~ ^C_POI ]]
+    then
+        poiTest $1 $2
+        return
+    fi
+    echo ">> Processing with layer $layerName in city $cityName..."
+    srcLayer="$srcDataPath/$cityName/${layerName}.mif"
+    targetLayer="$root/data/$cityName/${layerName}.mif"
+    configFile="$root/conf/${layerName}.conf"
+    logPath="$root/log/$cityName"
+    mkdir -p $root/data/$cityName
+    mkdir -p $logPath
+    echo -n "Command: $root/bin/ConditionAssign NULL NULL $srcLayer "
+    echo "$targetLayer $executorCnt $logPath $configFile NULL"
+    totalTime=`(time $root/bin/ConditionAssign NULL NULL $srcLayer \
+            $targetLayer $executorCnt $logPath $configFile NULL) \
+            2>&1 | awk '/real/ {print $2}'`
+    echo;echo ">> Checking Result of layer $layerName in city $cityName..."
+    $root/bin/mifdiff $resultDataPath/$cityName/${layerName}.mif $targetLayer
+    resultMatch=$?
+    if [ $resultMatch = -1 ]
+    then
+        echo "Test Result [$city-$layerName]: Not Match"
+        exit 1
+    else
+        echo "Test Time [$city-$layerName]: $totalTime"
+        echo "Test Result [$city-$layerName]: Match"
+    fi
+    echo
+}
+
 checkSkip() {
     if [ x$skipList = x ]
     then echo 0
@@ -134,17 +172,21 @@ initTest $*
 if [ x$runSingle = x1 ]
 then
     echo "Please select the layer you want to test (C_POI is not available)."
-    if [ `checkSkip $cities $layer` = 0 ]
-    then
-        if [ -f $srcDataPath/$cities/$layer.mif ]
+    select layer in $layers
+    do
+        if [ `checkSkip $cities $layer` = 0 ]
         then
-            set -e
-            poiTest $cities $layer
-            set +e
-        else echo ">> Layer $layer not exists in city $cities"
+            if [ -f $srcDataPath/$cities/$layer.mif ]
+            then
+                set -e
+                singleTest $cities $layer
+                set +e
+            else echo ">> Layer $layer not exists in city $cities"
+            fi
+        else echo ">> Skip layer $layer in city $cities"
         fi
-    else echo ">> Skip layer $layer in city $cities"
-    fi
+        break
+    done
 else
     startRun=0
     for city in $cities
@@ -154,17 +196,20 @@ else
         fi
         if [ $startRun = 1 ]
         then
-            if [ `checkSkip $city $layer` = 0 ]
-            then
-                if [ -f $srcDataPath/$city/$layer.mif ]
+            for layer in $layers
+            do
+                if [ `checkSkip $city $layer` = 0 ]
                 then
-                    set -e
-                    poiTest $city $layer
-                    set +e
-                else echo ">> Layer $layer not exists in city $city"
+                    if [ -f $srcDataPath/$city/$layer.mif ]
+                    then
+                        set -e
+                        singleTest $city $layer
+                        set +e
+                    else echo ">> Layer $layer not exists in city $city"
+                    fi
+                else echo ">> Skip layer $layer in city $city"
                 fi
-            else echo ">> Skip layer $layer in city $city"
-            fi
-       	fi
-   	done
+            done
+           fi
+       done
 fi

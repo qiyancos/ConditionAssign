@@ -102,10 +102,20 @@ int MifLayerNew::save(const std::string layerPath) {
     return 0;
 }
 
+int MifLayerNew::addNewItem(const int index) {
+    CHECK_ARGS((index < copySrcLayer_->size() && index >= 0),
+            "Index[%d] out of bound for copy-src layer.", index);
+    std::lock_guard<std::mutex> mifGuard(mifLock_);
+    mif_.mid.push_back(copySrcLayer_->mif_.mid[index]);
+    mif_.data.geo_vec.push_back(copySrcLayer_->mif_.data.geo_vec[index] ==
+            NULL ? NULL : copySrcLayer_->mif_.data.geo_vec[index]->clone());
+    return 0;
+}
+
 int MifLayerNew::assignWithNumber(const std::string& tagName,
         MifLayer* srcLayer, const int index, const double& val) {
-    CHECK_ARGS((index < mifSize_ && index >= 0),
-            "Index[%d] out of bound.", index);
+    CHECK_ARGS((index < copySrcLayer_->size() && index >= 0),
+            "Index[%d] out of bound for copy-src layer.", index);
     std::lock_guard<std::mutex> mifGuard(mifLock_);
     mif_.mid.push_back(copySrcLayer_->mif_.mid[index]);
     mif_.data.geo_vec.push_back(copySrcLayer_->mif_.data.geo_vec[index] ==
@@ -147,8 +157,8 @@ int MifLayerNew::assignWithNumber(const std::string& tagName,
 
 int MifLayerNew::assignWithTag(const std::string& tagName,
         const int index, const std::string& val) {
-    CHECK_ARGS((index < mifSize_ && index >= 0),
-            "Index[%d] out of bound.", index);
+    CHECK_ARGS((index < copySrcLayer_->size() && index >= 0),
+            "Index[%d] out of bound for copy-src layer.", index);
     CHECK_ARGS(tagName != "X" && tagName != "Y" &&
             tagName != "x" && tagName != "y",
             "Calling wrong function for coordination exchange.");
@@ -304,6 +314,11 @@ int MifLayerNormal::save(const std::string layerPath) {
     return 0;
 }
 
+int MifLayerNormal::addNewItem(const int index) {
+    CHECK_RET(-1, "Add new mif item to normal mif layer is not supported.");
+    return 0;
+}
+
 int MifLayerNormal::assignWithNumber(const std::string& tagName,
         MifLayer* srcLayer, const int index, const double& val) {
     CHECK_ARGS((index < mifSize_ && index >= 0),
@@ -404,7 +419,9 @@ int MifLayerNormal::checkAddTag(const std::string& tagName,
         if (colIterator != mif_.header.col_name_map.end()) {
             tagColCache_.insert(std::pair<std::string, int>(tagName,
                 index = colIterator->second));
-        } else if (isAssign) {
+        } else {
+            CHECK_ARGS(isAssign, "Can not find tag named as \"%s\".",
+                    tagName.c_str());
             // 添加新的column
             mif_.add_column(tagName, "char(64)");
             colIterator = mif_.header.col_name_map.find(lowerTagName);
@@ -415,8 +432,6 @@ int MifLayerNormal::checkAddTag(const std::string& tagName,
             if (colID) {
                 *colID = index;
             }
-            return 1;
-        } else {
             return 1;
         }
     }
@@ -464,6 +479,12 @@ int MifLayerNormal::getGeometry(wsl::Geometry** val, const int index) {
 MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer,
         MifLayer::ItemInfo* info) :  srcLayer_(srcLayer),
         targetLayer_(targetLayer), index_(index), info_(info) {}
+
+int MifItem::addAsNewItem() {
+    CHECK_RET(targetLayer_->addNewItem(index_),
+            "Failed to add new mif item by new mif layer.");
+    return 0;
+}
 
 int MifItem::assignWithNumber(const std::string& tagName,
         const double& val) {

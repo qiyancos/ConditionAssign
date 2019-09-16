@@ -51,7 +51,10 @@ testNew(){
         pluginLayers=${pluginLayers:0:$[${#pluginLayers} - 1]}
     else pluginLayers="NULL"
     fi
-    targetLayer="$root/data/${layerName}_Out_New.mif"
+    if [ x${layerName:$[${#layerName} - 6]:6} = xFilter ]
+    then targetLayer="$root/data/${layerName}_Out_New.mif<NEW>"
+    else targetLayer="$root/data/${layerName}_Out_New.mif"
+    fi
     logPath="$root/log_New"
     echo -n "$root/../bin/ConditionsAssign.bin ${Modules[$index]} NULL "
     echo -n "${SourceLayers[$index]} ${targetLayer} "

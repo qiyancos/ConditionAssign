@@ -194,6 +194,11 @@ int FuncOperatorInRange::find(Operator** newOperatorPtr,
 }
 
 int FuncOperatorEmpty::process(Node* node, MifItem* item) {
+    // 空函数应保证对NEW类型输出起作用
+    if (item->targetLayer_->isNew()) {
+        CHECK_RET(item->addAsNewItem(),
+                "Failed to add new mif item to new mif layer");
+    }
     return 1;
 }
 
@@ -201,6 +206,8 @@ int FuncOperatorEmpty::find(Operator** newOperatorPtr,
         const std::string& content, std::pair<size_t, size_t>* range,
         std::string* opName) {
     *opName = "FuncOperatorEmpty";
+    range->first = 0;
+    range->second = content.size() - 1;
     *newOperatorPtr = new FuncOperatorEmpty();
     return 1;
 }

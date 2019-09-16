@@ -2,6 +2,9 @@
 set -e
 withNewLayerList="C_N_New"
 newLayerList="C_TrafficLight"
+C_SubwayST_Plugin="C_SubwayLine"
+C_N_New_Plugin="C_N"
+C_R_Plugin="mainroad"
 
 checkFileDirExist() {
     if [ x$1 = x ]
@@ -46,6 +49,35 @@ mapFinder() {
     fi
 }
 
+findPluginLayer() {
+    pluginLayerNames=`eval echo -e \$${1}_Plugin`
+    if [ x$pluginLayerNames = x ]
+    then return 
+    fi
+    unset layerNames
+    for layer in $pluginLayerNames
+    do
+        layerNameTemp=`completeMifLayerName $srcDataPath/$layerName noexit`
+        if [ x$layerNameTemp = x ]
+        then
+            layerNameTemp=`completeMifLayerName \
+                    $pluginDataPath/$cityName/$layer noexit`
+            if [ x$layerNameTemp = x ]
+            then layerNameTemp=`completeMifLayerName \
+                    $pluginDataPath/$layer noexit`
+                if [ x$layerNameTemp = x ]
+                then
+                    echo -n "Error: Can not find plugin layer "
+                    echo "in any path for layer \"$1\"."
+                    exit -1
+                fi
+            fi
+        fi
+        layerNames="$layerNameTemp;$layerNames"
+    done
+    echo ${layerNames:0:$[${#layerNames} - 1]}
+}
+
 argParser() {
     root=`dirname $(dirname $0)`
     if [ $# != 9 ]
@@ -72,33 +104,6 @@ argParser() {
     mkdir -p $logPath
 }
 
-findPluginLayer() {
-    # TODO use eval to support multiple plugin layers
-    pluginLayerNames=`eval echo -e \$${1}_Plugin`
-    if [ x$pluginLayerNames = x ]
-    then return 
-    fi
-    unset layerNames
-    for layer in $pluginLayerNames
-    do
-        layerNameTemp=`completeMifLayerName $srcDataPath/$layerName noexit`
-        if [ x$layerNameTemp = x ]
-        then
-            layerNameTemp=`completeMifLayerName $pluginDataPath/$cityName/$layer noexit`
-            if [ x$layerNameTemp = x ]
-            then layerNameTemp=`completeMifLayerName $pluginDataPath/$layer noexit`
-                if [ x$layerNameTemp = x ]
-                then
-                    echo "Error: Can not find plugin layer in any path for layer \"$1\"."
-                    exit -1
-                fi
-            fi
-        fi
-        layerNames="$layerNameTemp;$layerNames"
-    done
-    echo ${layerNames:0:$[${#layerNames} - 1]}
-}
-
 splitConfigFiles() {
     # find parallel layers
     for file in `ls $configFilePath`
@@ -114,7 +119,8 @@ splitConfigFiles() {
         elif [ "x${layerName:$[${#layerName} - 6]:6}" = "xFilter" ]
         then
             layerName=${layerName:0:$[${#layerName} - 7]}
-            if [ -f $srcDataPath/$layerName.mif -o -f $srcDataPath/$layerName.MIF ]
+            if [ -f $srcDataPath/$layerName.mif -o \
+                    -f $srcDataPath/$layerName.MIF ]
             then filterLayers="$layerName $filterLayers"
             fi
         fi
@@ -180,7 +186,8 @@ poiFeatureProcess() {
             $targetDataPath/C_AOI_FULL.mid
     cp -frap $dataPath/01_basic/02_Result/$cityName/ALL_Name_Area.mif \
             $targetDataPath/C_AOI_FULL.mif
-    echo "Command: bash $poiProcessScript $targetDataPath $targetDataPath $cityName 5"
+    echo -n "Command: bash $poiProcessScript $targetDataPath "
+    echo "$targetDataPath $cityName 5"
     bash $poiProcessScript $targetDataPath $targetDataPath $cityName 5
     if [ $? != 0 ]
     then
@@ -199,13 +206,22 @@ processSerialLayers() {
         fi
         pluginLayers=`findPluginLayer $layerName`
         if [ x$pluginLayers = x ]
-        then pluginLayers="NULL"
+        then pluginLayers=";"
         fi
         configFiles=$configFilePath/$layerName.conf
         index=1
         while [ -f $configFilePath/${layerName}_$index.conf ]
-        do configFiles="$configFilePath/${layerName}_$index.conf"
+        do
+            configFiles="$configFilePath/${layerName}_$index.conf;$configFiles"
+            pluginLayerTemp=`findPluginLayer ${layerName}_$index`
+            if [ x$pluginLayerTemp != x ]
+            then pluginLayers="$pluginLayerTemp;$pluginLayers"
+            fi
         done
+        pluginLayers=${pluginLayers:0:$[${#pluginLayers} - 1]}
+        if [ x$pluginLayers = x ]
+        then pluginLayers="NULL"
+        fi
         echo ">> Running serial mode for layer \"$layerName\":"
         echo -n "Command: $root/bin/ConditionAssign NULL NULL $srcLayer "
         echo "$targetLayer $threadNum $logPath $configFiles $pluginLayers"
@@ -218,21 +234,28 @@ processLayerFilter() {
     for layerName in $filterLayers
     do
         srcLayer=`completeMifLayerName $srcDataPath/$layerName`
-        targetLayer="`completeMifLayerName $targetDataPath/$layerName`<New>"
+        targetLayer="`completeMifLayerName $targetDataPath/$layerName`<NEW>"
         pluginLayer="NULL"
         configFile=$configFilePath/${layerName}_Filter.conf
         echo ">> Running layerFilter for layer \"$layerName\":"
+        # single thread will be faster for layer filter
         echo -n "Command: $root/bin/ConditionAssign NULL NULL $srcLayer "
-        echo "$targetLayer $threadNum $logPath $configFile $pluginLayer"
+        echo "$targetLayer 1 $logPath $configFile $pluginLayer"
         $root/bin/ConditionAssign NULL NULL $srcLayer \
-            $targetLayer $threadNum $logPath $configFile $pluginLayer
+            $targetLayer 1 $logPath $configFile $pluginLayer
     done
 }
 
+# 解析输入的参数
 argParser $*
+# 根据类型拆分配置文件
 splitConfigFiles
+# 处理并行模式运行的分类
 processParallelLayers
+# 处理POIBaseFeature
 poiFeatureProcess
+# 处理串行模式运行的分类
 processSerialLayers
+# 进行Layer过滤操作
 processLayerFilter
 exit 0

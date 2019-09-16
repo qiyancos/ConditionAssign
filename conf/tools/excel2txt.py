@@ -44,7 +44,7 @@ def convertOldToNew(condition):
                     condition[index - 1] not in changeList:
                 if index != len(condition) - 1 and condition[index + 1] == '=':
                     index += 1
-                if condition[index + 1] != '<':
+                if index == len(condition) - 1 or condition[index + 1] != '<':
                     result += '='
             elif condition[index] == '=' and condition[index - 1] == ':':
                 result += '\"'

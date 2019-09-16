@@ -10,9 +10,10 @@ mkdir -p ./ConditionAssign/data
 cp ./bin/ConditionAssign ./ConditionAssign/bin/
 cp ./test/tools/bin/mifdiff ./ConditionAssign/bin/
 cp ./test/tools/bin/mifsearch ./ConditionAssign/bin/
-cp ./test/full_test.sh ./ConditionAssign/
 $root/conf/autogen.sh
 cp ./conf/*.conf ./ConditionAssign/conf
+cp -r ./script ./ConditionAssign/
+rm -rf ./ConditionAssign/script/mainrun
 tar -cvjf ./ConditionAssign.tar.bz2 ./ConditionAssign/*
 sz ./ConditionAssign.tar.bz2
 rm -rf ./ConditionAssign ./ConditionAssign.tar.bz2

@@ -72,6 +72,9 @@ public:
     virtual int copyLoad() = 0;
     // 保存对应的Layer的数据
     virtual int save(const std::string layerPath = "") = 0;
+    
+    // 添加一个新的MIfItem到New的目标Layer中去
+    virtual int addNewItem(const int index) = 0;
     // 对于坐标或者普通的字段进行数值赋值
     virtual int assignWithNumber(const std::string& tagName,
             MifLayer* srcLayer, const int index, const double& val) = 0;
@@ -124,7 +127,7 @@ protected:
     std::vector<ItemInfo> itemInfoCache_;
     
     // 当前Layer的地理类型
-    Group::Type geoType_;
+    Group::Type geoType_ = Group::Item;
     // 当前Layer是否是一个输入
     bool isInput = false;
     // 当前Layer是否是一个输出
@@ -148,6 +151,9 @@ public:
     int copyLoad();
     // 保存对应的Layer的数据
     int save(const std::string layerPath = "");
+    
+    // 添加一个新的MIfItem到New的目标Layer中去
+    int addNewItem(const int index);
     // 对于坐标或者普通的字段进行数值赋值
     int assignWithNumber(const std::string& tagName, MifLayer* srcLayer,
             const int index, const double& val);
@@ -187,6 +193,9 @@ public:
     int copyLoad();
     // 保存对应的Layer的数据
     int save(const std::string layerPath = "");
+    
+    // 添加一个新的MIfItem到New的目标Layer中去
+    int addNewItem(const int index);
     // 对于坐标或者普通的字段进行数值赋值
     int assignWithNumber(const std::string& tagName, MifLayer* srcLayer,
             const int index, const double& val);
@@ -217,6 +226,8 @@ public:
     // 析构函数
     ~MifItem() = default;
 
+    // 添加一个新的MIfItem到New的目标Layer中去
+    int addAsNewItem();
     // 依据字段名进数值行赋值操作
     int assignWithNumber(const std::string& tagName, const double& val);
     // 依据字段名进行赋值操作
