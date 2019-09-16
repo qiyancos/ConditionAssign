@@ -2,8 +2,6 @@
 set -e
 withNewLayerList="C_N_New"
 newLayerList="C_TrafficLight"
-withPluginLayerList=""
-pluginLayerList=""
 
 checkFileDirExist() {
     if [ x$1 = x ]
@@ -76,21 +74,29 @@ argParser() {
 
 findPluginLayer() {
     # TODO use eval to support multiple plugin layers
-    layerName=`mapFinder $1 withPluginLayerList pluginLayerList`
-    layerNameTemp=`completeMifLayerName $srcDataPath/$layerName noexit`
-    if [ x$layerNameTemp = x ]
-    then
-        layerNameTemp=`completeMifLayerName $pluginDataPath/$cityName/$layerName noexit`
+    pluginLayerNames=`eval echo -e \$${1}_Plugin`
+    if [ x$pluginLayerNames = x ]
+    then return 
+    fi
+    unset layerNames
+    for layer in $pluginLayerNames
+    do
+        layerNameTemp=`completeMifLayerName $srcDataPath/$layerName noexit`
         if [ x$layerNameTemp = x ]
-        then layerNameTemp=`completeMifLayerName $pluginDataPath/$layerName noexit`
+        then
+            layerNameTemp=`completeMifLayerName $pluginDataPath/$cityName/$layer noexit`
             if [ x$layerNameTemp = x ]
-            then
-                echo "Error: Can not find plugin layer in any path for layer \"$1\"."
-                exit -1
+            then layerNameTemp=`completeMifLayerName $pluginDataPath/$layer noexit`
+                if [ x$layerNameTemp = x ]
+                then
+                    echo "Error: Can not find plugin layer in any path for layer \"$1\"."
+                    exit -1
+                fi
             fi
         fi
-    fi
-    echo $layerNameTemp
+        layerNames="$layerNameTemp;$layerNames"
+    done
+    echo ${layerNames:0:$[${#layerNames} - 1]}
 }
 
 splitConfigFiles() {
@@ -169,11 +175,12 @@ processParallelLayers() {
 }
 
 poiFeatureProcess() {
-    echo ">> Start POIFeatureProcess:"
+    echo ">> Running POIFeatureProcess:"
     cp -frap $dataPath/01_basic/02_Result/$cityName/ALL_Name_Area.mid \
             $targetDataPath/C_AOI_FULL.mid
     cp -frap $dataPath/01_basic/02_Result/$cityName/ALL_Name_Area.mif \
             $targetDataPath/C_AOI_FULL.mif
+    echo "Command: bash $poiProcessScript $targetDataPath $targetDataPath $cityName 5"
     bash $poiProcessScript $targetDataPath $targetDataPath $cityName 5
     if [ $? != 0 ]
     then
