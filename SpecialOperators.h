@@ -182,7 +182,7 @@ private:
 
 class FuncOperatorSetCoord : public Operator {
 public:
-    enum Method {Avg};
+    enum Method {Avg, FullAvg};
     FuncOperatorSetCoord() : Operator() {}
     FuncOperatorSetCoord(const Method method);
     ~FuncOperatorSetCoord() = default;

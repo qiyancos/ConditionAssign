@@ -230,6 +230,7 @@ int FuncOperatorSetCoord::process(Node* node, MifItem* item) {
             "Unsupported layer geometry type for coord setting.");
     CHECK_ARGS(groupPtr->getGroupType() == Group::Point,
             "Unsupported group geometry type for coord setting.");
+    std::string tagName = "x";
     switch(method_) {
     case Avg:
         newX = newY = 0.0;
@@ -238,10 +239,29 @@ int FuncOperatorSetCoord::process(Node* node, MifItem* item) {
             newX += geometry->at(0).at(0).x();
             newY += geometry->at(0).at(0).y();
         }
-        newX /= groupPtr->size();
-        newY /= groupPtr->size();
+        if (groupPtr->size()) {
+            newX /= groupPtr->size();
+            newY /= groupPtr->size();
+        } else {
+            newX = newY = 0.0f;
+        }
+        break;
+    case FullAvg:
+        CHECK_RET(item->getTagVal(tagName, &newX),
+                "Failed to get x coord of processing item.");
+        tagName = "y";
+        CHECK_RET(item->getTagVal(tagName, &newY),
+                "Failed to get x coord of processing item.");
+        for (auto& geometry :
+                reinterpret_cast<GeometryGroup*>(groupPtr)->group_) {
+            newX += geometry->at(0).at(0).x();
+            newY += geometry->at(0).at(0).y();
+        }
+        newX /= (groupPtr->size() + 1);
+        newY /= (groupPtr->size() + 1);
+        break;
     }
-    std::string tagName = "x";
+    tagName = "x";
     CHECK_RET(item->assignWithNumber(tagName, newX), "Failed to set x coord.");
     tagName = "y";
     CHECK_RET(item->assignWithNumber(tagName, newY), "Failed to set y coord.");
@@ -257,9 +277,13 @@ int FuncOperatorSetCoord::find(Operator** newOperatorPtr,
     const size_t argDelimIndex = arguments.find("@");
     Method method = Avg;
     if (argDelimIndex != std::string::npos) {
-        const std::string methodStr = arguments.substr(argDelimIndex);
-        CHECK_ARGS(methodStr == "avg" || methodStr == "Avg",
-                "Unrecognized method \"%s\".", methodStr.c_str());
+        const std::string methodStr = arguments.substr(argDelimIndex + 1);
+        if (methodStr == "FULLAVG" || methodStr == "FullAvg") {
+            method = FullAvg;
+        } else {
+            CHECK_ARGS(methodStr == "AVG" || methodStr == "Avg",
+                    "Unrecognized method \"%s\".", methodStr.c_str());
+        }
     }
     *newOperatorPtr = new FuncOperatorSetCoord(method);
     return 1;

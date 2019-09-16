@@ -151,7 +151,10 @@ int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
             "Failed to get value of tag \"%s\" from input layer.",
             info_->oldTagName_.c_str());
     std::vector<std::string> oldTagGroup = htk::split(oldTagVal, "|");
-    std::set<std::string> oldTagSet(oldTagGroup.begin(), oldTagGroup.end());
+    std::set<std::string> oldTagSet;
+    for (const std::string& tagName : oldTagGroup) {
+        oldTagSet.insert(htk::trim(tagName, "\""));
+    }
     // 首次构建动态Group
     if (!size_) {
         std::lock_guard<std::mutex> groupGuard(groupLock_);
@@ -165,7 +168,7 @@ int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
                     CHECK_RET(workingItem->getTagVal(info_->newTagName_,
                             &newTagVal), "Can not get value of tag \"%s\" %s",
                             info_->newTagName_.c_str(), "from plugin layer.");
-                    dynamicGroupMap_[newTagVal] = index;
+                    dynamicGroupMap_[htk::trim(newTagVal, "\"")] = index;
                 }
             }
             size_ = dynamicGroupMap_.size();
