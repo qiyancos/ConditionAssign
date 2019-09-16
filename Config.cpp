@@ -477,7 +477,8 @@ int parseConditions(const std::string& content, ConfigItem* configItem,
 }
 
 int parseAssigns(const std::string& content, ConfigItem* configItem,
-        ResourcePool* resourcePool, std::vector<MifLayer*>* targetLayers) {
+        ResourcePool* resourcePool, std::vector<MifLayer*>* targetLayers,
+        std::vector<std::pair<std::string, Group**>*>* newGroups) {
     std::vector<Delimiter> delimiters;
     std::string newContent("");
     CHECK_RET(findDelimiter(syntax::Operator::Assign, content, &delimiters,
@@ -494,15 +495,11 @@ int parseAssigns(const std::string& content, ConfigItem* configItem,
         configItem->assignMainNode_ = newNode;
     }
     for (auto expr : exprs) {
-        std::vector<std::pair<std::string, Group**>*> newGroups;
         CHECK_RET(parseExpr(syntax::Operator::Assign, expr.first, expr.second,
-                configItem, resourcePool, targetLayers, &newGroups),
+                configItem, resourcePool, targetLayers, newGroups),
                 "Failed to parse expression \"%s\".", expr.first.c_str());
-        CHECK_ARGS(newGroups.empty(),
-                "Do not support group operation in assign expressions.");
     }
     return 0;
-
 }
 
 int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
@@ -526,7 +523,8 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
             srcLayers, newGroups), "Failed to parse %s \"%s\".",
             "condition expressions", partitions[0].c_str());
     CHECK_RET(parseAssigns(partitions[1], configItem, resourcePool,
-            targetLayers), "Failed to parse assign expressions \"%s\".",
+            targetLayers, newGroups),
+            "Failed to parse assign expressions \"%s\".",
             partitions[1].c_str());
     (*(subGroup->group_))[index].second = configItem;
     return 0;
@@ -594,7 +592,8 @@ int parseGroupArgs(const std::string& content, std::string* layerName,
     return 0;
 }
 
-int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
+int parseGroupInfo(const std::string& content, 
+        const std::vector<MifLayer*>& srcLayers, ResourcePool* resourcePool,
         std::pair<int64_t, Group*>* itemGroup,
         std::pair<int64_t, Group*>* typeGroup) {
     std::string layerName, conditions, oldTagName, newTagName, tagName;
@@ -660,12 +659,12 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
                     oldTagName + newTagName);
         itemGroup->second->groupKey_ = dynamicItemGroupKey;
         if (resourcePool->findInsertGroup(dynamicItemGroupKey,
-                &(itemGroup->second)) > -1) {
+                &(itemGroup->second)) > 0) {
             return 0;
         }
         Group* oldStaticGroup;
         if (resourcePool->findGroup(staticItemGroupKey,
-                &oldStaticGroup) > -1) {
+                &oldStaticGroup)) {
             oldStaticGroup->parseDone_.wait();
             itemGroup->second->info_ = oldStaticGroup->info_->copy();
             itemGroup->second->setLayer(oldStaticGroup->getLayer());
@@ -689,6 +688,15 @@ int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
         itemGroup->second->info_->oldTagName_ = oldTagName;
         itemGroup->second->info_->newTagName_ = newTagName;
         itemGroup->second->info_->tagName_ = tagName;
+        // 对于动态Group需要对原字段和映射字段的缓存强制初始化
+        for (MifLayer* srcLayer : srcLayers) {
+            CHECK_RET(srcLayer->checkAddTag(oldTagName, nullptr, false),
+                    "Failed to get %s \"%s\".",
+                    "data type of tag", oldTagName.c_str());
+        }
+        CHECK_RET(pluginLayer->checkAddTag(newTagName, nullptr, false),
+                "Failed to get %s \"%s\".",
+                "data type of tag", newTagName.c_str());
     }
     return 0;
 }

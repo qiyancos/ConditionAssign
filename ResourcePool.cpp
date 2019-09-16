@@ -80,7 +80,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         }
         uniqueID = inputSize_;
         for (int i = 0; i < pluginSize_; i++) {
-            const std::string& plugin = params.plugins[0];
+            const std::string& plugin = params.plugins[i];
             if (noOutputLayers.find(plugin) != noOutputLayers.end()) { 
                 idMapping_[i] = noOutputLayers[plugin];
             } else {
@@ -258,10 +258,10 @@ int ResourcePool::findGroup(const int64_t key, Group** groupPtr){
     std::lock_guard<std::mutex> mapGuard(groupMapLock_);
     auto mapIterator = groupMap_.find(key);
     if (mapIterator == groupMap_.end()) {
-        return -1;
+        return 0;
     } else {
         *groupPtr = mapIterator->second;
-        return 0;
+        return 1;
     }
 }
 

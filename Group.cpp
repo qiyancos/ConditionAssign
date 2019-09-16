@@ -143,7 +143,7 @@ int ItemGroup::init(const Group& itemGroup, const std::string& tagName) {
 int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
     CHECK_ARGS(dynamic_ && info_ != nullptr,
             "Can not find group infomation for dynamic group.");
-    Group* newItemGroup = new ItemGroup(true);
+    ItemGroup* newItemGroup = new ItemGroup(true);
     CHECK_ARGS(layer_ != nullptr, "Plugin layer not provided.");
     newItemGroup->setLayer(layer_);
     std::string oldTagVal;
@@ -151,40 +151,31 @@ int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
             "Failed to get value of tag \"%s\" from input layer.",
             info_->oldTagName_.c_str());
     std::vector<std::string> oldTagGroup = htk::split(oldTagVal, "|");
-    std::set<std::string> oldTagMap(oldTagGroup.begin(), oldTagGroup.end());
-    std::vector<int> matchIndexes;
-    if (++size_ == 1) {
+    std::set<std::string> oldTagSet(oldTagGroup.begin(), oldTagGroup.end());
+    // 首次构建动态Group
+    if (!size_) {
         std::lock_guard<std::mutex> groupGuard(groupLock_);
-        MifItem* workingItem;
-        for (int index = 0; index < layer_->size(); index++) {
-            CHECK_RET(layer_->newMifItem(index, nullptr, &workingItem),
-                    "Failed to create working mif item for plugin layer.");
-            if (satisfyConditions(*(info_->configItem_), workingItem)) {
-                std::string newTagVal;
-                CHECK_RET(workingItem->getTagVal(info_->newTagName_,
-                        &newTagVal), "Failed to get value of tag \"%s\" %s",
-                        info_->newTagName_.c_str(), "from plugin layer.");
-                group_.push_back(index);
-                if (oldTagMap.find(newTagVal) != oldTagMap.end()) {
-                    matchIndexes.push_back(index);
+        if (!size_) {
+            MifItem* workingItem;
+            for (int index = 0; index < layer_->size(); index++) {
+                CHECK_RET(layer_->newMifItem(index, nullptr, &workingItem),
+                        "Failed to create working mif item for plugin layer.");
+                if (satisfyConditions(*(info_->configItem_), workingItem)) {
+                    std::string newTagVal;
+                    CHECK_RET(workingItem->getTagVal(info_->newTagName_,
+                            &newTagVal), "Can not get value of tag \"%s\" %s",
+                            info_->newTagName_.c_str(), "from plugin layer.");
+                    dynamicGroupMap_[newTagVal] = index;
                 }
             }
+            size_ = dynamicGroupMap_.size();
         }
-        size_ = group_.size();
-    } else {
-        MifItem* workingItem;
-        for (int index : group_) {
-            CHECK_RET(layer_->newMifItem(index, nullptr, &workingItem),
-                    "Failed to create working mif item for plugin layer.");
-            if (satisfyConditions(*(info_->configItem_), workingItem)) {
-                std::string newTagVal;
-                CHECK_RET(workingItem->getTagVal(info_->newTagName_,
-                        &newTagVal), "Failed to get value of tag \"%s\" %s",
-                        info_->newTagName_.c_str(), "from plugin layer.");
-                if (oldTagMap.find(newTagVal) != oldTagMap.end()) {
-                    matchIndexes.push_back(index);
-                }
-            }
+    }
+    std::vector<int> matchIndexes;
+    for (const std::string& tagName : oldTagSet) {
+        auto mapIter = dynamicGroupMap_.find(tagName);
+        if (mapIter != dynamicGroupMap_.end()) {
+            matchIndexes.push_back(mapIter->second);
         }
     }
     newItemGroup->addElements(matchIndexes);
@@ -193,6 +184,7 @@ int ItemGroup::buildDynamicGroup(Group** groupPtr, MifItem* item) {
     } else {
         *groupPtr = new TagGroup();
     }
+    newItemGroup->ready_.signalAll();
     CHECK_RET((*groupPtr)->init(*newItemGroup, info_->tagName_),
             "Failed to init from new dynamic item group.");
     delete newItemGroup;

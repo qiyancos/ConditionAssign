@@ -112,7 +112,7 @@ private:
     const int lineCount_;
     // 处理所在的子config组
     std::vector<ConfigSubGroup*>* subGroups_;
-    // 目标Layer的指针
+    // 源Layer的指针
     std::vector<MifLayer*>* srcLayers_;
     // 目标Layer的指针
     std::vector<MifLayer*>* targetLayers_;
@@ -125,7 +125,8 @@ class ParseGroupJob : public ExecutorJob {
 public:
     // 构造函数
     ParseGroupJob(std::pair<std::string, Group**>* groupInfo,
-            ResourcePool* resourcePool) : groupInfo_(groupInfo),
+            std::vector<MifLayer*>* srcLayers, ResourcePool* resourcePool) :
+            groupInfo_(groupInfo), srcLayers_(srcLayers), 
             resourcePool_(resourcePool) {}
     // 析构函数
     ~ParseGroupJob() = default;
@@ -135,6 +136,8 @@ public:
 private:
     // 需要构建的目标组原始字符串和对应节点组指针
     std::pair<std::string, Group**>* groupInfo_;
+    // 源Layer的指针
+    std::vector<MifLayer*>* srcLayers_;
     // 资源池指针
     ResourcePool* resourcePool_;
 };

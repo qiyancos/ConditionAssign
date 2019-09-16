@@ -7,7 +7,7 @@ namespace condition_assign {
 namespace job {
 
 int LoadLayerJob::process(const int executorID) {
-    // TIMER();
+    TIMER();
     TEST(executorID);
     MifLayer* layer;
     CHECK_RET(resourcePool_->getLayerBySharedID(&layer, sharedID_),
@@ -18,7 +18,7 @@ int LoadLayerJob::process(const int executorID) {
 }
 
 int SaveLayerJob::process(const int executorID) {
-    // TIMER();
+    TIMER();
     TEST(executorID);
     MifLayer* layer;
     CHECK_RET(resourcePool_->getLayerBySharedID(&layer, sharedID_),
@@ -141,7 +141,8 @@ int ParseConfigLinesJob::process(const int executorID) {
     std::vector<ExecutorJob*> newJobs;
     for (std::pair<std::string, Group**>* groupInfo : newGroups) {
         // 新建buildGroup的相关工作项
-        newJobs.push_back(new ParseGroupJob(groupInfo, resourcePool_));
+        newJobs.push_back(new ParseGroupJob(groupInfo, srcLayers_,
+                resourcePool_));
     }
     std::vector<std::pair<int, int>> rangesInJob;
     resourcePool_->jobCacheLock_.lock();
@@ -175,6 +176,7 @@ int ParseConfigLinesJob::process(const int executorID) {
         }
         // 判断是否可以转移ProcessMifItemJob
         if (resourcePool_->parseGroupJobCount_ == 0) {
+            delete srcLayers_;
             for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
                 newJobs.insert(newJobs.end(),
                         resourcePool_->jobCache_[i].begin(),
@@ -183,7 +185,6 @@ int ParseConfigLinesJob::process(const int executorID) {
             }
         }
         delete targetLayers_;
-        delete srcLayers_;
         delete subGroups_;
     }
     subGroup->readyCount_ += lineCount_;
@@ -204,38 +205,17 @@ int ParseGroupJob::process(const int executorID) {
     // 第一个整数为-1表示当前Group是否已经存在并注册
     using GroupPair = std::pair<int64_t, Group*>;
     GroupPair itemGroup(-1, nullptr), typeGroup(-1, nullptr);
-    CHECK_RET(parser::parseGroupInfo(groupInfo_->first,
+    CHECK_RET(parser::parseGroupInfo(groupInfo_->first, *srcLayers_,
             resourcePool_, &itemGroup, &typeGroup),
             "Failed to parse group \"%s\".", groupInfo_->first.c_str());
     // 判断解析group的结果是否为Dynamic Group
+    std::vector<ExecutorJob*> newJobs;
     if (typeGroup.second == nullptr) {
         *(groupInfo_->second) = itemGroup.second;
-        delete groupInfo_;
-        std::lock_guard<std::mutex> jobCacheGuard(
-                resourcePool_->jobCacheLock_);
-        if (--resourcePool_->parseGroupJobCount_ == 0) {
-            std::vector<ExecutorJob*> newJobs;
-            for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
-                newJobs.insert(newJobs.end(),
-                        resourcePool_->jobCache_[i].begin(),
-                        resourcePool_->jobCache_[i].end());
-                resourcePool_->jobCache_[i].clear();
-            }
-            if (!newJobs.empty()) {
-                std::lock_guard<std::mutex> candidateGuard(
-                        resourcePool_->candidateQueueLock_);
-                for (ExecutorJob* job : newJobs) {
-                    resourcePool_->candidateQueue_.push(job);
-                }
-                resourcePool_->newCandidateJob_->signalAll();
-            }
-        }
-        return 0;
+        itemGroup.second->ready_.signalAll();
     } else {
         *(groupInfo_->second) = typeGroup.second;
-        delete groupInfo_;
         // 分发任务
-        std::vector<ExecutorJob*> newJobs;
         if (itemGroup.first > -1) {
             CHECK_ARGS(typeGroup.first > 0,
                     "Type group found but item group not found.");
@@ -267,6 +247,18 @@ int ParseGroupJob::process(const int executorID) {
             newJobs.push_back(new BuildGroupJob(nullptr, itemGroup.second,
                     typeGroup.second, -1, 0, resourcePool_));
         }
+    }
+    delete groupInfo_;
+    std::lock_guard<std::mutex> jobCacheGuard(resourcePool_->jobCacheLock_);
+    if (--resourcePool_->parseGroupJobCount_ == 0) {
+        delete srcLayers_;
+        for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
+            newJobs.insert(newJobs.end(), resourcePool_->jobCache_[i].begin(),
+                    resourcePool_->jobCache_[i].end());
+            resourcePool_->jobCache_[i].clear();
+        }
+    }
+    if (!newJobs.empty()) {
         std::lock_guard<std::mutex> candidateGuard(
                 resourcePool_->candidateQueueLock_);
         for (ExecutorJob* job : newJobs) {
@@ -274,9 +266,6 @@ int ParseGroupJob::process(const int executorID) {
         }
         resourcePool_->newCandidateJob_->signalAll();
     }
-    std::lock_guard<std::mutex> jobCacheGuard(
-            resourcePool_->jobCacheLock_);
-    resourcePool_->parseGroupJobCount_--;
     return 0;
 }
 
@@ -312,24 +301,6 @@ int BuildGroupJob::process(const int executorID) {
             itemGroup_->ready_.signalAll();
         }
         groupInfo->checkedCount_ += itemCount_;
-    }
-    std::lock_guard<std::mutex> jobCacheGuard(resourcePool_->jobCacheLock_);
-    if (resourcePool_->parseGroupJobCount_ == 0) {
-        std::vector<ExecutorJob*> newJobs;
-        for (int i = 0; i < resourcePool_->jobCache_.size(); i++) {
-            newJobs.insert(newJobs.end(),
-                    resourcePool_->jobCache_[i].begin(),
-                    resourcePool_->jobCache_[i].end());
-            resourcePool_->jobCache_[i].clear();
-        }
-        if (!newJobs.empty()) {
-            std::lock_guard<std::mutex> candidateGuard(
-                    resourcePool_->candidateQueueLock_);
-            for (ExecutorJob* job : newJobs) {
-                resourcePool_->candidateQueue_.push(job);
-            }
-            resourcePool_->newCandidateJob_->signalAll();
-        }
     }
     return 0;
 }

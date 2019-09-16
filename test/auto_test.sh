@@ -53,6 +53,8 @@ testNew(){
     fi
     if [ x${layerName:$[${#layerName} - 6]:6} = xFilter ]
     then targetLayer="$root/data/${layerName}_Out_New.mif<NEW>"
+    elif [ x${layerName:$[${#layerName} - 4]:4} = x_New ]
+    then targetLayer="$root/data/${layerName}_Out_New_New.mif<NEW>"
     else targetLayer="$root/data/${layerName}_Out_New.mif"
     fi
     logPath="$root/log_New"

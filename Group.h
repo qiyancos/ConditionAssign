@@ -140,6 +140,8 @@ public:
     std::mutex groupLock_;
     // 元素组的索引
     std::vector<int> group_;
+    // 匹配映射，用于加速DynamicGroup
+    std::map<std::string, int> dynamicGroupMap_;
 };
 
 class TagGroup : public Group {

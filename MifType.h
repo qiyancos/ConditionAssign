@@ -37,7 +37,7 @@ public:
 #endif
         // 动态Group缓存的锁
         std::mutex* dynamicGroupCacheLock_;
-        // 动态Group的缓存，放置多次重建
+        // 动态Group的缓存，预防多次重建
         std::map<int64_t, Group*> dynamicGroupCache_;
         // 计算地理位置时的锁
         std::mutex* geometryLock_;
@@ -74,7 +74,7 @@ public:
     virtual int save(const std::string layerPath = "") = 0;
     
     // 添加一个新的MIfItem到New的目标Layer中去
-    virtual int addNewItem(const int index) = 0;
+    virtual int addNewItem(const int index, int* newItemIndex) = 0;
     // 对于坐标或者普通的字段进行数值赋值
     virtual int assignWithNumber(const std::string& tagName,
             MifLayer* srcLayer, const int index, const double& val) = 0;
@@ -128,6 +128,9 @@ protected:
     
     // 当前Layer的地理类型
     Group::Type geoType_ = Group::Item;
+    // 记录当前MifLayer的字段总数
+    int tagCount_;
+
     // 当前Layer是否是一个输入
     bool isInput = false;
     // 当前Layer是否是一个输出
@@ -153,7 +156,7 @@ public:
     int save(const std::string layerPath = "");
     
     // 添加一个新的MIfItem到New的目标Layer中去
-    int addNewItem(const int index);
+    int addNewItem(const int index, int* newItemIndex);
     // 对于坐标或者普通的字段进行数值赋值
     int assignWithNumber(const std::string& tagName, MifLayer* srcLayer,
             const int index, const double& val);
@@ -195,7 +198,7 @@ public:
     int save(const std::string layerPath = "");
     
     // 添加一个新的MIfItem到New的目标Layer中去
-    int addNewItem(const int index);
+    int addNewItem(const int index, int* newItemIndex);
     // 对于坐标或者普通的字段进行数值赋值
     int assignWithNumber(const std::string& tagName, MifLayer* srcLayer,
             const int index, const double& val);
@@ -224,7 +227,7 @@ public:
     MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer,
             MifLayer::ItemInfo* info);
     // 析构函数
-    ~MifItem() = default;
+    ~MifItem();
 
     // 添加一个新的MIfItem到New的目标Layer中去
     int addAsNewItem();
@@ -253,6 +256,8 @@ public:
     const int index_;
 
 private:
+    // 管理当前MifItem是否执行过添加操作
+    int newItemIndex_ = -1;
     // 用于缓存复杂运算的运算结果
     std::map<int64_t, bool> processResultCache_;
     // 当前MifItem的info

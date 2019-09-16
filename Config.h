@@ -118,7 +118,8 @@ int parseConfigLine(const std::string& line, ConfigSubGroup* subGroup,
         std::vector<std::pair<std::string, Group**>*>* newGroups);
 
 // 解析当前组的基本信息
-int parseGroupInfo(const std::string& content, ResourcePool* resourcePool,
+int parseGroupInfo(const std::string& content,
+        const std::vector<MifLayer*>& srcLayers, ResourcePool* resourcePool,
         std::pair<int64_t, Group*>* itemGroup,
         std::pair<int64_t, Group*>* typeGroup);
 

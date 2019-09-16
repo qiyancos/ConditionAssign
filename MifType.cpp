@@ -60,6 +60,7 @@ int MifLayerNew::open() {
         copySrcLayer_->ready_.wait();
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         mif_.header = copySrcLayer_->mif_.header;
+        tagCount_ = mif_.header.col_name_map.size();
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
         if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
                 copySrcLayer_->mif_.data.geo_vec[0]) {
@@ -76,6 +77,7 @@ int MifLayerNew::copyLoad() {
         tagColCache_ = copySrcLayer_->tagColCache_;
         tagTypeCache_ = copySrcLayer_->tagTypeCache_;
         mif_.header = copySrcLayer_->mif_.header;
+        tagCount_ = mif_.header.col_name_map.size();
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
         if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
                 copySrcLayer_->mif_.data.geo_vec[0]) {
@@ -102,24 +104,20 @@ int MifLayerNew::save(const std::string layerPath) {
     return 0;
 }
 
-int MifLayerNew::addNewItem(const int index) {
+int MifLayerNew::addNewItem(const int index, int* newItemIndex) {
     CHECK_ARGS((index < copySrcLayer_->size() && index >= 0),
             "Index[%d] out of bound for copy-src layer.", index);
     std::lock_guard<std::mutex> mifGuard(mifLock_);
     mif_.mid.push_back(copySrcLayer_->mif_.mid[index]);
+    mif_.mid[mifSize_].resize(tagCount_);
     mif_.data.geo_vec.push_back(copySrcLayer_->mif_.data.geo_vec[index] ==
             NULL ? NULL : copySrcLayer_->mif_.data.geo_vec[index]->clone());
+    *newItemIndex = mifSize_++;
     return 0;
 }
 
 int MifLayerNew::assignWithNumber(const std::string& tagName,
         MifLayer* srcLayer, const int index, const double& val) {
-    CHECK_ARGS((index < copySrcLayer_->size() && index >= 0),
-            "Index[%d] out of bound for copy-src layer.", index);
-    std::lock_guard<std::mutex> mifGuard(mifLock_);
-    mif_.mid.push_back(copySrcLayer_->mif_.mid[index]);
-    mif_.data.geo_vec.push_back(copySrcLayer_->mif_.data.geo_vec[index] ==
-            NULL ? NULL : copySrcLayer_->mif_.data.geo_vec[index]->clone());
     if (!(tagName == "X" || tagName == "Y" || tagName == "x" ||
             tagName == "y")) {
         int colID;
@@ -143,22 +141,19 @@ int MifLayerNew::assignWithNumber(const std::string& tagName,
         } else {
             valString = std::to_string(val);
         }
-        mif_.mid[mifSize_][colID] = valString;
+        mif_.mid[index][colID] = valString;
     } else {
         if (tagName == "X" || tagName == "x") {
-            mif_.data.geo_vec[mifSize_]->at(0).at(0).setx(val);
+            mif_.data.geo_vec[index]->at(0).at(0).setx(val);
         } else {
-            mif_.data.geo_vec[mifSize_]->at(0).at(0).sety(val);
+            mif_.data.geo_vec[index]->at(0).at(0).sety(val);
         }
     }
-    mifSize_++;
     return 0;
 }
 
 int MifLayerNew::assignWithTag(const std::string& tagName,
         const int index, const std::string& val) {
-    CHECK_ARGS((index < copySrcLayer_->size() && index >= 0),
-            "Index[%d] out of bound for copy-src layer.", index);
     CHECK_ARGS(tagName != "X" && tagName != "Y" &&
             tagName != "x" && tagName != "y",
             "Calling wrong function for coordination exchange.");
@@ -167,12 +162,7 @@ int MifLayerNew::assignWithTag(const std::string& tagName,
     CHECK_ARGS(colCacheIterator != tagColCache_.end(),
             "Failed to get column id of tag \"%s\".", tagName.c_str());
     colID = colCacheIterator->second;
-    std::lock_guard<std::mutex> mifGuard(mifLock_);
-    mif_.mid.push_back(copySrcLayer_->mif_.mid[index]);
-    mif_.data.geo_vec.push_back(copySrcLayer_->mif_.data.geo_vec[index] ==
-            NULL ? NULL : copySrcLayer_->mif_.data.geo_vec[index]->clone());
-    mif_.mid[mifSize_][colID] = val;
-    mifSize_++;
+    mif_.mid[index][colID] = val;
     return 0;
 }
 
@@ -228,7 +218,8 @@ int MifLayerNew::checkAddTag(const std::string& tagName,
             mif_.add_column(tagName, "char(64)");
             colIterator = mif_.header.col_name_map.find(lowerTagName);
             CHECK_RET(colIterator != mif_.header.col_name_map.end(),
-                "Create new column \"%s\" failed!", tagName.c_str());
+                    "Create new column \"%s\" failed!", tagName.c_str());
+            tagCount_++;
             tagColCache_.insert(std::pair<std::string, int>(tagName,
                     index = colIterator->second));
             if (colID) {
@@ -314,7 +305,7 @@ int MifLayerNormal::save(const std::string layerPath) {
     return 0;
 }
 
-int MifLayerNormal::addNewItem(const int index) {
+int MifLayerNormal::addNewItem(const int index, int* newItemIndex) {
     CHECK_RET(-1, "Add new mif item to normal mif layer is not supported.");
     return 0;
 }
@@ -480,8 +471,18 @@ MifItem::MifItem(const int index, MifLayer* srcLayer, MifLayer* targetLayer,
         MifLayer::ItemInfo* info) :  srcLayer_(srcLayer),
         targetLayer_(targetLayer), index_(index), info_(info) {}
 
+MifItem::~MifItem() {
+    std::lock_guard<std::mutex> groupGuard(*(info_->dynamicGroupCacheLock_));
+    for (auto mapIter : info_->dynamicGroupCache_) {
+        if (mapIter.second) {
+            delete mapIter.second;
+        }
+    }
+    info_->dynamicGroupCache_.clear();
+}
+
 int MifItem::addAsNewItem() {
-    CHECK_RET(targetLayer_->addNewItem(index_),
+    CHECK_RET(targetLayer_->addNewItem(index_, &newItemIndex_),
             "Failed to add new mif item by new mif layer.");
     return 0;
 }
@@ -490,8 +491,19 @@ int MifItem::assignWithNumber(const std::string& tagName,
         const double& val) {
     CHECK_ARGS(targetLayer_ != nullptr,
             "Can not assign number to tag in an empty target layer.");
-    CHECK_RET(targetLayer_->assignWithNumber(tagName, srcLayer_, index_, val),
-            "Failed to assign number to tag \"%s\".", tagName.c_str());
+    if (targetLayer_->isNew()) {
+        if (newItemIndex_ < 0) {
+            CHECK_RET(targetLayer_->addNewItem(index_, &newItemIndex_),
+                    "Failed to add new mif item by new mif layer.");
+        }
+        CHECK_RET(targetLayer_->assignWithNumber(tagName, srcLayer_,
+                newItemIndex_, val), "Failed to assign number to tag \"%s\".",
+                tagName.c_str());
+    } else {
+        CHECK_RET(targetLayer_->assignWithNumber(tagName, srcLayer_,
+                index_, val), "Failed to assign number to tag \"%s\".",
+                tagName.c_str());
+    }
 #ifdef USE_MIFITEM_CACHE
     std::lock_guard<std::mutex> cacheGuard(*(info_->tagNumberCacheLock_));
     info_->tagNumberCache_[tagName] = val;
@@ -503,8 +515,17 @@ int MifItem::assignWithTag(const std::string& tagName,
         const std::string& val) {
     CHECK_ARGS(targetLayer_ != nullptr,
             "Can not assign value to tag in an empty target layer.");
-    CHECK_RET(targetLayer_->assignWithTag(tagName, index_, val),
-            "Failed to assign value to tag \"%s\".", tagName.c_str());
+    if (targetLayer_->isNew()) {
+        if (newItemIndex_ < 0) {
+            CHECK_RET(targetLayer_->addNewItem(index_, &newItemIndex_),
+                    "Failed to add new mif item by new mif layer.");
+        }
+        CHECK_RET(targetLayer_->assignWithTag(tagName, newItemIndex_, val),
+                "Failed to assign value to tag \"%s\".", tagName.c_str());
+    } else {
+        CHECK_RET(targetLayer_->assignWithTag(tagName, index_, val),
+                "Failed to assign value to tag \"%s\".", tagName.c_str());
+    }
 #ifdef USE_MIFITEM_CACHE
     std::lock_guard<std::mutex> cacheGuard(*(info_->tagStringCacheLock_));
     info_->tagStringCache_[tagName] = val;
@@ -601,7 +622,9 @@ int MifItem::findBuildDynamicGroup(Group** groupPtr, int64_t dynamicGroupKey,
     } else {
         CHECK_RET(itemGroup->buildDynamicGroup(groupPtr, this),             
                 "Failed to build dynamic group.");
-        info_->dynamicGroupCache_[dynamicGroupKey] = *groupPtr;
+        if ((*groupPtr)->size()) {
+            info_->dynamicGroupCache_[dynamicGroupKey] = *groupPtr;
+        }
     }
     return 0;
 }
@@ -609,12 +632,9 @@ int MifItem::findBuildDynamicGroup(Group** groupPtr, int64_t dynamicGroupKey,
 int MifItem::findInsertProcessResult(bool** resultPtr, int64_t processKey) {
     auto mapIterator = processResultCache_.find(processKey);
     if (mapIterator != processResultCache_.end()) {
-        **resultPtr = mapIterator->second;
+        *resultPtr = &(processResultCache_[processKey]);
         return 1;
     } else {
-        if (*resultPtr) {
-            delete *resultPtr;
-        }
         processResultCache_[processKey] = false;
         *resultPtr = &(processResultCache_[processKey]);
         return 0;

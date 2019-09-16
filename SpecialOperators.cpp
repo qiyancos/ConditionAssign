@@ -23,7 +23,7 @@ int OperatorFunction::find(Operator** newOperatorPtr,
     size_t leftBound = content.find("<");
     size_t rightBound = content.find(">");
     range->first = leftBound;
-    range->second = rightBound;
+    range->second = rightBound + 1;
     int length = rightBound - leftBound - 1;
     if (leftBound == std::string::npos || rightBound == std::string::npos ||
             length < 0) {
@@ -78,7 +78,7 @@ int OperatorPartialEqual::find(Operator** newOperatorPtr,
     CHECK_ARGS(startPosLength > 0 && lengthLength > 0,
             "Can not find start position or end position.");
     range->first = leftBracketIndex;
-    range->second = rightBracketIndex + 2;
+    range->second = rightBracketIndex + 3;
     std::string startIndexString = content.substr(leftBracketIndex + 1,
             startPosLength);
     std::string lengthStr = content.substr(colonIndex + 1, lengthLength);
@@ -206,8 +206,6 @@ int FuncOperatorEmpty::find(Operator** newOperatorPtr,
         const std::string& content, std::pair<size_t, size_t>* range,
         std::string* opName) {
     *opName = "FuncOperatorEmpty";
-    range->first = 0;
-    range->second = content.size() - 1;
     *newOperatorPtr = new FuncOperatorEmpty();
     return 1;
 }
@@ -247,9 +245,6 @@ int FuncOperatorSetCoord::process(Node* node, MifItem* item) {
     CHECK_RET(item->assignWithNumber(tagName, newX), "Failed to set x coord.");
     tagName = "y";
     CHECK_RET(item->assignWithNumber(tagName, newY), "Failed to set y coord.");
-    if (dynamicGroup) {
-        delete dynamicGroup;
-    }
     return 1;
 }
 

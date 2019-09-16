@@ -22,12 +22,12 @@ int64_t keyGenerate(const std::string& str, int64_t oldHash) {
     register int64_t hash = oldHash;
     int index = 0;
     if (oldHash != 0) {
-        while(index < str.length()) {
+        while (index < str.length()) {
             hash = hash * 131 + str[index++];
         }
     } else {
         // 这里的逻辑是为了处理Group特殊设置的
-        while(index < str.length() && str[index] != ' ') {
+        while (index < str.length() && str[index] != ' ') {
             hash += str[index++];
         }
         hash = (hash ^ (hash * 131)) + hash;
