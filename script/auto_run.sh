@@ -1,6 +1,6 @@
 #! /bin/bash
 set -e
-enableDebug=0
+enableDebug=1
 # Max number of layers running in parallel mode
 # make sure this will not be too large so that local memory is exceeded
 maxParallelCnt=6
@@ -37,11 +37,13 @@ completeMifLayerName() {
 }
 
 mapFinder() {
-    name=`eval echo \$$1`
+    name=$(eval echo \$$1)
+    eval unset $1
     if [ x$name != x ]
     then
         index=0
-        for key in `eval echo \$$2`
+        keyList=$(eval echo "\$$2")
+        for key in $keyList
         do
             if [ $name = $key ]
             then
@@ -61,36 +63,38 @@ findPluginLayer() {
         return 
     fi
     unset layerNames
-    for layerName in $pluginLayerNames
+    for name in $pluginLayerNames
     do
-        layerNameTemp=`completeMifLayerName $srcDataPath/$layerName noexit`
+        layerNameTemp=`completeMifLayerName $srcDataPath/$name noexit`
         if [ x$layerNameTemp = x ]
         then
-            layerNameTemp=`find $pluginDataPath -name "$layerName.*"`
-            candCnt=`find $pluginDataPath -name "$layerName.*" | wc -l`
+            layerNameTemp=`find $pluginDataPath -name "$name.*"`
+            candCnt=`find $pluginDataPath -name "$name.*" | wc -l`
             if [ $candCnt = 0 ]
             then
-                echo -n "Error: Can not find plugin layer \"$layerName\""
+                echo -n "Error: Can not find plugin layer \"$name\""
                 echo " in any path for layer \"$1\"."
                 exit -1
             elif [ $candCnt != 1 ]
             then
-                layerNameTemp=`find $pluginDataPath -name "$layerName.*" \
+                set +e
+                layerNameTemp=`find $pluginDataPath -name "$name.*" \
                         | grep $cityName | grep "mif\|MIF"`
+                set -e
                 candCnt=`echo $layerNameTemp | wc -w`
                 if [ $candCnt = 0 ]
                 then
-                    echo -n "Error: Can not find plugin layer \"$layerName\""
+                    echo -n "Error: Can not find plugin layer \"$name\""
                     echo " in any path for layer \"$1\"."
                     exit -1
                 elif [ $candCnt -gt 1 ]
                 then
                     echo -n "Error: Too many candidate plugin layer "
-                    echo "of \"$layerName\" for layer \"$1\"."
+                    echo "of \"$name\" for layer \"$1\"."
                     exit -1
                 fi
             else
-                layerNameTemp=`find $pluginDataPath -name "$layerName.mif"`
+                layerNameTemp=`find $pluginDataPath -name "$name.mif"`
             fi
         fi
         layerNames="$layerNameTemp;$layerNames"
@@ -98,9 +102,40 @@ findPluginLayer() {
     eval "$2=${layerNames:0:$[${#layerNames} - 1]}"
 }
 
+findIncrement() {
+    if [ $runIncrement = 0 ]
+    then
+        echo Yes
+        return
+    fi
+    set +e
+    lineCount=`grep $1 $incrementPath/layer | wc -l`
+    set -e
+    if [ $lineCount = 0 ]
+    then
+        echo No 
+        return
+    elif [ $lineCount = 1 ]
+    then
+        echo Yes
+        return
+    elif [ $lineCount -gt 1 ]
+    then
+        for name in `grep $1 $incrementPath/layer`
+        do
+            if [ $name = $1 ]
+            then
+                echo Yes
+                return
+            fi
+        done
+        echo No
+    fi
+}
+
 argParser() {
     root=`dirname $(dirname $0)`
-    if [ $# != 8 ]
+    if [ $# != 8 -a $# != 9 ]
     then
         echo "Error: not enough or too many arguments."
         exit -1
@@ -114,13 +149,31 @@ argParser() {
     logPath=$6/$7
     cityName=$7
     threadNum=$8
+    incrementPath=$9/$7
 
-    checkFileDirExist $poiProcessScript
+    if [ $cityName != china ]
+    then checkFileDirExist $poiProcessScript
+    fi
     checkFileDirExist $srcDataPath
     checkFileDirExist $targetDataPath
     checkFileDirExist $pluginDataPath
     checkFileDirExist $configFilePath
-    
+    if [ x$incrementPath != x ]
+    then
+        if [ ! -f $incrementPath/layer ]
+        then exit 0
+        fi
+        runIncrement=1
+    else
+        runIncrement=0
+        if [ x$enableDebug = x0 ]
+        then
+            # full-update will rebuild target dir
+            rm -rf $targetDataPath
+            mkdir -p $targetDataPath
+        fi
+    fi
+
     mkdir -p $logPath
 }
 
@@ -133,34 +186,43 @@ splitConfigFiles() {
         layerName=${file:0:$[${#file} - 5]}
         if [ -f $srcDataPath/$layerName.mif -o -f $srcDataPath/$layerName.MIF ]
         then
-            # For example: C_POI_1.conf is for serial mode
-            if [ ! -f $configFilePath/${layerName}_1.conf ]
+            if [ `findIncrement $layerName` = Yes ]
             then
-				echo "-- Parallel: $layerName"
-				parallelLayers="$layerName $parallelLayers"
-            else
-				echo "-- Serial: $layerName"
-				serialLayers="$layerName $serialLayers"
+                # For example: C_POI_1.conf is for serial mode
+                if [ ! -f $configFilePath/${layerName}_1.conf ]
+                then
+				    echo "-- Parallel: $layerName"
+				    parallelLayers="$layerName $parallelLayers"
+                else
+				    echo "-- Serial: $layerName"
+				    serialLayers="$layerName $serialLayers"
+                fi
             fi
         elif [ "x${layerName:$[${#layerName} - 6]:6}" = "xFilter" ]
         then
             layerName=${layerName:0:$[${#layerName} - 7]}
-            if [ -f $srcDataPath/$layerName.mif -o \
-                    -f $srcDataPath/$layerName.MIF ]
+            if [ `findIncrement $layerName` = Yes ]
             then
-				echo "-- Filter: $layerName"
-				filterLayers="$layerName $filterLayers"
-			fi
+                if [ -f $srcDataPath/$layerName.mif -o \
+                        -f $srcDataPath/$layerName.MIF ]
+                then
+				    echo "-- Filter: $layerName"
+				    filterLayers="$layerName $filterLayers"
+			    fi
+            fi
         elif [ "x${layerName:$[${#layerName} - 3]:3}" = "xNew" ]
         then
             layerName=${layerName:0:$[${#layerName} - 4]}
-            if [ -f $srcDataPath/$layerName.mif -o \
-                    -f $srcDataPath/$layerName.MIF ]
+            if [ `findIncrement $layerName` = Yes ]
             then
-				echo "-- Parallel_New: ${layerName}_New"
-				parallelLayers="${layerName}_New $parallelLayers"
-            fi
-		fi
+                if [ -f $srcDataPath/$layerName.mif -o \
+                        -f $srcDataPath/$layerName.MIF ]
+                then
+				    echo "-- Parallel_New: ${layerName}_New"
+				    parallelLayers="${layerName}_New $parallelLayers"
+                fi
+		    fi
+        fi
     done
 }
 
@@ -189,7 +251,7 @@ processParallelLayers() {
                 if [ x$layerName = x ]
                 then
                     echo -n "Error: Can not find new output layer matched"
-                    echo " with config \"$file\"."
+                    echo " with input layer \"${parallelLayers[$workedCnt]}\"."
                     exit -1
                 fi
                 if [ ${srcLayerName:$[${#srcLayerName} - 3]:3} = mif ]
@@ -234,6 +296,9 @@ processParallelLayers() {
 }
 
 poiFeatureProcess() {
+    if [ ! -f $targetDataPath/C_POI.mif -a ! -f $targetDataPath/C_POI.MIF ]
+    then return
+    fi
     echo;echo ">> Running POIFeatureProcess:"
     if [ x$enableDebug != x1 ]
     then

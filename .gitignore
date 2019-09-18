@@ -41,4 +41,3 @@ conf/*.conf
 *.swp
 script/mainrun
 test/tools/bin
-RoadCatalog

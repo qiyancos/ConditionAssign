@@ -4,16 +4,16 @@ root=`dirname $0`
 cd $root/..
 root=$PWD
 make -j8
-mkdir -p ./ConditionAssign/bin
-mkdir -p ./ConditionAssign/conf
-mkdir -p ./ConditionAssign/data
-cp ./bin/ConditionAssign ./ConditionAssign/bin/
-cp ./test/tools/bin/mifdiff ./ConditionAssign/bin/
-cp ./test/tools/bin/mifsearch ./ConditionAssign/bin/
+mkdir -p ./NewConditionAssign/bin
+mkdir -p ./NewConditionAssign/conf
+mkdir -p ./NewConditionAssign/data
+cp ./bin/ConditionAssign ./NewConditionAssign/bin/
+cp ./test/tools/bin/mifdiff ./NewConditionAssign/bin/
+cp ./test/tools/bin/mifsearch ./NewConditionAssign/bin/
 $root/conf/autogen.sh
-cp ./conf/*.conf ./ConditionAssign/conf
-cp -r ./script ./ConditionAssign/
-rm -rf ./ConditionAssign/script/mainrun
-tar -cvjf ./ConditionAssign.tar.bz2 ./ConditionAssign/*
-sz ./ConditionAssign.tar.bz2
-rm -rf ./ConditionAssign ./ConditionAssign.tar.bz2
+cp ./conf/*.conf ./NewConditionAssign/conf
+cp -r ./script ./NewConditionAssign/
+rm -rf ./NewConditionAssign/script/mainrun
+tar -cvjf ./NewConditionAssign.tar.bz2 ./NewConditionAssign/*
+sz ./NewConditionAssign.tar.bz2
+rm -rf ./NewConditionAssign ./NewConditionAssign.tar.bz2
