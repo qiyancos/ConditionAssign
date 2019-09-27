@@ -260,6 +260,7 @@ void Progress::dumpProgress() {
         printf("\n");
     } else {
         printf("\r");
+        fflush(stdout);
     }
 }
 

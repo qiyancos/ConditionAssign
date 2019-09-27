@@ -12,8 +12,6 @@ CPPFLAGS=-g -static -O2 -std=c++11 -finline-functions -std=gnu++0x \
         -Wno-overloaded-virtual -Wno-sign-compare \
         -DDEBUG -DUSE_TIMER
 
-LDFLAGS=-pg
-
 INCLUDE_PATH=-I ../../lib/rtree/dist/include \
         -I ../../lib/spatial-base/output \
 		-I ../../lib/type_factory/output \
@@ -30,7 +28,9 @@ LIB_PATH=-L ../../lib/rtree/dist/lib -lrtree \
 		-L ../../lib/conf_helper/output -lconf_helper \
 		-L ../../lib/htk/dist/lib -lhtk
 
-LDFLAGS=$(LIB_PATH) -lm -lpthread
+LDFLAGS=-pg -static $(LIB_PATH) -lm -Wl,--whole-archive \
+	    -lpthread -Wl,--no-whole-archive
+
 EXENAME=ConditionAssign
 OUTPUT=./bin
 OUTPUT_OBJ=./outputobj
@@ -70,8 +70,5 @@ $(OUTPUT_OBJ)/%.o	: %.cpp
 $(OUTPUT_OBJ)/%.o	: %.c
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH) 		
 	
-$(OUTPUT)/$(EXENAME) : $(OUTPUT)/$(EXENAME).bin ./ConditionAssign.sh
-	./build_condition_assign.sh
-
-$(OUTPUT)/$(EXENAME).bin : $(OBJ)
+$(OUTPUT)/$(EXENAME) : $(OBJ)
 	$(GCC) -o $@ $(OBJ) -Xlinker "-(" $(LIB_PATH) $(LDFLAGS) -rdynamic -Xlinker  "-)" 

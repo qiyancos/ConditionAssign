@@ -113,38 +113,6 @@ bool ConfigCatalog::execute()
     sys_log_println(_INFORANK, "finish to catalog all layers\n");
 }
 
-bool ConfigCatalog::LoadKindClassAdjust(string& conf_dir)
-{          
-    str_t file_name = conf_dir + "/kindclass_adjust.txt";
-    
-    str_t strline;
-    std::vector<str_t> splitItems;
-    std::ifstream infile( file_name.data() );
-    while (infile.good() && !infile.eof())
-    {
-        strline.clear();
-        getline(infile, strline);
-        if (strline.empty()) 
-        {
-            continue;
-        }
-        strline = wgt::trim(strline, " ");
-        strline = wgt::trim_right(strline, "\r");
-
-        if (strline.at(0)=='#')
-        {
-            continue;
-        }
-        sys_splitString(strline, splitItems, ',');
-        if (splitItems.size() < 4) 
-        {
-            continue;
-        }
-
-        kindClassAdjustMap[splitItems[0] + "_" + splitItems[1] + "_" + splitItems[2]] = splitItems[3];
-    }
-    return true;
-}
 
 int ConfigCatalog::RecatalogMainRoad(const string & input_mif, const string & output_mif, const string & plug_mif, const string & new_catalog)
 {

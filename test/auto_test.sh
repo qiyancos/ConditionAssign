@@ -58,17 +58,17 @@ testNew(){
     else targetLayer="$root/data/${layerName}_Out_New.mif"
     fi
     logPath="$root/log_New"
-    echo -n "$root/../bin/ConditionsAssign.bin ${Modules[$index]} NULL "
+    echo -n "$root/../bin/ConditionsAssign ${Modules[$index]} NULL "
     echo -n "${SourceLayers[$index]} ${targetLayer} "
     echo -n "${executorCnt} ${logPath} ${ConfPaths[$index]} "
     echo "$pluginLayers"
     if [ ${1}x = -rawx -o ${2}x = -rawx ]
     then
-        $root/../bin/ConditionAssign.bin ${Modules[$index]} NULL \
+        $root/../bin/ConditionAssign ${Modules[$index]} NULL \
                 ${SourceLayers[$index]} ${targetLayer} ${executorCnt} \
                 ${logPath} ${ConfPaths[$index]} $pluginLayers
     else
-        timeNew=`(time $root/../bin/ConditionAssign.bin ${Modules[$index]} \
+        timeNew=`(time $root/../bin/ConditionAssign ${Modules[$index]} \
                 NULL ${SourceLayers[$index]} ${targetLayer} ${executorCnt} \
                 ${logPath} ${ConfPaths[$index]} $pluginLayers) 2>&1 | \
                 awk '/real/ {print $2}'`
