@@ -1,13 +1,21 @@
 #include "RoadProcessor.h"
+#include "RoadUpgrade.h"
+#include "ProcessUtil.h"
+
+#include "md5_helper.h"
+
 #include <stdio.h>  
-#include <std::string.h>  
+#include <string.h>  
+
+#include <cmath>
 #include <queue>
 #include <cctype>
 
+using namespace process_util;
+
 RoadProcessor::RoadProcessor(const std::string& inputdir,
         const std::string& outputdir, const std::string& tencentdir,
-        const std::string& confdir, const std::string& cityname,
-        const std::string incrementpath) {
+        const std::string& confdir, const std::string& cityname) {
     strCityName = cityname;
     strInputPath = inputdir + "/" + cityname;
     strOutputPath = outputdir + "/" + cityname;
@@ -16,11 +24,11 @@ RoadProcessor::RoadProcessor(const std::string& inputdir,
 }
 
 bool RoadProcessor::execute() {
-    LoadKindClassAdjust(strConfPath);
+    LoadKindClassAdjust(strConfPath, &kindClassAdjustMap);
     sys_log_println(_INFORANK, "process C_R catalog\n");
     mapid2dirvec.clear();
     std::string mapid2dirvec_file = strConfPath + "/mapid2citydir";
-    LoadMapid2dirConf(mapid2dirvec_file, mapid2dirvec);
+    LoadMapid2dirConf(mapid2dirvec_file, &mapid2dirvec);
     std::string layername = "C_R";
     std::string infile = strInputPath + "/" + layername;
     std::string outfile = strOutputPath + "/" + layername;
@@ -181,11 +189,8 @@ int RoadProcessor::Road_Catalog(const std::string& in_path,
         if (rk.road_class() == "0a") {
             fn.mid[i][pos_catalog] = "\"0C06\"";
             //赋值guid
-            std::string randstr = "";
-            //m_catalog->GetRandStr(16,randstr,fsz-i);
-            //fn.mid[i][pos_guid]="\"SW_R"+randstr+"\"";
-            //m_catalog->GetGuidStr("C_R",i,randstr);
-            GetMD5(layername, i, randstr);
+            std::string randstr =
+                    GetMD5(strCityName + layername, i);
             fn.mid[i][pos_guid] = "\"" + randstr + "\"";
 
             continue;
@@ -265,7 +270,8 @@ int RoadProcessor::Road_Catalog(const std::string& in_path,
             } else if (fn.mid[i][pos_name][1] == 'G') {
                 //双线 国道
                 if (fn.mid[i][pos_name].size() == 6
-                    && IsNum(fn.mid[i][pos_name], 2, 3)) { //"G101" 国道
+                    && IsNum(fn.mid[i][pos_name], 2, 3)) {
+                    //"G101" 国道
                     passcode += "08";
                 } else { //G101辅路
                     passcode += "0B";
@@ -273,12 +279,14 @@ int RoadProcessor::Road_Catalog(const std::string& in_path,
             } else if (fn.mid[i][pos_name][1] == 'S') {
                 //双线 省道
                 if (fn.mid[i][pos_name].size() == 6
-                    && IsNum(fn.mid[i][pos_name], 2, 3)) { //"S101" 省道
+                    && IsNum(fn.mid[i][pos_name], 2, 3)) {
+                    //"S101" 省道
                     passcode += "09";
                 } else { //S101线
                     passcode += "0B";
                 }
-            } else if (isValidBrandName<'X'>(fn.mid[i][pos_name])) {
+            } else if (isValidBrandName(
+                    fn.mid[i][pos_name], 'X')) {
                 //双线 县道
                 passcode += "0A";
             } else {
@@ -327,7 +335,7 @@ int RoadProcessor::Road_Catalog(const std::string& in_path,
                 } else { //S101线
                     passcode += "0B";
                 }
-            } else if (isValidBrandName<'X'>(fn.mid[i][pos_name])) {
+            } else if (isValidBrandName(fn.mid[i][pos_name], 'X')) {
                 //单线 县道
                 passcode += "0F";
             } else {
@@ -339,10 +347,7 @@ int RoadProcessor::Road_Catalog(const std::string& in_path,
         fn.mid[i][pos_catalog] = "\"" + wgt::toupper(passcode) + "\"";
 
         //赋值guid
-        std::string  randstr = "";
-        //m_catalog->GetRandStr(16,randstr,fsz-i);
-        //fn.mid[i][pos_guid]="\"SW_R"+randstr+"\"";
-        GetMD5(layername, i, randstr);
+        std::string randstr = GetMD5(strCityName + layername, i);
         fn.mid[i][pos_guid] = "\"" + randstr + "\"";
     }
     wgt::check_err("Write back to Road MIF/MID",
@@ -498,7 +503,7 @@ int RoadProcessor::Road_CatalogEx(const std::string& in_path,
         str_kind_classBak = str_kind_class;
         // 根据funcclass调整kind_class
         str_kind_class = AdjustmentKindClass(str_AdminCodeL, str_kind_class,
-                str_funcclass);
+                str_funcclass, kindClassAdjustMap);
 
         road_Mif.mid[index][col_kindclass] = str_kind_class;
 
@@ -568,7 +573,7 @@ int RoadProcessor::Road_CatalogEx(const std::string& in_path,
         bool isConstruction = constST == "4" || constST == "3";
         bool isUrban = build_in_flag == "01";
 
-        if (isWalkstreet(kind)) {    // 步行街
+        if (isWalkStreet(kind)) {    // 步行街
             catalog += "0803";
             if (isConstruction) {
                 catalog += "03";
@@ -802,10 +807,7 @@ int RoadProcessor::Road_CatalogEx(const std::string& in_path,
         road_Mif.mid[index][col_catalog] = catalog;
 
         //赋值guid
-        std::string  randstr = "";
-        //m_catalog->GetRandStr(16,randstr,fsz-i);
-        //fn.mid[i][pos_guid]="\"SW_R"+randstr+"\"";
-        GetMD5(layername, index, randstr);
+        std::string randstr = GetMD5(strCityName + layername, index);
         road_Mif.mid[index][col_guid] = "\"" + randstr + "\"";
     }
 
@@ -851,7 +853,7 @@ void RoadProcessor::ProcessRampKindClass(wgt::MIF& road_Mif,
     }
 
     std::map<std::string, int> linkid2indexmap;            // linkid ==> pos
-    std::map<std::string, vector<std::string> > nodeid2lids;    // nodeid ==> linkids
+    std::map<std::string, std::vector<std::string> > nodeid2lids;    // nodeid ==> linkids
     std::map<std::string, std::string> nodeid2adjoinnodeid;   // nodeid ==> adjoinnodeid
 
     int nSize2 = C_N_Mif.mid.size();
@@ -926,11 +928,11 @@ void RoadProcessor::ProcessRampKindClass(wgt::MIF& road_Mif,
             
             for (int i = 0; i < 2; i++) {
                 // 连接的kindclass值
-                map<int, std::string> kindclassmap;
+                std::map<int, std::string> kindclassmap;
                 // 直连的index pos
-                map<int, int> directindex_map;
+                std::map<int, int> directindex_map;
                 // 直连的交叉点内link
-                map<int, int> directindexrlink_map;
+                std::map<int, int> directindexrlink_map;
                 // 已经访问的link
                 std::set<int> linkvisited;
                 // 存放road的下标
@@ -1083,7 +1085,6 @@ void RoadProcessor::ProcessRampKindClass(wgt::MIF& road_Mif,
                             if (iter_find != nodeid2lids.end()) {
                                 std::vector<std::string>& res = iter_find->second;
                                 for (auto lid : res) {
-                                    std::string lid = *iter1;
                                     auto iter2 = linkid2indexmap.find(lid);
                                     if (iter2 != linkid2indexmap.end()) {
                                         std::string snodeid_connect =
@@ -1339,7 +1340,6 @@ void RoadProcessor::ProcessSAKindClass(wgt::MIF& road_Mif,
                     if (iter_find != nodeid2lids.end()) {
                         std::vector<std::string>& res = iter_find->second;
                         for (auto lid : res) {
-                            std::string lid = *iter1;
                             if (linkvisited.find(lid) == linkvisited.end()) {
                                 auto iter2 = linkid2indexmap.find(lid);
                                 if (iter2 != linkid2indexmap.end()) {
@@ -1364,7 +1364,6 @@ void RoadProcessor::ProcessSAKindClass(wgt::MIF& road_Mif,
             bool isram = false;        // 连接是否为匝道
             bool isused = true;    // 连接的道路是否使用
             for (auto pos : linkposvec) {
-                int pos = *iter;
                 std::string kindclass = road_Mif.mid[pos][col_kindclass];
                 std::string kind = road_Mif.mid[pos][col_kind];
                 wgt::trim(kind, '"');
@@ -1607,7 +1606,6 @@ void RoadProcessor::ProcessRLinkKindClass(wgt::MIF& road_Mif,
                                 std::vector<std::string>& res =
                                         iter_find->second;
                                 for (auto lid : res) {
-                                    std::string lid = *iter1;
                                     if (linkid == lid) {
                                         continue;
                                     }
@@ -1841,7 +1839,7 @@ void RoadProcessor::ProcessRLinkKindClass(wgt::MIF& road_Mif,
                     rampkindclass = (++kindclassmap.begin())->second;
                 }
             } else {
-                map<int, std::string> kindclassmapall;
+                std::map<int, std::string> kindclassmapall;
                 kindclassmapall.insert(forwardkindclassmap.begin(),
                         forwardkindclassmap.end());
                 kindclassmapall.insert(backwardkindclassmap.begin(),
@@ -2044,7 +2042,6 @@ void RoadProcessor::ProcessBuildInFlag(wgt::MIF& road_Mif,
                 if (iter_find != nodeid2lids.end()) {
                     std::vector<std::string>& res = iter_find->second;
                     for (auto lid : res) {
-                        std::string lid = *iter1;
                         auto iter2 = linkid2indexmap.find(lid);
                         if (iter2 != linkid2indexmap.end()) {
                             int index = iter2->second;
@@ -2073,7 +2070,6 @@ void RoadProcessor::ProcessBuildInFlag(wgt::MIF& road_Mif,
                 if (iter_find != nodeid2lids.end()) {
                     std::vector<std::string>& res = iter_find->second;
                     for (auto lid : res) {
-                        std::string lid = *iter1;
                         auto iter2 = linkid2indexmap.find(lid);
                         if (iter2 != linkid2indexmap.end()) {
                             int index = iter2->second;
@@ -2238,7 +2234,6 @@ void RoadProcessor::CheckKindClassConnectivity(wgt::MIF& road_Mif, std::string i
                     if (iter_find != nodeid2lids.end()) {
                         std::vector<std::string>& res = iter_find->second;
                         for (auto lid : res) {
-                            std::string lid = *iter1;
                             auto iter2 = linkid2indexmap.find(lid);
                             if (iter2 != linkid2indexmap.end()) {
                                 int index = iter2->second;
@@ -2263,7 +2258,8 @@ void RoadProcessor::CheckKindClassConnectivity(wgt::MIF& road_Mif, std::string i
                                     }
                                 } else {
                                     group.connected_min_kind_class =
-                                            min(group.connected_min_kind_class,
+                                            std::min(
+                                            group.connected_min_kind_class,
                                             kindclass);
                                     if (kindclass == 0x0A) {
                                         group.connected_ferry = true;
@@ -2277,7 +2273,6 @@ void RoadProcessor::CheckKindClassConnectivity(wgt::MIF& road_Mif, std::string i
                     if (iter_find != nodeid2lids.end()) {
                         std::vector<std::string>& res = iter_find->second;
                         for (auto lid : res) {
-                            std::string lid = *iter1;
                             auto iter2 = linkid2indexmap.find(lid);
                             if (iter2 != linkid2indexmap.end()) {
                                 int index = iter2->second;
@@ -2302,7 +2297,8 @@ void RoadProcessor::CheckKindClassConnectivity(wgt::MIF& road_Mif, std::string i
                                     }
                                 } else {
                                     group.connected_min_kind_class =
-                                            min(group.connected_min_kind_class,
+                                            std::min(
+                                            group.connected_min_kind_class,
                                             kindclass);
                                     if (kindclass == 0x0A) {
                                         group.connected_ferry = true;
@@ -2427,7 +2423,7 @@ void RoadProcessor::ExpandCityDir(wgt::MIF& C_R_Mif,
         wgt::trim(str_adjoinid, '"');
         wgt::trim(str_linkids, '"');
 
-        vector<std::string> res;
+        std::vector<std::string> res;
         sys_splitString(str_linkids, res, '|');
 
         auto ir1 = nodeid2lids.find(str_nodeid);
@@ -2469,13 +2465,13 @@ void RoadProcessor::ExpandCityDir(wgt::MIF& C_R_Mif,
 int RoadProcessor::RoadLevelUpgrade(const std::string& roadFile,
         const std::string& nodeFile, const std::string& roadupconfFile) {
     // 这个配置是可以多重配置
-    struct _roadUpConfig {
+    struct roadUpConfig {
         std::map<std::string, std::string> layerCatalog;
         std::map<std::string, std::string> upCatalog;
         float limitLen;
         int empty_block_handle;        // 1:全部提升 0:不处理
         std::string upValue;
-    } roadUpConfig;
+    };
 
     roadUpConfig confs[10];
     int curCount = 0;
@@ -2601,7 +2597,7 @@ void RoadProcessor::SmoothRoadCatalog(wgt::MIF& mifRoadLayer) {
         sys_log_println(_ERROR, "snodeid and enodeid field index error\n");
         return;
     }
-    std::map<std::string, vector<int> > mapNodeIdIndex;
+    std::map<std::string, std::vector<int> > mapNodeIdIndex;
     std::string strSnodeId;
     std::string strEnodeId;
     for (int i = 0; i < iSizeRoad; i++) {

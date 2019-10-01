@@ -6,8 +6,9 @@
               Create on: 2018/08/27
 *************************************************/
 
-#include "htk/str_helpers.h"
+#include <sys/time.h>
 #include <stdint.h>
+
 #include <locale>
 #include <iostream>
 

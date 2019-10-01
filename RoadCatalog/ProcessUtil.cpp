@@ -1,4 +1,6 @@
 #include "ProcessUtil.h"
+#include "md5_helper.h"
+
 #include <stdio.h>  
 #include <string.h>  
 #include <queue>
@@ -8,7 +10,22 @@ namespace process_util {
 
 using namespace wgt;
 
-bool ConfigCatalog::LoadKindClassAdjust(const string& configPath,
+char dateStr[256] {0};
+
+std::string GetMD5(const std::string& preString, int id) {
+	if (dateStr[0] == 0) {
+        time_t date;
+        time(&date);
+        date += 8 * 3600;
+        struct tm* timeStruct = gmtime(&date);
+        strftime(dateStr, sizeof(dateStr), "%Y%m%d%H", timeStruct);
+    }
+    std::string srcStr(dateStr);
+    srcStr += (preString + std::to_string(id));
+    return md5sum6(srcStr);
+}
+
+bool LoadKindClassAdjust(const std::string& configPath,
         std::map<std::string, std::string>* kindClassAdjustMap) {
     str_t file_name = configPath + "/kindclass_adjust.txt";
     str_t strline;
@@ -35,7 +52,7 @@ bool ConfigCatalog::LoadKindClassAdjust(const string& configPath,
     return true;
 }
 
-void LoadMapid2dirConf(const std::string configPath,
+void LoadMapid2dirConf(const std::string& configPath,
         std::map<std::string, std::vector<std::string>>* mapid2dirvec) {
     std::ifstream confFile(configPath.c_str());
     if (confFile.is_open() == false) {
@@ -70,8 +87,7 @@ std::string AdjustmentKindClass(std::string str_AdminCode,
         std::string str_kind_class, std::string str_funcclass,
         const std::map<std::string, std::string>& kindClassAdjustMap) {
     str_AdminCode = str_AdminCode.substr(0, 4) + "00";
-    std::map<std::string, std::string>::iterator iter =
-            kindClassAdjustMap.find(str_AdminCode + "_" + str_kind_class +
+    auto iter = kindClassAdjustMap.find(str_AdminCode + "_" + str_kind_class +
             "_" + str_funcclass);
     if (iter != kindClassAdjustMap.end()) {
         str_kind_class = iter->second;
@@ -85,10 +101,10 @@ std::string AdjustmentKindClass(std::string str_AdminCode,
     return str_kind_class;
 }
 
-std::string GetRoadLevelFromKind(std::string str_kind) {
+std::string GetRoadLevelFromKind(const std::string& str_kind) {
     int level = 100;
     std::string strlevel = "";
-    std::vector<string> kindvec;
+    std::vector<std::string> kindvec;
     sys_splitString(str_kind, kindvec, '|');
     for (const std::string& kind : kindvec) {
         if (kind.size() != 4) {
@@ -160,7 +176,7 @@ double GetLinkLength(wsl::Geometry* geoLine) {
     //wsl::Geometry* geo_ptr = rtic_mif.data.geo_vec[idx];
     wsl::Line& line_feat = ((wsl::Feature<wsl::Line>*)geoLine)->at(0);
     int iSizeLine = line_feat.size();
-    vector<Point2> vecPts;
+    std::vector<Point2> vecPts;
     for (int i = 0; i < iSizeLine; i++) {
         const wsl::Point& pnt = line_feat.at(i);
         wsl::coor::dpoint_t ll_pt(pnt.x(), pnt.y());
@@ -190,7 +206,7 @@ std::string fixQuotMain2(std::string& str) {
 }
 
 bool IsNum(const std::string& str, size_t s = 0, size_t len) {
-    size_t size = ((len == string::npos) || (len + s > str.size())) ?
+    size_t size = ((len == std::string::npos) || (len + s > str.size())) ?
             str.size() : len + s;
     for (size_t index = s; index < size; index++) {
         if (!isdigit(str.at(index))) {
@@ -286,7 +302,6 @@ bool isICJCT(const std::string& str_kind) {
     std::vector<std::string> kindvec;
     sys_splitString(str_kind, kindvec, '|');
     for (std::string& kind : kindvec) {
-        std::string kind = *iter;
         if (kind.size() != 4) {
             continue;
         }
@@ -304,7 +319,6 @@ bool isOnlyRamp(std::string str_kind) {
     std::vector<std::string> kindvec;
     sys_splitString(str_kind, kindvec, '|');
     for (std::string& kind : kindvec) {
-        std::string kind = *iter;
         if (kind.size() != 4) {
             continue;
         }
@@ -481,6 +495,17 @@ bool needDelete(const std::string& str_kind) {
         }
     }
     return false;
+}
+
+bool In_built_up_Areas(const std::vector<wsl::Geometry*>& areas,
+        wsl::Geometry* line) {
+	for (size_t k=0; k<areas.size(); k++) {
+		int inter_ret = wsl::intersect(line, areas[k]);
+		if ( inter_ret==wsl::CONTAIN || inter_ret==wsl::INTERSECT) {
+			return true;
+		}
+	}
+	return false;	
 }
 
 } // namespace process_util

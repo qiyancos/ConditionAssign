@@ -1,5 +1,9 @@
 #include "ProcessUtil.h"
 
+#include <vector>
+#include <map>
+#include <queue>
+
 struct RoadColIndex {
 	int col_mapid;
 	int col_linkid;
@@ -19,7 +23,7 @@ struct NodeColIndex {
 };
 
 struct RoadBlockInfo {
-	string mapid;
+	std::string mapid;
     // mapid下所有的link索引
 	std::vector<int> alllinkIndex;
     // 在layer中已经配置的link索引
@@ -87,13 +91,13 @@ int link_expand(int idx, std::string nid, bool is_start,
         std::queue<int>& baklinks, int& flag);
 
 // 寻找和当前link邻接的link
-int find_adjoin_link(int idx, string nid, bool is_start,
+int find_adjoin_link(int idx, std::string nid, bool is_start,
         std::vector<int>& upgradedLink, std::vector<int>& cur_upgradedLink,
         std::vector<score>& res_vec, int& flag);
 
 // 计算道路之间的角度
-double calculate_angle(Feature<Line>* link1, Feature<Line>* link2,
-        bool is_start1, bool is_start2);
+double calculate_angle(wsl::Feature<wsl::Line>* link1,
+        wsl::Feature<wsl::Line>* link2, bool is_start1, bool is_start2);
 
 // 道路等级提升
 void RoadUpgrade(wgt::MIF& plink, wgt::MIF pNlink,

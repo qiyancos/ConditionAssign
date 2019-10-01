@@ -17,9 +17,12 @@ struct Point2{
     double y;
 };
 
+// 获取一个组合数值的MD5
+std::string GetMD5(const std::string& preString, int id);
+
 // 加载kindclass的相关配置文件
 bool LoadKindClassAdjust(const std::string& configPath,
-        std::map<std::string, std::string>* kingClassAdjustMap);
+        std::map<std::string, std::string>* kindClassAdjustMap);
 
 // 加载MAPID到目录的映射配置文件
 void LoadMapid2dirConf(const std::string& configPath,
@@ -94,10 +97,15 @@ bool isSameKind(const std::string& str_kind1, const std::string& str_kind2,
         const std::string& ignoreAttr);
 
 // 判断两个道路的道路等级是否一致
-bool isSameKindClass(string str_kind1, string str_kind2);
+bool isSameKindClass(const std::string& str_kind1,
+        const std::string& str_kind2);
 
 // 判断道路是否可以删除
-bool needDelete(const std::string&& str_kind);
+bool needDelete(const std::string& str_kind);
+
+// 判断一个道路是否在建成区（需要用RTree优化）
+bool In_built_up_Areas(const std::vector<wsl::Geometry*>& areas,
+        wsl::Geometry* line);
 
 } // namespace process_util
 

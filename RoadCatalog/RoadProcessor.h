@@ -30,6 +30,27 @@ struct RoadCatalogExistItem {
     int time;
 };
 
+struct LinkItem {
+	int index;
+	std::string nodeid;
+
+	LinkItem& operator=(const LinkItem& crf) {
+		if (&crf == this) { 
+			return *this;
+		}
+		index = crf.index;
+		nodeid = crf.nodeid;
+
+		return *this;
+	}
+
+	bool operator < (const LinkItem& crf) const {  
+		if (index != crf.index)
+			return index < crf.index;
+		return nodeid < crf.nodeid;      
+	}
+};
+
 class RoadProcessor {
 public:
     // 构造函数
@@ -64,7 +85,7 @@ private:
     void ProcessRampKindClass(wgt::MIF& road_Mif, const std::string& in_path);
     
     // 处理SA服务区的kindclass
-    void ProcessSAKindClass(wgt::MIF& road_Mif, std::string in_path);
+    void ProcessSAKindClass(wgt::MIF& road_Mif, const std::string& in_path);
     
     // 处理交叉点内Link的kindclass
     void ProcessRLinkKindClass(wgt::MIF& road_Mif, const std::string& in_path);

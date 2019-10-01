@@ -4,7 +4,7 @@
 #include <map>
 #include <set>
 #include <fstream>
-#include <std::string>
+#include <string>
 #include <algorithm>
 #include <vector>
 #include <queue>
@@ -30,9 +30,9 @@ NodeColIndex nodecol;
 // C_R中id与index索引
 std::map<std::string, int> linkid2index;
 // C_R中snodeid与set<index>
-std::map<std::string, set<int> > snid2indexset;
+std::map<std::string, std::set<int> > snid2indexset;
 // C_R中enodeid与set<index>
-std::map<std::string, set<int> > enid2indexset;
+std::map<std::string, std::set<int> > enid2indexset;
 // C_N中邻接点映射
 std::map<std::string, std::string> nid2adjoinid;
 // 已经在layer中配置的link，所有block的
@@ -103,7 +103,6 @@ void RoadUpgrade(wgt::MIF& plink, wgt::MIF pNlink,
 
         bool flag = false;
         for (auto& info : roadblockVec) {
-            RoadBlockInfo& info = *itor;
             if (info.mapid == str_mapid) {
                 info.alllinkIndex.push_back(i);
                 if (layerCatalog.find(str_catalog)!=layerCatalog.end()) {
@@ -161,8 +160,8 @@ void RoadUpgrade(wgt::MIF& plink, wgt::MIF pNlink,
             for (auto pos : block.layerlinkIndex) {
                 std::string snodeid = roadmif.mid[pos][roadcol.col_snodeid];
                 std::string enodeid = roadmif.mid[pos][roadcol.col_enodeid];
-                vector<int> cur_upgradedLink;
-                vector<score> same_vec;
+                std::vector<int> cur_upgradedLink;
+                std::vector<score> same_vec;
                 int flag = 0;
                 int ret = find_adjoin_link(pos, snodeid, 1, upgradedLink,
                         cur_upgradedLink, same_vec, flag);
@@ -228,7 +227,7 @@ void processLink(int idx, std::vector<int>& upgradedLink, wgt::MIF& result,
     link_expand(idx, enodeid, 0, upgradedLink, cur_upgradedLink,
             baklinks, flag);
     for (auto index : cur_upgradedLink) {
-        alllen += atof(wgt::trim(roadmif.mid[*itor][roadcol.col_length],
+        alllen += atof(wgt::trim(roadmif.mid[index][roadcol.col_length],
                 '"').c_str());
     }
     if (alllen < LimitLength) {
@@ -237,10 +236,9 @@ void processLink(int idx, std::vector<int>& upgradedLink, wgt::MIF& result,
             baklinks.pop();
     }
     for (auto tbc_idx : cur_upgradedLink) {
-        int tbc_idx = *itor;
         upgradedLink.push_back(tbc_idx);
         // 提升catalog值
-        std::string cur_catalog = result.mid[tbc_index][roadcol.col_catalog];
+        std::string cur_catalog = result.mid[tbc_idx][roadcol.col_catalog];
         if (upMiddleValue != "") {
             std::string new_catalog = cur_catalog.substr(0,2) +
                     upMiddleValue + cur_catalog.substr(4);
@@ -273,7 +271,7 @@ void processLink(int idx, std::vector<int>& upgradedLink, wgt::MIF& result,
                 if (upMiddleValue != "") {
                     std::string new_catalog = cur_catalog.substr(0,2) +
                             upMiddleValue + cur_catalog.substr(4);
-                    result.mid[*itor][roadcol.col_catalog] = new_catalog;
+                    result.mid[tbc_idx][roadcol.col_catalog] = new_catalog;
                 }
             }
             cur_upgradedLink.clear();
