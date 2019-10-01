@@ -1,5 +1,6 @@
-#ifndef __CONFIGCATALOG__H_
-#define __CONFIGCATALOG__H_
+#ifndef ROADPROCESSOR_H
+#define ROADPROCESSOR_H
+
 #include <string>
 #include <vector>
 #include <map>
@@ -16,87 +17,99 @@ using namespace wgt;
 
 #define MAINROADCATALOG "0C070101DD"
 
-typedef struct
-{
+struct Group {
     int kind_class;
     int connected_min_kind_class;
     bool connected_ferry;
-    set<int> indexs;
+    std::set<int> indexs;
     double length;
-} Group;
-
-typedef struct _Point2
-{
-    double x;
-    double y;
-
-}Point2;
-
-typedef struct _RoadCatalogExistItem
-{
-    string strCatalog;
-    int time;
-}RoadCatalogExistItem;
-
-void RoadUpgrade(wgt::MIF& plink, wgt::MIF pNlink, std::map<std::string, std::string> layerCatalog, std::map<std::string, std::string> upCatalog, std::string upValue, float limitLen, int empty_block_handle);
-
-class ConfigCatalog 
-{
-public:
-    ConfigCatalog(string inputdir, string outputdir, string tencentdir, string confdir, string cityname, string _incrementpath);
-    ~ConfigCatalog();
-
-    bool execute();
-    bool LoadKindClassAdjust(string& conf_dir);
-    int Road_Catalog(string in_path, string out_path, string layername);
-    void ProcessRoadDirection(wgt::MIF& InMif);
-    int Road_CatalogEx(string in_path, string out_path,string layername,string backPolygonfile);
-    int RoadLevelUpgrade(string roadFile, string nodeFile, string roadupconfFile);
-    void LoadMapid2dirConf(string confpath, map<string, vector<string> >& mapid2dirvec);
-    void ExpandCityDir(wgt::MIF& C_R_Mif, map<string, int>& linkid2indexmap, map<string, vector<string> >& nodeid2lids, string path);
-
-    void SmoothRoadCatalog(wgt::MIF& mifRoadLayer);
-    bool SmoothRoadItemCatalog(wgt::MIF& mifRoadLayer, const int& iMifIndex, map<string, vector<int> >& mapIndex, const int& indexSnode, const int& indexEnode, const int& indexCatalog);
-    double GetPointDistance(const Point2& pt1, const Point2& pt2);
-    double GetLinkLength(wsl::Geometry* geoLine);
-
-    int RecatalogMainRoad(const string & input_mif, const string & output_mif, const string & plug_mif, const string &new_catalog);
-
-protected:
-    bool ParseString(vector<string>& vectorItems, string strItem, string seprator, bool botrimseperator);
-
-    string GetRoadLevelFromKind(string str_kind);
-    string AdjustmentKindClass(string str_AdminCode, string str_kind_class, string str_funcclass);
-
-    bool isRamp(string str_kind);
-    bool isJCT(string str_kind);
-    bool isICJCT(string str_kind);
-    bool isOnlyRamp(string str_kind);
-    bool isSA(string str_kind);
-    bool isRLink(string str_kind);
-    bool isTunnel(string str_kind);
-    bool isBridge(string str_kind);
-    bool isFulu(string str_kind);
-    bool isZhuFuluConnected(string str_kind);
-    bool isWalkstreet(string str_kind);
-    bool isSameKind(string str_kind1, string str_kind2, string ignoreAttr);
-    bool isSameKindClass(string str_kind1, string str_kind2);
-    bool needDelete(string str_kind);
-    void ProcessRampKindClass(wgt::MIF& road_Mif, string in_path);
-    void ProcessSAKindClass(wgt::MIF& road_Mif, string in_path);
-    void ProcessRLinkKindClass(wgt::MIF& road_Mif, string in_path);
-    void ProcessBuildInFlag(wgt::MIF& road_Mif, string in_path);
-    void CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_path);
-
-private:
-    string strInputPath;
-    string strOutputPath;
-    string strTencentPath;
-    string strConfPath;
-    string strCityName;
-
-    map<string, vector<string> > mapid2dirvec;
-    map<string, string> kindClassAdjustMap;
 };
 
-#endif // __CONFIGCATALOG__H_
+struct RoadCatalogExistItem {
+    std::string strCatalog;
+    int time;
+};
+
+class RoadProcessor {
+public:
+    // 构造函数
+    RoadProcessor(const std::string& inputdir, const std::string& outputdir,
+            const std::string& tencentdir, const std::string& confdir,
+            const std::string& cityname);
+    // 析构函数
+    ~RoadProcessor() = default;
+    
+    // 主执行线程
+    bool execute();
+
+private:
+    // 道路分类的主进程
+    int Road_CatalogEx(const std::string& in_path,
+            const std::string& out_path, const std::string& layername,
+            const std::string& backPolygonfile);
+    
+    // 处理外挂主路的catalog设置
+    int RecatalogMainRoad(const std::string & input_mif,
+            const std::string& output_mif, const std::string& plug_mif,
+            const std::string& new_catalog);
+
+    // 根据最终的kindclass和其他信息确定道路分类
+    int Road_Catalog(const std::string& in_path, const std::string& out_path,
+            const std::string& layername);
+    
+    // 处理道路的反向操作，反转逆序道路
+    void ProcessRoadDirection(wgt::MIF& InMif);
+
+    // 处理匝道的KindClass
+    void ProcessRampKindClass(wgt::MIF& road_Mif, const std::string& in_path);
+    
+    // 处理SA服务区的kindclass
+    void ProcessSAKindClass(wgt::MIF& road_Mif, std::string in_path);
+    
+    // 处理交叉点内Link的kindclass
+    void ProcessRLinkKindClass(wgt::MIF& road_Mif, const std::string& in_path);
+    
+    // 设置建成区内道路的标志位
+    void ProcessBuildInFlag(wgt::MIF& road_Mif, const std::string& in_path);
+    
+    // kindclass平滑调整
+    void CheckKindClassConnectivity(wgt::MIF& road_Mif, std::string in_path);
+    
+    // 扩展到其他城市的连接道路
+    void ExpandCityDir(wgt::MIF& C_R_Mif,
+            const std::map<std::string, int>& linkid2indexmap,
+            const std::map<std::string, std::vector<std::string>>& nodeid2lids,
+            const std::string& path);
+    
+    // 道路等级的提升
+    int RoadLevelUpgrade(const std::string& roadFile,
+            const std::string& nodeFile, const std::string& roadupconfFile);
+
+    // 对道路的catalog进行再次平滑
+    void SmoothRoadCatalog(wgt::MIF& mifRoadLayer);
+
+    // 对单个道路执行平滑操作
+    bool SmoothRoadItemCatalog(wgt::MIF& mifRoadLayer, const int mifIndex,
+            std::map<std::string, std::vector<int>>& mapIndex,
+            const int indexSnode, const int indexEnode,
+            const int indexCatalog);
+
+private:
+    // 输入数据的路径
+    std::string strInputPath;
+    // 输出数据的路径
+    std::string strOutputPath;
+    // 自研数据的路径
+    std::string strTencentPath;
+    // 配置文件的路径
+    std::string strConfPath;
+    // 当前处理的城市名称
+    std::string strCityName;
+
+    // 图幅id和目录的关系索引
+    std::map<std::string, std::vector<std::string> > mapid2dirvec;
+    // kindclass调整的映射关系
+    std::map<std::string, std::string> kindClassAdjustMap;
+};
+
+#endif // ROADPROCESSOR_H
