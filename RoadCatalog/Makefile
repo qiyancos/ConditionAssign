@@ -16,16 +16,16 @@ INCLUDE_PATH=-I ../../../lib/rtree/dist/include \
         -I ../../../lib/spatial-base/output \
 		-I ../../../lib/type_factory/output \
 		-I ../../../lib/styleparser/output \
-		-I ../../../lib/conf_helper/output \
+		-I ../../../lib/program_util/output \
 		-I ../../../lib/tx_tools/output
 				
 LIB_PATH=-L ../../../lib/styleparser/output -lstyleparser \
 		-L ../../../lib/spatial-base/output -lwslb_d \
 		-L ../../../lib/type_factory/output -ltype_factory_d \
-		-L ../../../lib/conf_helper/output -lconf_helper \
+		-L ../../../lib/program_util/output -lprogram_util \
 		-L ../../../lib/tx_tools/output -ltx_tools
 
-LDFLAGS=-pg -static $(LIB_PATH) -lm
+LDFLAGS=-g -static $(LIB_PATH) -lm
 
 EXENAME=RoadCatalog
 OUTPUT=./bin

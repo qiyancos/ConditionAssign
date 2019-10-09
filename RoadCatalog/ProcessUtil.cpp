@@ -205,7 +205,7 @@ std::string fixQuotMain2(std::string& str) {
     return str;
 }
 
-bool IsNum(const std::string& str, size_t s = 0, size_t len) {
+bool IsNum(const std::string& str, size_t s, size_t len) {
     size_t size = ((len == std::string::npos) || (len + s > str.size())) ?
             str.size() : len + s;
     for (size_t index = s; index < size; index++) {

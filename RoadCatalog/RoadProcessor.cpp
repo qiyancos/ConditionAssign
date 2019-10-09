@@ -433,12 +433,9 @@ int RoadProcessor::Road_CatalogEx(const std::string& in_path,
     int col_kind = roadTemp.get_col_pos("kind");
     int col_funclass = roadTemp.get_col_pos("funcclass");
     int col_sign_name = roadTemp.get_col_pos("sign_name");
-    int col_pathname = roadTemp.get_col_pos("pathname");
     int col_through = roadTemp.get_col_pos("through");
     // 供用信息
     int col_constST = roadTemp.get_col_pos("const_st");
-    //城市标识，区分市区和非市区
-    int col_uflag =  roadTemp.get_col_pos("uflag");
     if (col_kind == -1 || col_funclass == -1 || col_sign_name == -1 ||
             col_through == -1 || col_constST == -1) {
         sys_log_println(_ERROR,
@@ -1221,7 +1218,6 @@ void RoadProcessor::ProcessSAKindClass(wgt::MIF& road_Mif,
     int col_snodeid = road_Mif.get_col_pos("snodeid");
     int col_enodeid = road_Mif.get_col_pos("enodeid");
 
-    int col_nodemapid = C_N_Mif.get_col_pos("mapid");
     int col_nodeid = C_N_Mif.get_col_pos("id");
     int col_adjoin_nid = C_N_Mif.get_col_pos("adjoin_nid");
     int col_node_lid = C_N_Mif.get_col_pos("node_lid");
@@ -1415,11 +1411,9 @@ void RoadProcessor::ProcessRLinkKindClass(wgt::MIF& road_Mif,
     int col_kind = road_Mif.get_col_pos("kind");
     int col_snodeid = road_Mif.get_col_pos("snodeid");
     int col_enodeid = road_Mif.get_col_pos("enodeid");
-    int col_pathname = road_Mif.get_col_pos("pathname");
     int col_direction= road_Mif.get_col_pos("direction");
     int col_funcclass = road_Mif.get_col_pos("funcclass");
 
-    int col_nodemapid = C_N_Mif.get_col_pos("mapid");
     int col_nodeid = C_N_Mif.get_col_pos("id");
     int col_adjoin_nid = C_N_Mif.get_col_pos("adjoin_nid");
     int col_node_lid = C_N_Mif.get_col_pos("node_lid");
@@ -1929,8 +1923,6 @@ void RoadProcessor::ProcessBuildInFlag(wgt::MIF& road_Mif,
     int col_build_in_flag = road_Mif.get_col_pos("build_in_flag");
     int col_length = road_Mif.get_col_pos("length");
     
-
-    int col_nodemapid = C_N_Mif.get_col_pos("mapid");
     int col_nodeid = C_N_Mif.get_col_pos("id");
     int col_adjoin_nid = C_N_Mif.get_col_pos("adjoin_nid");
     int col_node_lid = C_N_Mif.get_col_pos("node_lid");
@@ -2005,7 +1997,6 @@ void RoadProcessor::ProcessBuildInFlag(wgt::MIF& road_Mif,
         wgt::trim(build_in_flag, '"');
         wgt::trim(length, '"');
         int kindclass = strtol(rampkindclass.c_str(),NULL,16);
-        int build_in_flag_v = strtol(build_in_flag.c_str(),NULL,16);
         if (visited[index] == 0) {
             if (build_in_flag == "02") {
                 continue;
@@ -2127,7 +2118,6 @@ void RoadProcessor::CheckKindClassConnectivity(wgt::MIF& road_Mif, std::string i
     int col_build_in_flag = road_Mif.get_col_pos("build_in_flag");
     int col_length = road_Mif.get_col_pos("length");
     
-    int col_nodemapid = C_N_Mif.get_col_pos("mapid");
     int col_nodeid = C_N_Mif.get_col_pos("id");
     int col_adjoin_nid = C_N_Mif.get_col_pos("adjoin_nid");
     int col_node_lid = C_N_Mif.get_col_pos("node_lid");
@@ -2336,8 +2326,8 @@ void RoadProcessor::CheckKindClassConnectivity(wgt::MIF& road_Mif, std::string i
 }
 
 void RoadProcessor::ExpandCityDir(wgt::MIF& C_R_Mif,
-        const std::map<std::string, int>& linkid2indexmap,
-        const std::map<std::string, std::vector<std::string>>& nodeid2lids,
+        std::map<std::string, int>& linkid2indexmap,
+        std::map<std::string, std::vector<std::string>>& nodeid2lids,
         const std::string& path) {
     sys_log_println(_INFORANK, "begin ExpandCityDir %s C_R_Mif.mid.size(%d)\n",
             path.c_str(), C_R_Mif.mid.size());
@@ -2407,8 +2397,6 @@ void RoadProcessor::ExpandCityDir(wgt::MIF& C_R_Mif,
 
     // col index
     int col_linkid = road_Mif.get_col_pos("id");
-    int col_snodeid = road_Mif.get_col_pos("snodeid");
-    int col_enodeid = road_Mif.get_col_pos("enodeid");
 
     int col_nodeid = node_Mif.get_col_pos("id");
     int col_adjoin_nid = node_Mif.get_col_pos("adjoin_nid");
@@ -2583,6 +2571,7 @@ int RoadProcessor::RoadLevelUpgrade(const std::string& roadFile,
     }
     // write new data
     wgt::check_err("Write back to C_R MIF/MID", wgt::wsbl_to_mif(roadMif, roadFile));
+    return 0;
 }
 
 void RoadProcessor::SmoothRoadCatalog(wgt::MIF& mifRoadLayer) {
@@ -2642,7 +2631,6 @@ bool RoadProcessor::SmoothRoadItemCatalog(wgt::MIF& mifRoadLayer,
     strCatalog = wgt::trim(strCatalog, ' ');
     std::string strOrigiDiffer = strCatalog.substr(2, 2);
     int differOrigi = -1;
-    int timeExist = -1;
     if (isdigit(strOrigiDiffer[0]) && isdigit(strOrigiDiffer[1])) {
         differOrigi = atoi(strOrigiDiffer.c_str());
     }

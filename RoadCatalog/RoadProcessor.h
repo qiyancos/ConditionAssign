@@ -98,8 +98,8 @@ private:
     
     // 扩展到其他城市的连接道路
     void ExpandCityDir(wgt::MIF& C_R_Mif,
-            const std::map<std::string, int>& linkid2indexmap,
-            const std::map<std::string, std::vector<std::string>>& nodeid2lids,
+            std::map<std::string, int>& linkid2indexmap,
+            std::map<std::string, std::vector<std::string>>& nodeid2lids,
             const std::string& path);
     
     // 道路等级的提升

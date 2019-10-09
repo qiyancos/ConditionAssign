@@ -17,7 +17,7 @@ INCLUDE_PATH=-I ../../lib/rtree/dist/include \
 		-I ../../lib/type_factory/output \
 		-I ../../lib/styleparser/output \
 		-I ../../lib/tx_tools/output \
-		-I ../../lib/conf_helper/output \
+		-I ../../lib/program_util/output \
 		-I ../../lib/htk/dist/include
 				
 LIB_PATH=-L ../../lib/rtree/dist/lib -lrtree \
@@ -25,10 +25,10 @@ LIB_PATH=-L ../../lib/rtree/dist/lib -lrtree \
 		-L ../../lib/spatial-base/output -lwslb_d \
 		-L ../../lib/type_factory/output -ltype_factory_d \
 		-L ../../lib/tx_tools/output -ltx_tools \
-		-L ../../lib/conf_helper/output -lconf_helper \
+		-L ../../lib/program_util/output -lprogram_util \
 		-L ../../lib/htk/dist/lib -lhtk
 
-LDFLAGS=-pg -static $(LIB_PATH) -lm -Wl,--whole-archive \
+LDFLAGS=-g -static $(LIB_PATH) -lm -Wl,--whole-archive \
 	    -lpthread -Wl,--no-whole-archive
 
 EXENAME=ConditionAssign
