@@ -2,6 +2,8 @@
 #include "ConditionAssign.h"
 #include "ExecutorPool.h"
 
+#include "md5_helper.h"
+
 #include <unistd.h>
 
 namespace condition_assign {
@@ -64,8 +66,13 @@ int MifLayerNew::open() {
         mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
         if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
                 copySrcLayer_->mif_.data.geo_vec[0]) {
-            geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
+            geoType_ = Group::getGeometryType(
+                    copySrcLayer_->mif_.data.geo_vec[0]);
         }
+        // 强制添加guid字段
+        syntax::DataType typeTemp;
+        CHECK_RET(getTagType("guid", &typeTemp, true),
+                "Failed to add \"guid\" tag to layer %s.", layerPath_.c_str());
         ready_.signalAll();
     }
     return 0;
@@ -83,6 +90,10 @@ int MifLayerNew::copyLoad() {
                 copySrcLayer_->mif_.data.geo_vec[0]) {
             geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
         }
+        // 强制添加guid字段
+        syntax::DataType typeTemp;
+        CHECK_RET(getTagType("guid", &typeTemp, true),
+                "Failed to add \"guid\" tag to layer %s.", layerPath_.c_str());
         ready_.signalAll();
     }
     return 0;
@@ -269,6 +280,10 @@ int MifLayerNormal::open() {
             geoType_ = Group::getGeometryType(mif_.data.geo_vec[0]);
         }
         itemInfoCache_.resize(mifSize_);
+        // 强制添加guid字段
+        syntax::DataType typeTemp;
+        CHECK_RET(getTagType("guid", &typeTemp, true),
+                "Failed to add \"guid\" tag to layer %s.", layerPath_.c_str());
         ready_.signalAll();
     } else {
         copySrcLayer_->ready_.wait();
@@ -279,6 +294,10 @@ int MifLayerNormal::open() {
         }
         tagColCache_ = copySrcLayer_->tagColCache_;
         tagTypeCache_ = copySrcLayer_->tagTypeCache_;
+        // 强制添加guid字段
+        syntax::DataType typeTemp;
+        CHECK_RET(getTagType("guid", &typeTemp, true),
+                "Failed to add \"guid\" tag to layer %s.", layerPath_.c_str());
         ready_.signalAll();
     }
     return 0;
@@ -639,6 +658,28 @@ int MifItem::findInsertProcessResult(bool** resultPtr, int64_t processKey) {
         *resultPtr = &(processResultCache_[processKey]);
         return 0;
     }
+}
+
+int MifItem::addGUID() {
+    std::string oldGUID;
+    if (targetLayer_->isNew()) {
+        if (newItemIndex_ < 0) {
+            return 0;
+        } else {
+            CHECK_RET(targetLayer_->getTagVal("guid", newItemIndex_, &oldGUID),
+                    "Failed to get value of tag \"guid\" from mif layer.");
+        }
+    } else {
+        CHECK_RET(targetLayer_->getTagVal("guid", index_, &oldGUID),
+                "Failed to get value of tag \"guid\" from mif layer.");
+    }
+    if (htk::trim(oldGUID, "\"").size() == 0) {
+        oldGUID = targetLayer_->layerPath_ + dateString +
+                std::to_string(index_);
+        std::string newGUID = std::string("\"") + md5(oldGUID) + "\"";
+        assignWithTag("guid", newGUID);
+    }
+    return 0;
 }
 
 } // namepsace condition_assign

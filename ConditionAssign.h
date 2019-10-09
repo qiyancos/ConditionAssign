@@ -38,6 +38,8 @@ extern std::mutex debugMatchInfoLock;
 extern std::ofstream debugMatchInfoStream;
 #endif
 
+extern std::string dateString;
+
 namespace condition_assign {
 
 // 下面定义了四个检查函数

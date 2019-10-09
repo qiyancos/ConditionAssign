@@ -22,7 +22,7 @@ std::string GetMD5(const std::string& preString, int id) {
     }
     std::string srcStr(dateStr);
     srcStr += (preString + std::to_string(id));
-    return md5sum6(srcStr);
+    return md5(srcStr);
 }
 
 bool LoadKindClassAdjust(const std::string& configPath,

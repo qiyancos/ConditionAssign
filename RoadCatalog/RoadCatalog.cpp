@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "Chinese-simplified");
 
 	if (argc < 7) {
-		std::cout << "Usage: " << argv[0] << "<ScrDataPath>" <<
+		std::cout << "Usage: " << argv[0] << " <ScrDataPath>" <<
                 " <TargetDataPath> <PluginDataPath> <ConfigPath> " <<
                 "<LogPath> <CityName>" << std::endl;
 		return -1;

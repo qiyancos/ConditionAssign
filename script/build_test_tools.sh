@@ -16,6 +16,7 @@ cp ./test/tools/bin/mifsearch ./NewConditionAssign/bin/
 cp ./RoadCatalog/bin/RoadCatalog ./NewConditionAssign/bin/
 $root/conf/autogen.sh
 cp ./conf/*.conf ./NewConditionAssign/conf
+cp ./RoadCatalog/conf/* ./NewConditionAssign/conf
 cp -r ./script ./NewConditionAssign/
 rm -rf ./NewConditionAssign/script/mainrun
 tar -cvjf ./NewConditionAssign.tar.bz2 ./NewConditionAssign/*

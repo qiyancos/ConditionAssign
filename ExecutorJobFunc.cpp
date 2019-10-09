@@ -320,8 +320,8 @@ int ProcessMifItemsJob::process(const int executorID) {
                 srcLayer_->size() << std::endl;
 #endif
         CHECK_RET(srcLayer_->newMifItem(itemIndex++, targetLayer_,
-                &workingItem), "Failed to create %s",
-                "new mif item while processing mif item.");
+                &workingItem), "Failed to create %s [%d] %s",
+                "new mif item", itemIndex, "while processing mif item.");
         for (int configIndex = 0; configIndex < totalConfigCount;
                 configIndex++) {
             int result = 0;
@@ -357,6 +357,8 @@ int ProcessMifItemsJob::process(const int executorID) {
                 break;
             }
         }
+        CHECK_RET(workingItem->addGUID(), "Failed to add guid to %s [%d].",
+                "mif item", itemIndex);
         delete workingItem;
     }
     if ((subGroup_->processedCount_ += itemCount_) == srcLayer_->size()) {

@@ -4,6 +4,8 @@
 
 using namespace condition_assign;
 
+std::string dateString;
+
 #ifdef DEBUG
 std::string debugLogDir;
 std::vector<std::ofstream> debugStream;
@@ -64,6 +66,7 @@ int main(int argc, char** argv) {
     // …Ë÷√»’÷æ
     char dateStr[256];
     strftime(dateStr, sizeof(dateStr), "%Y%m%d%H%M", timeStruct);
+    dateString = dateStr;
     sys_log_path(logDir.c_str(), dateStr);
 #ifdef DEBUG
     debugLogDir = logDir;

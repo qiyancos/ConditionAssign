@@ -48,11 +48,11 @@ bool RoadProcessor::execute() {
 
     // 2017.09.20   精细化区域面道路主干道处理
     //  - 数据端提供一个外挂表, 通过外挂表的标识字段修改关联link的catalog
-    /*
     sys_log_println(_INFORANK, "process C_R main road\n");
     std::string input_layer = strOutputPath + "/C_R";
     std::string output_layer = strOutputPath + "/C_R";
-    std::string plug_layer = strTencentPath + "/" + strCityName + "/mainroad";
+    std::string plug_layer = strTencentPath + "/mainroad/" + strCityName +
+            "/mainroad";
     std::string new_catalog = MAINROADCATALOG;
     int rev = RecatalogMainRoad(input_layer, output_layer,
             plug_layer, new_catalog);
@@ -61,7 +61,6 @@ bool RoadProcessor::execute() {
     } else {
         sys_log_println(_INFORANK, "succeed. cnt = %d\n", rev);
     }
-    */
     return true;
 }
 
@@ -811,7 +810,12 @@ int RoadProcessor::Road_CatalogEx(const std::string& in_path,
     SmoothRoadCatalog(road_Mif);
 
     // write new C_R data
-    return wgt::wsbl_to_mif(road_Mif, out_path) == 0;
+    if (wgt::wsbl_to_mif(road_Mif, out_path) != 0) {
+        sys_log_println(_ERROR, "Road_CatalogEx save road mif error! %s\n",
+                out_path.c_str());
+        return -1;
+    }
+    return 0;
 }
 
 void RoadProcessor::ProcessRampKindClass(wgt::MIF& road_Mif,
@@ -1015,6 +1019,7 @@ void RoadProcessor::ProcessRampKindClass(wgt::MIF& road_Mif,
                                 std::vector<std::string>& res =
                                         iter_find->second;
                                 for (auto lid : res) {
+                                    std::string lid_temp = lid;
                                     if (linkid == lid) {
                                         continue;
                                     }
@@ -1067,8 +1072,9 @@ void RoadProcessor::ProcessRampKindClass(wgt::MIF& road_Mif,
                                     } else {
                                         // 如果扩展后还是没找到呢
                                         sys_log_println(_ASSERT,
-                                                "%s can not find lid: %s \n"
-                                                "ProcessRampKindClass", lid.c_str());
+                                                "%s can not find lid: %s \n",
+                                                "ProcessRampKindClass",
+                                                lid_temp.c_str());
                                     }
                                 }
                             } else {
