@@ -226,6 +226,17 @@ splitConfigFiles() {
     done
 }
 
+roadCatalog() {
+    echo ">> Start road catalog job async:"
+    echo -n "Command: $root/bin/RoadCatalog $srcDataPath $targetDataPath"
+    echo " $pluginDataPath $root/conf $logPath $cityName"
+    if [ x$enableDebug != x1 ]
+    then
+        $root/bin/RoadCatalog $srcDataPath $targetDataPath \
+                $pluginDataPath $root/conf $logPath $cityName &
+    fi
+}
+
 processParallelLayers() {
     totalCnt=`echo $parallelLayers | wc -w`
     workedCnt=0
@@ -375,6 +386,8 @@ processLayerFilter() {
 
 # 解析输入的参数
 argParser $*
+# 发射道路分类任务，异步执行
+roadCatalog
 # 根据类型拆分配置文件
 splitConfigFiles
 # 处理并行模式运行的分类
@@ -385,4 +398,6 @@ poiFeatureProcess
 processSerialLayers
 # 进行Layer过滤操作
 processLayerFilter
+# 等待道路分类任务完成
+wait
 exit 0
