@@ -1,7 +1,7 @@
 #! /bin/bash
 set -e
 root=`dirname $0`
-cd $root/..
+cd $root/../..
 root=$PWD
 
 srcDir="/data6/wenyongwang/dataprocess/data"

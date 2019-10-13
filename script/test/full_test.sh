@@ -2,7 +2,7 @@
 
 initTest() {
     root=`dirname $0`
-    cd $root/..
+    cd $root/../..
     root=$PWD
     if [ ! -f /tmp/lib_temp/libc.so.6 ]
     then $root/bin/mifsearch 2>&1 > /dev/null
