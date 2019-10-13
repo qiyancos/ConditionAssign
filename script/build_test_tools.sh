@@ -6,6 +6,8 @@ root=$PWD
 make -j8
 cd $root/RoadCatalog
 make -j8
+cd $root/test/tools
+make -j8
 cd $root
 mkdir -p ./NewConditionAssign/bin
 mkdir -p ./NewConditionAssign/conf

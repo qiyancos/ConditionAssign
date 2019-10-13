@@ -21,7 +21,7 @@ FUNCOP_REG(Empty, Assign, Empty, New, Number, String, GroupType);
 FUNCOP_REG(SetCoord, Assign, Empty, GroupType);
 
 // Tag包含运算声明
-OPREG_NORMAL(TagContain, Condition, "=<", GroupType);
+OPREG_NORMAL(TagContain, Condition, "=<", Number, String, GroupType);
 // 地理关系运算声明(极高优先级防止匹配group内的运算符)
 OPREG_NORMAL(GeoContain, Condition, "<[]>", Empty, GroupType);
 OPREG_NORMAL(GeoContainAll, Condition, "&<[]>", Empty, GroupType);
