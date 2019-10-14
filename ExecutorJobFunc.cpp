@@ -231,6 +231,7 @@ int ParseGroupJob::process(const int executorID) {
             int edgeCount = totalCount / itemCount * itemCount;
             if (totalCount - edgeCount <= (itemCount >> 1)) {
                 edgeCount -= itemCount;
+                edgeCount = edgeCount < 0 ? 0 : edgeCount;
             }
             while (startIndex < edgeCount) {
                 newJobs.push_back(new BuildGroupJob(pluginLayer,
@@ -331,7 +332,7 @@ int ProcessMifItemsJob::process(const int executorID) {
             ConfigItem* configItem = configItemGroup[configIndex].second;
             if (!configItem) continue;
             result = satisfyConditions(*configItem, workingItem);
-            CHECK_RET(result, "Failed to %s \"%s\"[line: %d] %s [%d].",
+            CHECK_RET(result, "Failed to %s \"%s\" [line: %d] %s [%d].",
                     "check conditions from config file",
                     subGroup_->filePath_->c_str(),
                     configItemGroup[configIndex].first,
@@ -353,12 +354,18 @@ int ProcessMifItemsJob::process(const int executorID) {
                 }
 #endif
                 CHECK_RET(applyAssigns(*configItem, workingItem),
-                        "Failed apply assign expr to mif item.");
+                        "Failed to %s \"%s\" [line: %d] %s [%d].",
+                        "apply assign expr from config file",
+                        subGroup_->filePath_->c_str(),
+                        configItemGroup[configIndex].first,
+                        "for mifitem", itemIndex);
                 break;
             }
         }
-        CHECK_RET(workingItem->addGUID(), "Failed to add guid to %s [%d].",
-                "mif item", itemIndex);
+        CHECK_RET(workingItem->addGUID(executorID),
+                "Failed to %s [%d] while processing config file \"%s\".",
+                "add guid to mif item", itemIndex,
+                subGroup_->filePath_->c_str());
         delete workingItem;
     }
     if ((subGroup_->processedCount_ += itemCount_) == srcLayer_->size()) {

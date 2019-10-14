@@ -155,6 +155,20 @@ inline int getDebugIndex(const int id) {
     streamOut << std::endl; \
 }
 
+#define TEST_INFO(String, Info) {\
+    time_t now; \
+    time(&now); \
+    struct tm *nowTime; \
+    nowTime=localtime(&now); \
+    std::ofstream& streamOut = debugStream[getDebugIndex(String)]; \
+    streamOut << "Test line:" << int(__LINE__) << " within func["; \
+    streamOut << __func__ << "] in file[" << __FILE__; \
+    streamOut << "] at time [" << nowTime->tm_mon + 1 << "/"; \
+    streamOut << nowTime->tm_mday << " " << nowTime->tm_hour << ":"; \
+    streamOut << nowTime->tm_min << ":" << nowTime->tm_sec << "]"; \
+    streamOut << " with Info [" << Info << "]." << std::endl; \
+}
+
 #else // DEBUG
 
 #define TEST(String)

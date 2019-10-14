@@ -171,7 +171,7 @@ argParser() {
             mkdir -p $targetDataPath
         fi
     fi
-	
+    
     mkdir -p $logPath
 }
 
@@ -189,11 +189,11 @@ splitConfigFiles() {
                 # For example: C_POI_1.conf is for serial mode
                 if [ ! -f $configFilePath/${layerName}_1.conf ]
                 then
-				    echo "-- Parallel: $layerName"
-				    parallelLayers="$layerName $parallelLayers"
+                    echo "-- Parallel: $layerName"
+                    parallelLayers="$layerName $parallelLayers"
                 else
-				    echo "-- Serial: $layerName"
-				    serialLayers="$layerName $serialLayers"
+                    echo "-- Serial: $layerName"
+                    serialLayers="$layerName $serialLayers"
                 fi
             fi
         elif [ "x${layerName:$[${#layerName} - 6]:6}" = "xFilter" ]
@@ -204,9 +204,9 @@ splitConfigFiles() {
                 if [ -f $srcDataPath/$layerName.mif -o \
                         -f $srcDataPath/$layerName.MIF ]
                 then
-				    echo "-- Filter: $layerName"
-				    filterLayers="$layerName $filterLayers"
-			    fi
+                    echo "-- Filter: $layerName"
+                    filterLayers="$layerName $filterLayers"
+                fi
             fi
         elif [ "x${layerName:$[${#layerName} - 3]:3}" = "xNew" ]
         then
@@ -216,10 +216,10 @@ splitConfigFiles() {
                 if [ -f $srcDataPath/$layerName.mif -o \
                         -f $srcDataPath/$layerName.MIF ]
                 then
-				    echo "-- Parallel_New: ${layerName}_New"
-				    parallelLayers="${layerName}_New $parallelLayers"
+                    echo "-- Parallel_New: ${layerName}_New"
+                    parallelLayers="${layerName}_New $parallelLayers"
                 fi
-		    fi
+            fi
         fi
     done
 }
@@ -231,7 +231,7 @@ roadCatalog() {
     if [ x$enableDebug != x1 ]
     then
         $root/bin/RoadCatalog $srcDataPath/.. $targetDataPath/.. \
-                $pluginDataPath $root/conf $logPath $cityName
+                $pluginDataPath $root/conf $logPath $cityName &
     fi
 }
 
@@ -294,8 +294,9 @@ processParallelLayers() {
         else pluginLayers=${pluginLayers:0:$[${#pluginLayers} - 1]}
         fi
         echo;echo ">> Running new condition assign in parallel mode:"
-        echo -n "Command: $root/bin/ConditionAssign NULL NULL $srcLayers"
-        echo " $targetLayers $threadNum $logPath $configFiles $pluginLayers"
+        echo -n "Command: $root/bin/ConditionAssign NULL NULL \"$srcLayers\""
+        echo -n " \"$targetLayers\" $threadNum $logPath \"$configFiles\" "
+		echo "\"$pluginLayers\""
         if [ x$enableDebug != x1 ]
         then
             $root/bin/ConditionAssign NULL NULL $srcLayers \
@@ -305,8 +306,10 @@ processParallelLayers() {
 }
 
 poiFeatureProcess() {
-    if [ ! -f $targetDataPath/C_POI.mif -a ! -f $targetDataPath/C_POI.MIF ]
-    then return
+    if [ ! -f $srcDataPath/C_POI.mif -a ! -f $srcDataPath/C_POI.MIF ]
+    then
+        echo;echo ">> Skip POIFeatureProcess."; echo
+        return
     fi
     echo;echo ">> Running POIFeatureProcess:"
     if [ x$enableDebug != x1 ]
@@ -315,7 +318,8 @@ poiFeatureProcess() {
                 $targetDataPath/C_AOI_FULL.mid
         cp -frap $dataPath/01_basic/02_Result/$cityName/ALL_Name_Area.mif \
                 $targetDataPath/C_AOI_FULL.mif
-    fi
+    	cp -frap $srcDataPath/C_POI.* $targetDataPath/
+	fi
     echo -n "Command: bash $poiProcessScript $targetDataPath "
     echo "$targetDataPath $cityName 5"
     if [ x$enableDebug != x1 ]
@@ -331,8 +335,11 @@ poiFeatureProcess() {
 processSerialLayers() {
     for layerName in $serialLayers
     do
-        srcLayer=`completeMifLayerName $srcDataPath/$layerName`
-        if [ ${srcLayer:$[${#srcLayer} - 3]:3} = mif ]
+        if [ $layerName = C_POI ]
+		then srcLayer=`completeMifLayerName $targetDataPath/$layerName`
+		else srcLayer=`completeMifLayerName $srcDataPath/$layerName`
+		fi
+		if [ ${srcLayer:$[${#srcLayer} - 3]:3} = mif ]
         then targetLayer="$targetDataPath/$layerName.mif"
         else targetLayer="$targetDataPath/$layerName.MIF"
         fi
@@ -353,8 +360,9 @@ processSerialLayers() {
         else pluginLayers=${pluginLayers:0:$[${#pluginLayers} - 1]}
         fi
         echo;echo ">> Running serial mode for layer \"$layerName\":"
-        echo -n "Command: $root/bin/ConditionAssign NULL NULL $srcLayer "
-        echo "$targetLayer $threadNum $logPath $configFiles $pluginLayers"
+        echo -n "Command: $root/bin/ConditionAssign NULL NULL \"$srcLayer\" "
+        echo -n "\"$targetLayer\" $threadNum $logPath \"$configFiles\" "
+		echo "\"$pluginLayers\""
         if [ x$enableDebug != x1 ]
         then
             $root/bin/ConditionAssign NULL NULL $srcLayer \
@@ -364,7 +372,8 @@ processSerialLayers() {
 }
 
 processLayerFilter() {
-    for layerName in $filterLayers
+	workingCnt=0
+	for layerName in $filterLayers
     do
         srcLayer=`completeMifLayerName $srcDataPath/$layerName`
         targetLayer="`completeMifLayerName $targetDataPath/$layerName`<NEW>"
@@ -377,8 +386,14 @@ processLayerFilter() {
         if [ x$enableDebug != x1 ]
         then
             $root/bin/ConditionAssign NULL NULL $srcLayer \
-                $targetLayer 1 $logPath $configFile $pluginLayer
-        fi
+                $targetLayer 1 $logPath $configFile $pluginLayer &
+		fi
+		workingCnt=$[workingCnt + 1]
+		if [ $workingCnt = $threadNum ]
+		then 
+			wait
+			workingCnt=0
+		fi
     done
 }
 
@@ -394,7 +409,8 @@ processParallelLayers
 poiFeatureProcess
 # 处理串行模式运行的分类
 processSerialLayers
-# 进行Layer过滤操作
+# 进行Layer过滤操作(进程级并行)
 processLayerFilter
 # 等待道路分类任务完成
+wait
 exit 0

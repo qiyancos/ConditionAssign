@@ -24,7 +24,7 @@ void printLayersInfo(const std::string layerType,
             layerType.c_str(), layerSize);
     for (int index = 0; index < layerSize; index++) {
         sys_log_println(_INFORANK, "[%d/%d]-[%s]\n",
-                index, layerSize, layers[index].c_str());
+                index + 1, layerSize, layers[index].c_str());
     }
 }
 

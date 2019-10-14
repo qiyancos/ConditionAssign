@@ -247,7 +247,7 @@ public:
     // 查找已有的运算结果
     int findInsertProcessResult(bool** resultPtr, int64_t processKey);
     // 如果没有GUID则添加一个新的GUID
-    int addGUID();
+    int addGUID(int executorID = -1);
 
 public:
     // 当前MifItem所属的MifLayer

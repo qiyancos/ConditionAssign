@@ -82,7 +82,7 @@ int ResourcePool::initRunningModel(const ExecutorPool::Params& params,
         for (int i = 0; i < pluginSize_; i++) {
             const std::string& plugin = params.plugins[i];
             if (noOutputLayers.find(plugin) != noOutputLayers.end()) { 
-                idMapping_[i] = noOutputLayers[plugin];
+                idMapping_[i + uniqueID] = noOutputLayers[plugin];
             } else {
                 layers_.push_back(new MifLayerNormal(plugin));
                 noOutputLayers[plugin] = sharedID;

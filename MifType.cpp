@@ -60,14 +60,16 @@ int MifLayerNew::open() {
                 "Can not open mif layer with uninitiated layer path.");
         CHECK_ARGS(copySrcLayer_, "Can not find input layer for header copy");
         copySrcLayer_->ready_.wait();
-        std::lock_guard<std::mutex> mifGuard(mifLock_);
-        mif_.header = copySrcLayer_->mif_.header;
-        tagCount_ = mif_.header.col_name_map.size();
-        mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
-        if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
-                copySrcLayer_->mif_.data.geo_vec[0]) {
-            geoType_ = Group::getGeometryType(
-                    copySrcLayer_->mif_.data.geo_vec[0]);
+        {
+            std::lock_guard<std::mutex> mifGuard(mifLock_);
+            mif_.header = copySrcLayer_->mif_.header;
+            tagCount_ = mif_.header.col_name_map.size();
+            mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
+            if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
+                    copySrcLayer_->mif_.data.geo_vec[0]) {
+                geoType_ = Group::getGeometryType(
+                        copySrcLayer_->mif_.data.geo_vec[0]);
+            }
         }
         // 强制添加guid字段
         syntax::DataType typeTemp;
@@ -80,15 +82,18 @@ int MifLayerNew::open() {
 
 int MifLayerNew::copyLoad() {
     if (copySrcLayer_) {
-        std::lock_guard<std::mutex> mifGuard(mifLock_);
-        tagColCache_ = copySrcLayer_->tagColCache_;
-        tagTypeCache_ = copySrcLayer_->tagTypeCache_;
-        mif_.header = copySrcLayer_->mif_.header;
-        tagCount_ = mif_.header.col_name_map.size();
-        mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
-        if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
-                copySrcLayer_->mif_.data.geo_vec[0]) {
-            geoType_ = Group::getGeometryType(copySrcLayer_->mif_.data.geo_vec[0]);
+        {
+            std::lock_guard<std::mutex> mifGuard(mifLock_);
+            tagColCache_ = copySrcLayer_->tagColCache_;
+            tagTypeCache_ = copySrcLayer_->tagTypeCache_;
+            mif_.header = copySrcLayer_->mif_.header;
+            tagCount_ = mif_.header.col_name_map.size();
+            mif_.header.coordsys = copySrcLayer_->mif_.header.COORDSYS_LL;
+            if (!copySrcLayer_->mif_.data.geo_vec.empty() && 
+                    copySrcLayer_->mif_.data.geo_vec[0]) {
+                geoType_ = Group::getGeometryType(
+                        copySrcLayer_->mif_.data.geo_vec[0]);
+            }
         }
         // 强制添加guid字段
         syntax::DataType typeTemp;
@@ -129,6 +134,8 @@ int MifLayerNew::addNewItem(const int index, int* newItemIndex) {
 
 int MifLayerNew::assignWithNumber(const std::string& tagName,
         MifLayer* srcLayer, const int index, const double& val) {
+    CHECK_ARGS((index < mifSize_ && index >= 0),
+            "Index[%d] out of bound.", index);
     if (!(tagName == "X" || tagName == "Y" || tagName == "x" ||
             tagName == "y")) {
         int colID;
@@ -152,8 +159,10 @@ int MifLayerNew::assignWithNumber(const std::string& tagName,
         } else {
             valString = std::to_string(val);
         }
+        std::lock_guard<std::mutex> mifGuard(mifLock_);
         mif_.mid[index][colID] = valString;
     } else {
+        std::lock_guard<std::mutex> mifGuard(mifLock_);
         if (tagName == "X" || tagName == "x") {
             mif_.data.geo_vec[index]->at(0).at(0).setx(val);
         } else {
@@ -165,6 +174,8 @@ int MifLayerNew::assignWithNumber(const std::string& tagName,
 
 int MifLayerNew::assignWithTag(const std::string& tagName,
         const int index, const std::string& val) {
+    CHECK_ARGS((index < mifSize_ && index >= 0),
+            "Index[%d] out of bound.", index);
     CHECK_ARGS(tagName != "X" && tagName != "Y" &&
             tagName != "x" && tagName != "y",
             "Calling wrong function for coordination exchange.");
@@ -173,6 +184,7 @@ int MifLayerNew::assignWithTag(const std::string& tagName,
     CHECK_ARGS(colCacheIterator != tagColCache_.end(),
             "Failed to get column id of tag \"%s\".", tagName.c_str());
     colID = colCacheIterator->second;
+    std::lock_guard<std::mutex> mifGuard(mifLock_);
     mif_.mid[index][colID] = val;
     return 0;
 }
@@ -660,17 +672,12 @@ int MifItem::findInsertProcessResult(bool** resultPtr, int64_t processKey) {
     }
 }
 
-int MifItem::addGUID() {
+int MifItem::addGUID(int executorID) {
     std::string oldGUID;
-    if (targetLayer_->isNew()) {
-        if (newItemIndex_ < 0) {
-            return 0;
-        } else {
-            CHECK_RET(targetLayer_->getTagVal("guid", newItemIndex_, &oldGUID),
-                    "Failed to get value of tag \"guid\" from mif layer.");
-        }
+    if (targetLayer_->isNew() && newItemIndex_ < 0) {
+        return 0;
     } else {
-        CHECK_RET(targetLayer_->getTagVal("guid", index_, &oldGUID),
+        CHECK_RET(srcLayer_->getTagVal("guid", index_, &oldGUID),
                 "Failed to get value of tag \"guid\" from mif layer.");
     }
     if (htk::trim(oldGUID, "\"").size() == 0) {
