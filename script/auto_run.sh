@@ -375,7 +375,7 @@ processLayerFilter() {
 	workingCnt=0
 	for layerName in $filterLayers
     do
-        srcLayer=`completeMifLayerName $srcDataPath/$layerName`
+        srcLayer=`completeMifLayerName $targetDataPath/$layerName`
         targetLayer="`completeMifLayerName $targetDataPath/$layerName`<NEW>"
         pluginLayer="NULL"
         configFile=$configFilePath/${layerName}_Filter.conf

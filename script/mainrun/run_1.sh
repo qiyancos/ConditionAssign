@@ -132,6 +132,8 @@ echo "$city - rank : $(((NewRank_end-NewRank_start)/60)) minute " >> ./log/NewRa
 SmoothLine_start=$(date +%s)
 cd ../SmoothLine
 ./SmoothLine ../data/02_image/01_catalog_rank/$city/C_R ../data/02_image/01_catalog_rank/$city/C_Z snakes 1 1
+ifErrorExit "SmoothLine"
+[ $? -eq 200 ]&&exit
 cd ../mainrun/
 SmoothLine_end=$(date +%s)
 echo "$city - SmoothLine : $((SmoothLine_end-SmoothLine_start)) seconds " >> ./log/SmoothLine.log

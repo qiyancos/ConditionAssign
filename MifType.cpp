@@ -75,6 +75,9 @@ int MifLayerNew::open() {
         syntax::DataType typeTemp;
         CHECK_RET(getTagType("guid", &typeTemp, true),
                 "Failed to add \"guid\" tag to layer %s.", layerPath_.c_str());
+        // 强制添加name字段
+        CHECK_RET(getTagType("name", &typeTemp, true),
+                "Failed to add \"name\" tag to layer %s.", layerPath_.c_str());
         ready_.signalAll();
     }
     return 0;
@@ -99,6 +102,9 @@ int MifLayerNew::copyLoad() {
         syntax::DataType typeTemp;
         CHECK_RET(getTagType("guid", &typeTemp, true),
                 "Failed to add \"guid\" tag to layer %s.", layerPath_.c_str());
+        // 强制添加name字段
+        CHECK_RET(getTagType("name", &typeTemp, true),
+                "Failed to add \"name\" tag to layer %s.", layerPath_.c_str());
         ready_.signalAll();
     }
     return 0;
@@ -296,6 +302,9 @@ int MifLayerNormal::open() {
         syntax::DataType typeTemp;
         CHECK_RET(getTagType("guid", &typeTemp, true),
                 "Failed to add \"guid\" tag to layer %s.", layerPath_.c_str());
+        // 强制添加name字段
+        CHECK_RET(getTagType("name", &typeTemp, true),
+                "Failed to add \"name\" tag to layer %s.", layerPath_.c_str());
         ready_.signalAll();
     } else {
         copySrcLayer_->ready_.wait();
@@ -310,6 +319,9 @@ int MifLayerNormal::open() {
         syntax::DataType typeTemp;
         CHECK_RET(getTagType("guid", &typeTemp, true),
                 "Failed to add \"guid\" tag to layer %s.", layerPath_.c_str());
+        // 强制添加name字段
+        CHECK_RET(getTagType("name", &typeTemp, true),
+                "Failed to add \"name\" tag to layer %s.", layerPath_.c_str());
         ready_.signalAll();
     }
     return 0;
@@ -442,8 +454,10 @@ int MifLayerNormal::checkAddTag(const std::string& tagName,
             tagColCache_.insert(std::pair<std::string, int>(tagName,
                 index = colIterator->second));
         } else {
-            CHECK_ARGS(isAssign, "Can not find tag named as \"%s\".",
-                    tagName.c_str());
+            if (!isAssign) {
+                // 对部分判断表达式支持不存在的Tag
+                return 1;
+            }
             // 添加新的column
             mif_.add_column(tagName, "char(64)");
             colIterator = mif_.header.col_name_map.find(lowerTagName);
