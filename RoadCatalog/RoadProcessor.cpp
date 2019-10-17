@@ -40,11 +40,11 @@ bool RoadProcessor::execute() {
 
     // 道路疏密度,将道路稀少地区的道路的分类提升
     // 保留原有的catalog到新字段oldcatalog
-    // sys_log_println(_INFORANK, "process C_R road_upgrade\n");
-    // std::string roadFile = strOutputPath + "/C_R";
-    // std::string nodeFile = strInputPath + "/C_N";
-    // std::string roadupconfFile = strConfPath + "/road_upgrade.conf";
-    // RoadLevelUpgrade(roadFile, nodeFile, roadupconfFile);
+    sys_log_println(_INFORANK, "process C_R road_upgrade\n");
+    std::string roadFile = strOutputPath + "/C_R";
+    std::string nodeFile = strInputPath + "/C_N";
+    std::string roadupconfFile = strConfPath + "/road_upgrade.conf";
+    RoadLevelUpgrade(roadFile, nodeFile, roadupconfFile);
 
     // 2017.09.20   精细化区域面道路主干道处理
     //  - 数据端提供一个外挂表, 通过外挂表的标识字段修改关联link的catalog
