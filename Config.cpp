@@ -232,9 +232,10 @@ int parseExpr(const syntax::Operator::OperatorType opType,
                         &(node->leftType), opType == syntax::Operator::Assign),
                         "Failed to get %s \"%s\".",
                         "data type of tag", node->tagName.c_str());
-                CHECK_ARGS(node->leftType != syntax::New ||
+                CHECK_ARGS((*srcLayers)[0]->size() == 0 ||
+                        node->leftType != syntax::New ||
                         newOperator->isSupported(syntax::New),
-                        "Can not get tag names as \"%s\".",
+                        "Can not get tag named as \"%s\".",
                         node->tagName.c_str());
                 for (int i = 1; i < srcLayers->size(); i++) {
                     CHECK_RET((*srcLayers)[i]->checkAddTag(node->tagName,

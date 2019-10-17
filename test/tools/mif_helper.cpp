@@ -215,6 +215,7 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
         result.second = mif2.header.col_name_map.find(tag) == 
                 mif2.header.col_name_map.end() ? -1 :
                 mif2.header.col_name_map[tag];
+        checkTagIndex.push_back(result);
     }
     for (int mifIndex = 0; mifIndex < mifSize; mifIndex++) {
         for (auto& colID : checkTagIndex) {

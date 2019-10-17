@@ -174,8 +174,8 @@ int FuncOperatorInRange::find(Operator** newOperatorPtr,
         const std::string& content, std::pair<size_t, size_t>* range,
         std::string* opName) {
     *opName = "FuncOperatorInRange";
-    const std::string arguments = content.substr(range->second + 1,
-            content.size() - range->second - 1);
+    const std::string arguments = content.substr(range->second,
+            content.size() - range->second);
     size_t minusIndex = arguments.find("-");
     CHECK_ARGS(minusIndex != std::string::npos, "Can not find %s \"%s\".",
             "delimiter in function arguments", arguments.c_str());
@@ -189,6 +189,8 @@ int FuncOperatorInRange::find(Operator** newOperatorPtr,
     CHECK_ARGS(isType(endNumberStr, &endNumber),
             "End number part \"%s\" in arguments is not a integer.",
             endNumberStr.c_str());
+    CHECK_ARGS(endNumber >= startNumber,
+            "Not an available number range [%d-%d].", startNumber, endNumber);
     *newOperatorPtr = new FuncOperatorInRange(startNumber, endNumber);
     return 1;
 }
@@ -272,8 +274,8 @@ int FuncOperatorSetCoord::find(Operator** newOperatorPtr,
         const std::string& content, std::pair<size_t, size_t>* range,
         std::string* opName) {
     *opName = "FuncOperatorSetCoord";
-    const std::string arguments = content.substr(range->second + 1,
-            content.size() - range->second - 1);
+    const std::string arguments = content.substr(range->second,
+            content.size() - range->second);
     const size_t argDelimIndex = arguments.find("@");
     Method method = Avg;
     if (argDelimIndex != std::string::npos) {
