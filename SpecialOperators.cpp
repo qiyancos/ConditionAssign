@@ -151,10 +151,15 @@ int OperatorReplace::find(Operator** newOperatorPtr,
 namespace func_op {
 
 FuncOperatorInRange::FuncOperatorInRange(const int startNumber,
-        const int endNumber) {
+        const int endNumber, const int numberSize) {
     int number = startNumber;
+    std::string numberStr, prefixZero;
     while (number <= endNumber) {
-        rangeOfNum_.insert(std::to_string(number++));
+        numberStr = std::to_string(number++);
+        prefixZero = "";
+        prefixZero.append(numberSize - numberStr.size(), '0');
+        numberStr = prefixZero + numberStr;
+        rangeOfNum_.insert(numberStr);
     }
 }
 
@@ -189,9 +194,13 @@ int FuncOperatorInRange::find(Operator** newOperatorPtr,
     CHECK_ARGS(isType(endNumberStr, &endNumber),
             "End number part \"%s\" in arguments is not a integer.",
             endNumberStr.c_str());
+    CHECK_ARGS(endNumberStr.size() == startNumberStr.size(),
+            "Can not normalize number to the same length [%d != %d].",
+            startNumberStr.size(), endNumberStr.size());
     CHECK_ARGS(endNumber >= startNumber,
             "Not an available number range [%d-%d].", startNumber, endNumber);
-    *newOperatorPtr = new FuncOperatorInRange(startNumber, endNumber);
+    *newOperatorPtr = new FuncOperatorInRange(startNumber, endNumber,
+            startNumberStr.size());
     return 1;
 }
 

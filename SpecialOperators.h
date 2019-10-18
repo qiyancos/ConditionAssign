@@ -120,7 +120,8 @@ namespace func_op {
 class FuncOperatorInRange : public Operator {
 public:
     FuncOperatorInRange() : Operator() {}
-    FuncOperatorInRange(const int startNumber, const int endNumber);
+    FuncOperatorInRange(const int startNumber, const int endNumber,
+            const int numberSize);
     ~FuncOperatorInRange() = default;
     OperatorType type() {return type_;}
     std::string str() {return "<InRange>";}

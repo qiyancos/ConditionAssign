@@ -177,7 +177,7 @@ int findDelimiter(const syntax::Operator::OperatorType opType,
             case '(':
                 temp = newIndex == 0 ? -1 : (*result)[newIndex - 1];
                 if (temp == -1 || temp == '(' || temp == '|' ||
-                        temp == '&' || temp == '!') {
+                        temp == ';' || temp == '&' || temp == '!') {
                     delimiters->push_back(Delimiter(newIndex++, LeftBracket));
                 } else {
                     intoString = 3;
@@ -613,9 +613,10 @@ int parseGroupInfo(const std::string& content,
     CHECK_RET(resourcePool->getLayerByName(&pluginLayer, ResourcePool::Plugin,
             layerName), "Failed to find layer named as \"%s\".",
             layerName.c_str());
+    pluginLayer->ready_.wait();
     if (tagName != "GEOMETRY") {
         syntax::DataType tagType;
-        CHECK_RET(pluginLayer->getTagType(tagName, &tagType),
+        CHECK_RET(pluginLayer->getTagType(tagName, &tagType, false),
                 "Fialed to get tag type of tag \"%s\" for tag group.",
                 tagName.c_str());
         CHECK_ARGS(tagType != syntax::New,
