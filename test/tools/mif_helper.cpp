@@ -205,7 +205,7 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
         progressCounter.addProgress(1);
     }
 #else
-    const std::vector<std::string> checkTag {"catalog", "name"};
+    const std::vector<std::string> checkTag {"catalog"};
     std::vector<std::pair<int, int>> checkTagIndex;
     for (auto& tag : checkTag) {
         std::pair<int, int> result;

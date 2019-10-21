@@ -14,6 +14,7 @@ mkdir -p ./NewConditionAssign/conf
 mkdir -p ./NewConditionAssign/data
 cp ./bin/ConditionAssign ./NewConditionAssign/bin/
 cp ./test/tools/bin/mifdiff ./NewConditionAssign/bin/
+cp ./test/tools/bin/middiff ./NewConditionAssign/bin/
 cp ./test/tools/bin/mifsearch ./NewConditionAssign/bin/
 cp ./RoadCatalog/bin/RoadCatalog ./NewConditionAssign/bin/
 $root/conf/autogen.sh

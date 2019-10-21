@@ -1,7 +1,7 @@
 #! /bin/bash
 set -e
 
-if [ $# -lt 3 ]
+if [ $# -lt 2 ]
 then
     echo "$0 <src dir> <target dir>"
     exit 0
@@ -22,11 +22,24 @@ then
     exit -1;
 fi
 
-srcCount=`find -name "*.conf" $srcDir | wc -l`
-targetCount=`find -name "*.conf" $targetDir | wc -l`
-if [ $srcCount -gt $targetCount ]
+srcCount=`find $srcDir -name "*.conf" | wc -l`
+targetCount=`find $targetDir -name "*.conf" | wc -l`
+if [ $srcCount != $targetCount ]
 then
-    configFiles=`find -name `
+    echo "Config files do not have the same count $srcCount:$targetCount"
+    exit -1
 fi
 
-configFiles
+configFiles=`find $srcDir -name "*.conf"`
+for filePath in $configFiles
+do
+    fileName=`basename $filePath`
+    if [ "x`diff $srcDir/$fileName $targetDir/$fileName`" != x ]
+    then
+        echo ">> $fileName is different between two src."
+        diff $srcDir/$fileName $targetDir/$fileName
+        exit -1
+    fi
+done
+
+echo ">> Check passed."
