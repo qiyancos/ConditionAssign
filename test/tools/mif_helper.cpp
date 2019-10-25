@@ -229,6 +229,15 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
             }
             std::string tagVal1 = htk::trim(mif1.mid[mifIndex][colID.first], "\"");
             std::string tagVal2 = htk::trim(mif2.mid[mifIndex][colID.second], "\"");
+            if (tagVal1 == "01050D07" || tagVal2 == "01050D07") {
+                continue;
+            } else if (tagVal1 == "010302FF" && tagVal2 == "010301") {
+                continue;
+            } else if (tagVal1 == "010301" && tagVal2 == "010302FF") {
+                continue;
+            } else if (tagVal1 == "010809" && tagVal2 == "01080901") {
+                continue;
+            }
             if (tagVal1 != tagVal2) {
                 std::cout << "Tag mismatch [\"" << tagVal1 << "\" : \"" <<
                         tagVal2 << "\"] in mif item (" << mifIndex + 1 <<
