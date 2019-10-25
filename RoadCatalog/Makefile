@@ -1,36 +1,29 @@
-CUR_ROOT=.
+CUR_ROOT = .
 MAC=64
 
 BOOST=$(THIRD)/boost
 
-GCC=g++
-CPPFLAGS=-g -static -O2 -std=c++11 -finline-functions -std=gnu++0x \
-		-Wall -W -Wshadow -Wpointer-arith \
-		-Wcast-qual -Wwrite-strings -Woverloaded-virtual \
-		-fpermissive -fPIC -DLINUX -D_USE_DOUBLE_POINT_ \
-		-Wno-unused-parameter -Wno-unused-function \
-		-Wno-overloaded-virtual -Wno-sign-compare \
-		-DDEBUG -DUSE_TIMER
+GCC = g++
+CPPFLAGS =-std=c++11 -g -O2 -finline-functions \
+		-Wall -W -Wshadow -Wpointer-arith -Wcast-qual \
+        -Wwrite-strings -Woverloaded-virtual \
+		-Wno-unused-parameter -Wno-unused-function -fpermissive -fPIC -DLINUX \
+		-D_USE_DOUBLE_POINT_
+LDFLAGS = -g -static
 
-INCLUDE_PATH=-I ../../../lib/rtree/dist/include \
-        -I ../../../lib/spatial-base/output \
-		-I ../../../lib/type_factory/output \
-		-I ../../../lib/styleparser/output \
-		-I ../../../lib/program_util/output \
-		-I ../../../lib/tx_tools/output
+INCLUDE_PATH = -I ../../../lib/spatial-base/output\
+				-I ../../../lib/type_factory/output\
+				-I ../../../lib/styleparser/output\
+				-I ../../../lib/tx_tools/output\
 				
-LIB_PATH=-L ../../../lib/styleparser/output -lstyleparser \
-		-L ../../../lib/spatial-base/output -lwslb_d \
-		-L ../../../lib/type_factory/output -ltype_factory_d \
-		-L ../../../lib/program_util/output -lprogram_util \
-		-L ../../../lib/tx_tools/output -ltx_tools
+LIB_PATH =-L ../../../lib/styleparser/output -lstyleparser\
+		  -L ../../../lib/spatial-base/output -lwslb_d\
+		  -L ../../../lib/type_factory/output -ltype_factory_d\
+		  -L ../../../lib/tx_tools/output -ltx_tools\
 
-LDFLAGS=-g -static $(LIB_PATH) -lm
-
-EXENAME=RoadCatalog
-OUTPUT=./bin
-OUTPUT_OBJ=./outputobj
-
+LDFLAGS = $(LIB_PATH) -lm
+EXENAME = RoadCatalog
+OUTPUT_OBJ = ./outputobj
 
 ##################################################################################
 OBJ := $(patsubst %.cpp,$(OUTPUT_OBJ)/%.o,$(wildcard *.cpp))
@@ -42,19 +35,19 @@ LIB_OBJ += $(patsubst %.c,$(OUTPUT_OBJ)/%.o,$(wildcard mp_*.c))
 .PHONY: all clean
 
 #OBJNAME: 可以是代码库名，也可以是二进制可执行程序名
-all: outputdir $(OUTPUT)/$(EXENAME)
+all: outputdir $(EXENAME)
 	@echo "**************************************************************"
 	@echo "$(EXENAME) project pass the build, you can use it!GO, GO, GO!"
 	@echo "**************************************************************"
 
 outputdir:
-	mkdir $(OUTPUT) 2>/dev/null || echo
-	mkdir $(OUTPUT_OBJ) 2>/dev/null || echo	
+	mkdir -p ./bin 2>/dev/null || echo
+	mkdir -p $(OUTPUT_OBJ) 2>/dev/null || echo	
 	@echo "OBJ: $(OBJ)"	
 	@echo "CUR_ROOT: $(CUR_ROOT)"
 	
 clean:
-	rm -rf $(OUTPUT_OBJ) $(OUTPUT)	
+	rm -rf ./bin $(OUTPUT_OBJ)
 
 install:
 	cp $(OBJNAME) $(OUTPUT)/bin -rf 2>/dev/null
@@ -66,5 +59,5 @@ $(OUTPUT_OBJ)/%.o	: %.cpp
 $(OUTPUT_OBJ)/%.o	: %.c
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH) 		
 	
-$(OUTPUT)/$(EXENAME) : $(OBJ)
-	$(GCC) -o $@ $(OBJ) -Xlinker "-(" $(LIB_PATH) $(LDFLAGS) -rdynamic -Xlinker  "-)" 
+$(EXENAME) : $(OBJ)	
+	$(GCC) -o ./bin/$(EXENAME) $(OBJ) -Xlinker "-(" $(LIB_PATH) $(LDFLAGS) -rdynamic -Xlinker  "-)" 
