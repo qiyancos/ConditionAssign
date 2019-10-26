@@ -91,12 +91,12 @@ poiTest() {
     fi
     # Run ConditionAssign
     srcLayer=$targetLayer
-    configFile="$root/conf/${layerName}_1.conf"
+    configFile="$root/conf/${layerName}.conf"
+    configFile="$configFile;$root/conf/${layerName}_1.conf"
     configFile="$configFile;$root/conf/${layerName}_2.conf"
     configFile="$configFile;$root/conf/${layerName}_3.conf"
     configFile="$configFile;$root/conf/${layerName}_4.conf"
     configFile="$configFile;$root/conf/${layerName}_5.conf"
-    configFile="$configFile;$root/conf/${layerName}_6.conf"
     logPath="$root/log/$cityName"
     mkdir -p $root/data/$cityName
     mkdir -p $logPath
@@ -106,7 +106,7 @@ poiTest() {
             $targetLayer $executorCnt $logPath $configFile NULL) \
             2>&1 | awk '/real/ {print $2}'`
     echo;echo ">> Checking Result of layer $layerName in city $cityName..."
-    $root/bin/mifdiff $resultDataPath/$cityName/${layerName}.mif $targetLayer
+    $root/bin/middiff $resultDataPath/$cityName/${layerName}.mif $targetLayer
     resultMatch=$?
     if [ $resultMatch = -1 ]
     then
