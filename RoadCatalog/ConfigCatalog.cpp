@@ -2091,7 +2091,6 @@ int ConfigCatalog::Road_CatalogEx(string in_path, string out_path, string layern
 	// 反转逆序的道路
 	ProcessRoadDirection(roadTemp);
 	
-
 	int col_admincodel = roadTemp.get_col_pos("AdminCodeL");
 	int col_kind = roadTemp.get_col_pos("kind");
 	int col_funclass = roadTemp.get_col_pos("funcclass");
