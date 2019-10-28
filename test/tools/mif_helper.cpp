@@ -186,7 +186,7 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
         return false;
     }
 #else
-    std::cout << "Loss check will not compare number of tags." << std::endl;
+    std::cout << "Loose check will not compare number of tags." << std::endl;
 #endif
     std::cout << "Start checking mid file." << std::endl;
     program_helper::Progress progressCounter(mifSize);
@@ -231,6 +231,8 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
             std::string tagVal2 = htk::trim(mif2.mid[mifIndex][colID.second], "\"");
             if (tagVal1 == "010E0FSUB" || tagVal2 == "010E0F") {
                 continue;
+            } else if (tagVal2 == "01070805") {
+                continue;
             } else if (tagVal1 == "010809" && tagVal2 == "01080901") {
                 continue;
             } else if (tagVal1 == "010302FF" && tagVal2 == "010301") {
@@ -242,6 +244,16 @@ bool checkSameMid(const std::string& file1, const std::string& file2) {
             } else if (tagVal1 == "01050D07" || tagVal2 == "01050D07") {
                 continue;
             } else if (tagVal1 == "010803FF" || tagVal2 == "01080901") {
+                continue;
+            } else if (tagVal1 == "0206" || tagVal2 == "0206XX") {
+                continue;
+            } else if (tagVal1 == "0206XX" || tagVal2 == "0206") {
+                continue;
+            } else if (tagVal1 == "0207XX" || tagVal2 == "0207") {
+                continue;
+            } else if (tagVal1 == "010403FF" || tagVal2 == "0103020A") {
+                continue;
+            } else if (tagVal1 == "01050104XX" || tagVal2 == "01050104") {
                 continue;
             }
             if (tagVal1 != tagVal2) {

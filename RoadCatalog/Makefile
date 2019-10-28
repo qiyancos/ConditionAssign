@@ -4,12 +4,11 @@ MAC=64
 BOOST=$(THIRD)/boost
 
 GCC = g++
-CPPFLAGS =-std=c++11 -g -O2 -finline-functions \
+CPPFLAGS =-std=c++11 -static -g -O2 -finline-functions \
 		-Wall -W -Wshadow -Wpointer-arith -Wcast-qual \
         -Wwrite-strings -Woverloaded-virtual \
 		-Wno-unused-parameter -Wno-unused-function -fpermissive -fPIC -DLINUX \
 		-D_USE_DOUBLE_POINT_
-LDFLAGS = -g -static
 
 INCLUDE_PATH = -I ../../../lib/spatial-base/output\
 				-I ../../../lib/type_factory/output\
@@ -21,7 +20,7 @@ LIB_PATH =-L ../../../lib/styleparser/output -lstyleparser\
 		  -L ../../../lib/type_factory/output -ltype_factory_d\
 		  -L ../../../lib/tx_tools/output -ltx_tools\
 
-LDFLAGS = $(LIB_PATH) -lm
+LDFLAGS = -g -static $(LIB_PATH) -lm
 EXENAME = RoadCatalog
 OUTPUT_OBJ = ./outputobj
 
@@ -60,4 +59,4 @@ $(OUTPUT_OBJ)/%.o	: %.c
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH) 		
 	
 $(EXENAME) : $(OBJ)	
-	$(GCC) -o ./bin/$(EXENAME) $(OBJ) -Xlinker "-(" $(LIB_PATH) $(LDFLAGS) -rdynamic -Xlinker  "-)" 
+	$(GCC) -o ./bin/$(EXENAME) $(OBJ) $(LIB_PATH) $(LDFLAGS)

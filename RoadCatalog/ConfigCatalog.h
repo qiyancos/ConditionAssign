@@ -132,8 +132,7 @@ wstring String2Wstring(const string &str);
 class ConfigCatalog 
 {
 public:
-	ConfigCatalog(string inputdir, string outputdir, string tencentdir,
-            string confdir, string cityname);
+	ConfigCatalog(string inputdir, string outputdir, string tencentdir, string confdir, string cityname);
 	~ConfigCatalog();
 
 	bool execute();
@@ -208,11 +207,12 @@ protected:
 	void ProcessBuildInFlag(wgt::MIF& road_Mif, string in_path);
 	void CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_path);
 	// increment
-	/*
-    void LoadIncrementInfo();
+    /*
+	void LoadIncrementInfo();
 	void RecordIncrementInfo(wsl::Geometry* geo_ptr, string layername);
 	void WriteIncrementInfo();
     */
+
 	int ProcessPOI(string strInputPath, const string& strInputAOI, string strOutputPath);
 private:
 	string strInputPath;
@@ -220,8 +220,7 @@ private:
     string strTencentPath;
 	string strConfPath;
 	string strCityName;
-	
-    // 增量更新
+	// 增量更新
 	/*
     bool bIncrement;
 	string m_incrementlayer_file;	// layer

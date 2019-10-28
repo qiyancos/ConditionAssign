@@ -65,16 +65,15 @@ string fix_quot_main2(std::string &str)
 	return str;
 } 
 
-ConfigCatalog::ConfigCatalog(string inputdir, string outputdir,
-        string tencentdir, string confdir, string cityname)
+ConfigCatalog::ConfigCatalog(string inputdir, string outputdir, string tencentdir, string confdir, string cityname)
 {
 	strCityName = cityname;
 	strInputPath = inputdir + "/" + cityname;
 	strOutputPath = outputdir + "/" + cityname;
     strTencentPath = tencentdir;
 	strConfPath = confdir;
-	/*
-    bIncrement = false;
+    /*
+	bIncrement = false;
 	if (_incrementpath != "")
 	{ // 增量处理
 		m_incrementlayer_file = _incrementpath + "/layer";
@@ -90,8 +89,8 @@ ConfigCatalog::~ConfigCatalog()
 
 bool ConfigCatalog::execute()
 {
-    /*
 	// 全量更新删除已有目录
+    /*
 	if (!bIncrement)
 	{
 		sys_deletedir(strOutputPath.c_str());
@@ -110,7 +109,9 @@ bool ConfigCatalog::execute()
 		return false;
 	}
     */
+
 	LoadKindClassAdjust(strConfPath);
+
     /*
 	if (strCityName != "china")
 	{
@@ -137,7 +138,7 @@ bool ConfigCatalog::execute()
 				continue;
 			}
 			// if bIncrement check layer 
-			if (bIncrement && !isInVector(m_incrementlayer_vec, strlayername))
+            if (bIncrement && !isInVector(m_incrementlayer_vec, strlayername))
 			{
 				continue;
 			}
@@ -163,13 +164,13 @@ bool ConfigCatalog::execute()
 		}
 	}
     */
-	
-    // 城市级别特殊分类处理
+
+	// 城市级别特殊分类处理
 	if (strCityName != "china")
 	{
+		// 增加红绿灯C_TrafficLight图层的生成（红绿灯路口居中）
 		/*
-        // 增加红绿灯C_TrafficLight图层的生成（红绿灯路口居中）
-		if (!bIncrement || isInVector(m_incrementlayer_vec, "C_N"))
+        if (!bIncrement || isInVector(m_incrementlayer_vec, "C_N"))
 		{
 			sys_log_println(_INFORANK, "process C_TrafficLight\n");
 			string infile = strInputPath + "/C_N";
@@ -177,7 +178,8 @@ bool ConfigCatalog::execute()
 			Process_TrafficLight(infile, outfile);
 		}
         */
-		//if (!bIncrement || isInVector(m_incrementlayer_vec, "C_R"))
+
+		// if (!bIncrement || isInVector(m_incrementlayer_vec, "C_R"))
 		{
 			sys_log_println(_INFORANK, "process C_R catalog\n");
 			mapid2dirvec.clear();
@@ -185,7 +187,7 @@ bool ConfigCatalog::execute()
 			LoadMapid2dirConf(mapid2dirvec_file, mapid2dirvec);
 			string layername = "C_R";
 			string infile = strInputPath + "/" + layername;
-			string outfile = strOutputPath + "/" + layername;
+			string  outfile = strOutputPath + "/" + layername;
 			string backPolygonfile = strInputPath + "/" + "C_BackPolygon";
 			if (Road_CatalogEx(infile, outfile, layername, backPolygonfile) < 0)
 			{
@@ -206,7 +208,7 @@ bool ConfigCatalog::execute()
 
         // 2017.09.20   精细化区域面道路主干道处理
         //  - 数据端提供一个外挂表, 通过外挂表的标识字段修改关联link的catalog
-        //if (!bIncrement || isInVector(m_incrementlayer_vec, "C_R"))
+        // if (!bIncrement || isInVector(m_incrementlayer_vec, "C_R"))
         {
             sys_log_println(_INFORANK, "process C_R main road\n");
             string input_layer = strOutputPath + "/C_R";
@@ -223,14 +225,14 @@ bool ConfigCatalog::execute()
                 sys_log_println(_INFORANK, "succeed. cnt = %d\n", rev);
             }
         }
-        
+
 		/** C_POI乡镇和村庄类点特殊处理
 		*1、村庄类位于水系面中 && 后缀名为"桥"、"隧道",分类修改为010A0C02FF(桥:代表)
 		*2、村庄类位于水系面中 其他分类修改为01FF0303(水系名称)
 		*3、村庄类位于建成区中 分类映射为*XX无效化
 		**/
-        /*
-		if (!bIncrement || isInVector(m_incrementlayer_vec, "C_POI"))
+		/*
+        if (!bIncrement || isInVector(m_incrementlayer_vec, "C_POI"))
 		{
 			sys_log_println(_INFORANK, "process C_POI water poi\n");
 			string layername = "C_BackPolygon";
@@ -356,8 +358,8 @@ bool ConfigCatalog::execute()
 		* 增加处理地铁站catalog
 		* 在建地铁站+在建地铁线
 		**/
-		/*
-        if (!bIncrement || isInVector(m_incrementlayer_vec, "C_SubwayLine") || isInVector(m_incrementlayer_vec, "C_SubwayST"))
+        /*
+		if (!bIncrement || isInVector(m_incrementlayer_vec, "C_SubwayLine") || isInVector(m_incrementlayer_vec, "C_SubwayST"))
 		{
 			sys_log_println(_INFORANK, "process C_SubwayLine & C_SubwayST under construction\n");
 			string subwaylinefile = strOutputPath + "/C_SubwayLine";
@@ -373,7 +375,8 @@ bool ConfigCatalog::execute()
 			}			
 		}
         */
-		/**
+		
+        /**
 		* 增加处理铁路线catalog
 		* 区分高铁
 		**/
@@ -2183,12 +2186,12 @@ int ConfigCatalog::Road_CatalogEx(string in_path, string out_path, string layern
 	}
 	sys_log_println(_INFORANK, "Road_CatalogEx step2 finish\r\n");
 
-	// step3 匝道（IC、JCT、匝道、提前左转、提前右转、掉头口、主辅出入口) kindclass等于所连接道路（排除行人道路、轮渡）的kindclass的次低级
-	ProcessRampKindClass(road_Mif, in_path);
+	// step3 服务区、停车区降级
+	ProcessSAKindClass(road_Mif, in_path);
 	sys_log_println(_INFORANK, "Road_CatalogEx step3 finish\r\n");
 
-	// step4 服务区、停车区字段a值处理：如连接匝道，按匝道a值，如只连接高快速，则a值为06
-	ProcessSAKindClass(road_Mif, in_path);
+	// step4 匝道（IC、JCT、匝道、提前左转、提前右转、掉头口、主辅出入口) kindclass等于所连接道路（排除行人道路、轮渡）的kindclass的次低级
+	ProcessRampKindClass(road_Mif, in_path);
 	sys_log_println(_INFORANK, "Road_CatalogEx step4 finish\r\n");
 
 	CheckKindClassConnectivity(road_Mif, in_path);
@@ -3457,17 +3460,6 @@ void ConfigCatalog::ProcessRampKindClass(wgt::MIF& road_Mif, string in_path)
 
 void ConfigCatalog::ProcessSAKindClass(wgt::MIF& road_Mif, string in_path)
 {
-	wgt::MIF C_N_Mif;
-	string city_path = in_path.substr(0, in_path.find_last_of('/'));
-	string cur_city = city_path.substr(city_path.find_last_of('/') + 1);
-	string path = city_path.substr(0, city_path.find_last_of('/'));		// 用于后面城市扩展  ../data/01_basic/05_Recatalog
-	string node_path = city_path + "/C_N";
-
-	if (wgt::mif_to_wsbl(node_path, C_N_Mif) < 0)
-	{
-		sys_log_println(_ERROR, "ProcessSAKindClass read C_N mif error! %s\n", node_path.c_str());
-		return;
-	}
 	// col index
 	int col_linkmapid = road_Mif.get_col_pos("mapid");
 	int col_linkid = road_Mif.get_col_pos("id");
@@ -3476,74 +3468,7 @@ void ConfigCatalog::ProcessSAKindClass(wgt::MIF& road_Mif, string in_path)
 	int col_snodeid = road_Mif.get_col_pos("snodeid");
 	int col_enodeid = road_Mif.get_col_pos("enodeid");
 
-	int col_nodemapid = C_N_Mif.get_col_pos("mapid");
-	int col_nodeid = C_N_Mif.get_col_pos("id");
-	int col_adjoin_nid = C_N_Mif.get_col_pos("adjoin_nid");
-	int col_node_lid = C_N_Mif.get_col_pos("node_lid");
-
-	map<string, int> linkid2indexmap;			// linkid ==> pos
-	map<string, vector<string> > nodeid2lids;	// nodeid ==> linkids
-
-	int nSize2 = C_N_Mif.mid.size();
-	for (int index = 0; index < nSize2; index++)
-	{
-		string str_nodeid = C_N_Mif.mid[index][col_nodeid];
-		string str_adjoinid = C_N_Mif.mid[index][col_adjoin_nid];
-		string str_linkids = C_N_Mif.mid[index][col_node_lid];
-		wgt::trim(str_nodeid, '"');
-		wgt::trim(str_adjoinid, '"');
-		wgt::trim(str_linkids, '"');
-
-		vector<string> res;
-		sys_splitString(str_linkids, res, '|');
-
-		map<string, vector<string> >::iterator ir1 = nodeid2lids.find(str_nodeid);
-		map<string, vector<string> >::iterator ir2 = nodeid2lids.find(str_adjoinid);
-		if (ir1 != nodeid2lids.end())
-		{
-			for (int i = 0; i < res.size(); i++)
-			{
-				ir1->second.push_back(res[i]);
-			}
-		}
-		else
-		{
-			nodeid2lids[str_nodeid] = res;
-		}
-		if (str_adjoinid != "" && str_adjoinid != "0")
-		{
-			if (ir2 != nodeid2lids.end())
-			{
-				for (int i = 0; i < res.size(); i++)
-				{
-					ir2->second.push_back(res[i]);
-				}
-			}
-			else
-			{
-				nodeid2lids[str_adjoinid] = res;
-			}
-		}
-	}
-	C_N_Mif.mid.clear();
-	C_N_Mif.data.geo_vec.clear();
-
 	int nSize = road_Mif.mid.size();
-	for (int index = 0; index < nSize; index++)
-	{
-		string str_linkid = road_Mif.mid[index][col_linkid];
-		wgt::trim(str_linkid, '"');
-		if (linkid2indexmap.find(str_linkid) != linkid2indexmap.end())
-		{
-			sys_log_println(_ASSERT, "linkid redefined %s\n", str_linkid.c_str());
-		}
-		linkid2indexmap[str_linkid] = index;
-	}
-
-	map<string, string> citydirlist;		// 已经加载进来的城市
-	citydirlist[cur_city] = "";
-
-	nSize = road_Mif.mid.size();
 	for (int index = 0; index < nSize; index++)
 	{
 		string rampkindclass = road_Mif.mid[index][col_kindclass];
@@ -3554,123 +3479,8 @@ void ConfigCatalog::ProcessSAKindClass(wgt::MIF& road_Mif, string in_path)
 		wgt::trim(linkid, '"');
 		if (isSA(str_kinds))
 		{
-			// 找出与这个SA相连的路段
-			vector<int> linkposvec;
-			map<string, string> linkvisited;	// 已经访问的link
-			queue<int> linkindexQueue;			// 存放road的下标
-			linkindexQueue.push(index);
-			while (linkindexQueue.size() != 0)
-			{
-				int pos = linkindexQueue.front();
-				linkindexQueue.pop();
-				string linkid = road_Mif.mid[pos][col_linkid];
-				string kind = road_Mif.mid[pos][col_kind];
-				string kindclass = road_Mif.mid[pos][col_kindclass];
-				wgt::trim(linkid, '"');
-				wgt::trim(kind, '"');
-				wgt::trim(kindclass, '"');
-				linkvisited[linkid] = "";		// 添加到 visited
-				if (!isSA(kind))
-				{
-					linkposvec.push_back(pos);
-				}
-				else
-				{
-					string mapid = road_Mif.mid[pos][col_linkmapid];
-					string snodeid = road_Mif.mid[pos][col_snodeid];
-					string enodeid = road_Mif.mid[pos][col_enodeid];
-					wgt::trim(mapid, '"');
-					wgt::trim(snodeid, '"');
-					wgt::trim(enodeid, '"');
-					map<string, vector<string> >::iterator iter_find = nodeid2lids.find(snodeid);
-					if (iter_find != nodeid2lids.end())
-					{
-						vector<string>& res = iter_find->second;
-						for (vector<string>::iterator iter1 = res.begin(); iter1 != res.end(); iter1++)
-						{
-							string lid = *iter1;
-							if (linkvisited.find(lid) == linkvisited.end())
-							{
-								map<string, int>::iterator iter2 = linkid2indexmap.find(lid);
-								if (iter2 != linkid2indexmap.end())
-								{
-									linkindexQueue.push(iter2->second);
-								}
-								else
-								{
-									// 如果扩展后还是没找到呢
-									sys_log_println(_ASSERT, "ProcessSAKindClass can not find lid: %s \n", lid.c_str());
-								}
-							}
-						}
-					}
-					else
-					{
-						sys_log_println(_ASSERT, "ProcessSAKindClass can not find snodeid: %s \n", snodeid.c_str());
-					}
-					//////////////////////////////////////////////////////////////////////////////////////////////////////////////
-					iter_find = nodeid2lids.find(enodeid);
-					if (iter_find != nodeid2lids.end())
-					{
-						vector<string>& res = iter_find->second;
-						for (vector<string>::iterator iter1 = res.begin(); iter1 != res.end(); iter1++)
-						{
-							string lid = *iter1;
-							if (linkvisited.find(lid) == linkvisited.end())
-							{
-								map<string, int>::iterator iter2 = linkid2indexmap.find(lid);
-								if (iter2 != linkid2indexmap.end())
-								{
-									linkindexQueue.push(iter2->second);
-								}
-								else
-								{
-									// 如果扩展后还是没找到呢
-									sys_log_println(_ASSERT, "ProcessSAKindClass can not find lid: %s \n", lid.c_str());
-								}
-							}
-						}
-					}
-					else
-					{
-						sys_log_println(_ASSERT, "ProcessRampKindClass can not find enodeid: %s \n", enodeid.c_str());
-					}
-				}
-			}
-			// 遍历连接的非SA路段
-			bool ishighway = true;	// 连接是否为高快速
-			bool isram = false;		// 连接是否为匝道
-			bool isused = true;	// 连接的道路是否使用
-			for (vector<int>::iterator iter = linkposvec.begin(); iter != linkposvec.end(); ++iter)
-			{
-				int pos = *iter;
-				string kindclass = road_Mif.mid[pos][col_kindclass];
-				string kind = road_Mif.mid[pos][col_kind];
-				wgt::trim(kind, '"');
-				wgt::trim(kindclass, '"');
-				if (kindclass != "00" && kindclass != "01")		// 高快速
-				{
-					ishighway = false;
-				}
-				if (isRamp(kind))
-				{
-					isram = true;
-					rampkindclass = kindclass;
-				}
-				if (kindclass == "0c")
-				{
-					isused = false;
-					break;
-				}
-			}
-			if (!isram && ishighway)
-			{
-				rampkindclass = "06";
-			}
-			if (isused == false)
-			{
-				rampkindclass = "0c";
-			}
+			// 直接降级
+			rampkindclass = "06";
 			road_Mif.mid[index][col_kindclass] = rampkindclass;
 		}
 	}
@@ -4459,6 +4269,7 @@ void ConfigCatalog::CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_pat
 	int col_pathname = road_Mif.get_col_pos("pathname");
 	int col_build_in_flag = road_Mif.get_col_pos("build_in_flag");
 	int col_length = road_Mif.get_col_pos("length");
+	int col_const_st = road_Mif.get_col_pos("const_st");
 	
 
 	int col_nodemapid = C_N_Mif.get_col_pos("mapid");
@@ -4530,7 +4341,7 @@ void ConfigCatalog::CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_pat
 	int groupIndex = 0;
 	
 
-	for (int kindclassProcess=3; kindclassProcess<=9; kindclassProcess++)
+	for (int kindclassProcess=2; kindclassProcess<=9; kindclassProcess++)
 	{
 		vector<int> visited(nSize);
 
@@ -4541,10 +4352,19 @@ void ConfigCatalog::CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_pat
 			string ramppathname = road_Mif.mid[index][col_pathname];
 			string build_in_flag = road_Mif.mid[index][col_build_in_flag];
 			string length = road_Mif.mid[index][col_length];
+			string const_st = road_Mif.mid[index][col_const_st];
 			wgt::trim(str_kinds, '"');
 			wgt::trim(rampkindclass, '"');
 			wgt::trim(build_in_flag, '"');
 			wgt::trim(length, '"');
+			wgt::trim(const_st, '"');
+
+			if (const_st == "4" || const_st == "3")
+			{
+				// 施工道路不处理
+				continue;
+			}
+
 			int kindclass = strtol(rampkindclass.c_str(),NULL,16);
 			if (visited[index] == 0)
 			{
@@ -4596,10 +4416,18 @@ void ConfigCatalog::CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_pat
 								string rampkindclass = road_Mif.mid[index][col_kindclass];
 								string build_in_flag = road_Mif.mid[index][col_build_in_flag];
 								string length = road_Mif.mid[index][col_length];
+								string const_st = road_Mif.mid[index][col_const_st];
 								wgt::trim(rampkindclass, '"');
 								wgt::trim(build_in_flag, '"');
 								wgt::trim(length, '"');
+								wgt::trim(const_st, '"');
 								int kindclass = strtol(rampkindclass.c_str(),NULL,16);
+
+								if (const_st == "4" || const_st == "3")
+								{
+									// 施工道路不处理
+									continue;
+								}
 
 								if (kindclass == group.kind_class)
 								{
@@ -4611,7 +4439,7 @@ void ConfigCatalog::CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_pat
 										linkindexQueue.push(index);
 									}
 								}
-								else
+								else 
 								{
 									group.connected_min_kind_class = min(group.connected_min_kind_class,kindclass);
 									if (kindclass == 0x0A)
@@ -4640,11 +4468,18 @@ void ConfigCatalog::CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_pat
 								string rampkindclass = road_Mif.mid[index][col_kindclass];
 								string build_in_flag = road_Mif.mid[index][col_build_in_flag];
 								string length = road_Mif.mid[index][col_length];
+								string const_st = road_Mif.mid[index][col_const_st];
 								wgt::trim(rampkindclass, '"');
 								wgt::trim(build_in_flag, '"');
 								wgt::trim(length, '"');
+								wgt::trim(const_st, '"');
 								int kindclass = strtol(rampkindclass.c_str(),NULL,16);
 
+								if (const_st == "4" || const_st == "3")
+								{
+									// 施工道路不处理
+									continue;
+								}
 								if (kindclass == group.kind_class)
 								{
 									if (visited[index] == 0)
@@ -4669,7 +4504,7 @@ void ConfigCatalog::CheckKindClassConnectivity(wgt::MIF& road_Mif, string in_pat
 					}	
 				}
 
-				if (group.length < 2 && (group.connected_min_kind_class <= 9 || group.connected_min_kind_class == 11) && !group.connected_ferry)
+				if (group.length < 0.5 && (group.connected_min_kind_class <= 9 || group.connected_min_kind_class == 11) && !group.connected_ferry)
 				{
 					if (group.connected_min_kind_class > group.kind_class)
 					{
@@ -5209,6 +5044,7 @@ int ConfigCatalog::Process_CommunityArea(string in_path, string out_path, string
 	return wgt::wsbl_to_mif(dst_Mif, out_path) == 0;
 }
 */
+
 int ConfigCatalog::RoadLevelUpgrade(string roadFile, string nodeFile, string roadupconfFile)
 {
 	// 这个配置是可以多重配置
@@ -5492,7 +5328,7 @@ int ConfigCatalog::Process_SubwayST(string line_path, string st_path)
 		wgt::trim(status, '"');
 		if (status != "1" && subwaylinemap.find(lineid) != subwaylinemap.end())
 		{
-			string new_catalog = "\"010A0304FF\"";
+			string new_catalog = "\"010A0304\"";
 			mifSubwayST.mid[i][col_catalog] = new_catalog;
 		}
 	}
@@ -5640,6 +5476,7 @@ void ConfigCatalog::WriteIncrementInfo()
 	}
 }
 */
+
 void ConfigCatalog::SmoothRoadCatalog(wgt::MIF& mifRoadLayer)
 {
 	int iSizeRoad = mifRoadLayer.mid.size();
