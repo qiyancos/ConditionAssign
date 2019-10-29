@@ -4,10 +4,26 @@ root=`dirname $0`
 cd $root/../..
 root=$PWD
 
-srcDir="/data6/wenyongwang/dataprocess/data"
+if [ -d $1 ]
+then srcDir=$1
+else
+	echo "Error: No such file or dir: $1"
+	exit -1
+fi
+
+if [ x$2 = x ]
+then startCity=0
+else startCity=$2
+fi
+
 cityList=`ls $srcDir/01_basic/05_ReCatalog/`
+
 for cityName in $cityList
 do
+	if [ $startCity != 0 -a $cityName != $startCity ]
+	then continue
+	else startCity=0
+	fi
 	if [ -f $srcDir/01_basic/05_ReCatalog/$cityName/C_R.mif ]
 	then
 		mkdir -p $root/log/$cityName

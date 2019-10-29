@@ -16,21 +16,15 @@ cd ..
 POIModulePath=$PWD/POIProcess
 cd ./mainrun
 
-function ifErrorExit()
-{
-    if [ $? -ne 0 ]; then
-       {
+function ifErrorExit() {
+    if [ $? -ne 0 ]; then {
         echo "process error,exit!!!!"
-        # perl /usr/local/support/bin/send_rtx.pl "henryqi,v_anpzhang,alechan" "车机运维模块异常[$city][$1]"
-        # perl /usr/local/support/bin/send_weixin.pl "henryqi,v_anpzhang,alechan" "车机运维模块异常[$city][$1]"
         exit 200
-        }
-     else
-        {
-        echo "process sucess ,go  go go !!!"
+     } else {
+     	echo "process sucess ,go  go go !!!"
         return 0
-        }
-      fi
+     }
+     fi
 }
 
 #:<<Hkzxp
@@ -135,3 +129,96 @@ cd ../mainrun/
 SmoothLine_end=$(date +%s)
 echo "$city - SmoothLine : $((SmoothLine_end-SmoothLine_start)) seconds " >> ./log/SmoothLine.log
 echo "$city - SmoothLine : $(((SmoothLine_end-SmoothLine_start)/60)) minute " >> ./log/SmoothLine.log
+
+
+mkdir -p $Datasrc/02_image/02_datapro
+echo;echo ">> Start DataPro"
+datapro_start=$(date +%s)
+cd ../datapro/bin
+./datapro $Datasrc/02_image/01_catalog_rank  $Datasrc/02_image/02_datapro ../conf/datapro.conf ../conf/KindPriority.conf  ../conf/dictdata ../log $city 
+#shentu city
+# cp -rp $Datasrc/02_image/03_label_shentu/$city/* $Datasrc/02_image/02_datapro/$city/
+ifErrorExit "DataPro"
+[ $? -eq 200 ]&&exit
+cd ../../mainrun/
+datapro_end=$(date +%s)
+echo "$city - datapro : $((datapro_end-datapro_start)) seconds " >> ./log/datapro.log
+echo "$city - datapro : $(((datapro_end-datapro_start)/60)) minute " >> ./log/datapro.log
+
+
+echo;echo ">> Start AOIProcess"
+## AOIProcess
+# --------------------
+AOIProcess_start=$(date +%s)
+sh $POIModulePath/script/run_AOIProcess.sh $Datasrc/02_image/01_catalog_rank/$city $Datasrc/02_image/02_datapro/$city $city 5
+ifErrorExit "AOIProcess"
+[ $? -eq 200 ]&&exit
+AOIProcess_end=$(date +%s)
+echo "$city - rank : $((AOIProcess_end-AOIProcess_start)) seconds " >> ./log/AOIProcess.log
+echo "$city - rank : $(((AOIProcess_end-AOIProcess_start)/60)) minute " >> ./log/AOIProcess.log
+# --------------------
+
+
+echo;echo ">> Start WhiteTask"
+## WhiteTask
+# --------------------
+WhiteTask_start=$(date +%s)
+sh $POIModulePath/script/run_WhiteTask.sh $Datasrc/02_image/02_datapro/$city $Datasrc/02_image/02_datapro/$city $city 5
+ifErrorExit "WhiteTask"
+[ $? -eq 200 ]&&exit
+WhiteTask_end=$(date +%s)
+echo "$city - rank : $((WhiteTask_end-WhiteTask_start)) seconds " >> ./log/WhiteTask.log
+echo "$city - rank : $(((WhiteTask_end-WhiteTask_start)/60)) minute " >> ./log/WhiteTask.log
+# --------------------
+
+
+mkdir -p $Datasrc/02_image/03_label
+echo;echo ">> Start MapLabel"
+maplabel_start=$(date +%s)
+cd ../maplabel/bin
+rm -rf $Datasrc/02_image/03_label/$city
+cp -rp $Datasrc/02_image/02_datapro/$city  $Datasrc/02_image/03_label/
+./maplabel $Datasrc/02_image/03_label $Datasrc/02_image/03_label ../conf/style.2d ../log  $city $code  11-20 0
+ifErrorExit	"MapLabel"
+[ $? -eq 200 ]&&exit
+cd ../../mainrun/
+maplabel_end=$(date +%s)
+echo "$city - maplabel : $((maplabel_end-maplabel_start)) seconds " >> ./log/maplabel.log
+echo "$city - maplabel : $(((maplabel_end-maplabel_start)/60)) minute " >> ./log/maplabel.log
+
+
+echo;echo ">> Start CartoonAreaFilter"
+CartoonAreaFilter_start=$(date +%s)
+cd ../CartoonAreaFilter/bin
+./RoadNameFilter $Datasrc/02_image/03_label $Datasrc/02_image/03_label ../conf ../log $city
+ifErrorExit "CartoonAreaFilter"
+[ $? -eq 200 ]&&exit
+cd ../../mainrun/
+CartoonAreaFilter_end=$(date +%s)
+echo "$city - CartoonAreaFilter : $((CartoonAreaFilter_end-CartoonAreaFilter_start)) seconds " >> ../../mainrun/log/CartoonAreaFilter.log
+echo "$city - CartoonAreaFilter : $(((CartoonAreaFilter_end-CartoonAreaFilter_start)/60)) minute " >> ../../mainrun/log/CartoonAreaFilter.log
+
+
+echo;echo ">> Start FilterIndoorPOI"
+FilterIndoorPOI_start=$(date +%s)
+cd ../FilterIndoorPOI/bin
+./FilterIndoorPOI $Datasrc/02_image/03_label $Datasrc/00_origin/Tencent/indoordata $Datasrc/02_image/03_label ../conf $city $code 17-20
+ifErrorExit "FilterIndoorPOI"
+[ $? -eq 200 ]&&exit
+cd ../../mainrun/
+FilterIndoorPOI_end=$(date +%s)
+echo "$city - FilterIndoorPOI : $((FilterIndoorPOI_end-FilterIndoorPOI_start)) seconds " >> ../../mainrun/log/FilterIndoorPOI.log
+echo "$city - FilterIndoorPOI : $(((FilterIndoorPOI_end-FilterIndoorPOI_start)/60)) minute " >> ../../mainrun/log/FilterIndoorPOI.log
+
+
+mkdir -p $Datasrc/02_image/07_compiler_no_rtic_new
+echo;echo ">> Start DataCompiler"
+DataCompiler_start=$(date +%s)
+cd ../datacompiler
+sh run_one.sh $code $ename $city SOSOMapVectorCompiler.txt.src.new
+ifErrorExit "DataCompiler"
+[ $? -eq 200 ]&&exit
+cd ../mainrun/
+DataCompiler_end=$(date +%s)
+echo "$city - DataCompiler : $((DataCompiler_end-DataCompiler_start)) seconds " >> ./log/datacompiler.log
+echo "$city - DataCompiler : $(((DataCompiler_end-DataCompiler_start)/60)) minute " >> ./mainrun/log/datacompiler.log

@@ -106,13 +106,19 @@ poiTest() {
             $targetLayer $executorCnt $logPath $configFile NULL) \
             2>&1 | awk '/real/ {print $2}'`
     echo;echo ">> Checking Result of layer $layerName in city $cityName..."
-    $root/bin/middiff $resultDataPath/$cityName/${layerName}.mif $targetLayer
+	if [ "x`grep 3958123695942676603 $root/data/$cityName/${layerName}.mid`" != x ]
+	then
+		sed -i '/3958123695942676603/d' $root/data/$cityName/${layerName}.mid
+		sed -i '$d' $targetLayer
+		sed -i '$d' $targetLayer
+	fi
+	$root/bin/middiff $resultDataPath/$cityName/${layerName}.mif $targetLayer
     resultMatch=$?
     if [ $resultMatch = -1 ]
     then
-        echo "Test Result [$city-$layerName]: Not Match"
+		echo "Test Result [$city-$layerName]: Not Match"
         exit 1
-    else
+	else
         echo "Test Time [$city-$layerName]: $totalTime"
         echo "Test Result [$city-$layerName]: Match"
     fi
