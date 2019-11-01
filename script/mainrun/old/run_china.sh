@@ -1,26 +1,20 @@
 #!/bin/bash
 city=china
 code=0
-
-cd ../data
-Datasrc=$(pwd)
-cd ../mainrun
-
-function ifErrorExit()
-{
- 
-          if [ $? -ne 0 ]; then
-             {
-            echo "process error,exit!!!!"
-              exit 200
-              }
-          else
-             {
-             echo "process sucess ,go  go go !!!"
-            return 0
-           }
-        fi
- }
+Datasrc=/data2/dataprocess/data
+function ifErrorExit() {
+    if [ $? -ne 0 ]; then
+    {
+        echo "process error,exit!!!!"
+        exit 200
+    }
+    else
+    {
+        echo "process sucess ,go  go go !!!"
+        return 0
+    }
+    fi
+}
 
 run_china_start=$(date +%s)
 echo "start china process dataprocess" 
@@ -36,7 +30,7 @@ cd ../../mainrun/
 
 cd  ../NewConditionAssign
 echo "process 02_image/01_catalog!"	
-./script/auto_run.sh NULL $Datasrc/01_basic/05_ReCatalog $Datasrc/02_image/01_catalog_rank $Datasrc/00_origin/Tencent ./conf ./log $city 8
+./script/auto_run.sh NULL $Datasrc/01_basic/05_ReCatalog $Datasrc/02_image/01_catalog_rank $Datasrc/00_origin/Tencent ./conf ./log $city
 ifErrorExit 
 [ $? -eq 200 ]&&exit
 cd ../../mainrun/
@@ -58,12 +52,12 @@ cd ../../mainrun/
 #osm taiwan
 cd ../Convertosm/bin
 echo "process osm taiwan!" 
-#sh run.sh
+sh run.sh
 ifErrorExit
 [ $? -eq 200 ]&&exit
 cd ../../mainrun/
 
-cp -p citylist ../chinaroadpro/conf/	
+    cp -p citylist ../chinaroadpro/conf/	
 cd ../chinaroadpro/bin
 echo "process 02image/02datapro+chinaroadpro!"	
 ./chinaroadpro $Datasrc/02_image/02_datapro $Datasrc/02_image/02_datapro ../conf ../log $city 128
@@ -74,22 +68,15 @@ cd ../../mainrun
 cd ../maplabel/bin
 rm -r $Datasrc/02_image/03_label/$city
 cp -r $Datasrc/02_image/02_datapro/$city  $Datasrc/02_image/03_label/
-./maplabel $Datasrc/02_image/03_label $Datasrc/02_image/03_label ../conf.china/style.2d ../log  $city $code 4-10 0
+./maplabel $Datasrc/02_image/03_label $Datasrc/02_image/03_label ../conf/style.2d ../log  $city $code 4-10 0
 ifErrorExit
 [ $? -eq 200 ]&&exit
 cd ../../mainrun
 
-sh run_china_taiwan.sh &
-
-rm -r $Datasrc/02_image/03_label/"$city"2
-cp -rp $Datasrc/02_image/03_label/$city $Datasrc/02_image/03_label/"$city"2
-
 cd ../datacompiler/
-sh run_china_new.sh
+sh run_china.sh
 run_china_end=$(date +%s)
 echo "run_china : $((run_china_end-run_china_start)) seconds " >> ../mainrun/log/run_china.log
 echo "run_china : $(((run_china_end-run_china_start)/60)) minute " >> ../mainrun/log/run_china.log
 echo "end process !"
-
-wait
-exit 0
+exit 0;

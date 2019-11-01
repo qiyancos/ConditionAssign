@@ -21,7 +21,7 @@ $root/conf/autogen.sh
 cp ./conf/*.conf ./NewConditionAssign/conf
 cp ./RoadCatalog/conf/* ./NewConditionAssign/conf
 cp -r ./script ./NewConditionAssign/
-rm -rf ./NewConditionAssign/script/mainrun
+# rm -rf ./NewConditionAssign/script/mainrun
 tar -cvjf ./NewConditionAssign.tar.bz2 ./NewConditionAssign/*
 sz ./NewConditionAssign.tar.bz2
 rm -rf ./NewConditionAssign ./NewConditionAssign.tar.bz2
