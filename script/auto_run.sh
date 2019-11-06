@@ -230,8 +230,11 @@ roadCatalog() {
     echo " $pluginDataPath $root/conf $logPath $cityName"
     if [ x$enableDebug != x1 ]
     then
-        $root/bin/RoadCatalog $srcDataPath/.. $targetDataPath/.. \
-                $pluginDataPath $root/conf $logPath $cityName &
+        if [ -f $srcDataPath/C_R.mif -o -f $srcDataPath/C_R.MIF]
+        then
+            $root/bin/RoadCatalog $srcDataPath/.. $targetDataPath/.. \
+                    $pluginDataPath $root/conf $logPath $cityName &
+        fi
     fi
 }
 
