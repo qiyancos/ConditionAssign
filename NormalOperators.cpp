@@ -71,6 +71,7 @@ int OperatorAnd::process(Node* node, MifItem* item) {
 
 int OperatorEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
+#ifdef STRICT_EQUAL
     if (node->leftType == node->rightType && node->leftType == Number) {
         double leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
@@ -79,6 +80,11 @@ int OperatorEqual::process(Node* node, MifItem* item) {
     } else if (node->leftType == New) {
         return false;
     } else {
+#else
+    if (node->leftType == New) {
+        return false;
+    } else {
+#endif
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
