@@ -71,20 +71,16 @@ int OperatorAnd::process(Node* node, MifItem* item) {
 
 int OperatorEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
-#ifdef STRICT_EQUAL
-    if (node->leftType == node->rightType && node->leftType == Number) {
+    if (node->leftType == node->rightType && node->leftType == Number &&
+            item->isTagConvertable(node->tagName)) {
         double leftVal;
-        CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                "Can not get value of tag \"%s\".", node->tagName.c_str());
-        return floatEqual(leftVal, node->value.numberValue);
-    } else if (node->leftType == New) {
-        return false;
-    } else {
-#else
+        if (item->getTagVal(node->tagName, &leftVal) > -1) {
+            return floatEqual(leftVal, node->value.numberValue);
+        }
+    }
     if (node->leftType == New) {
         return false;
     } else {
-#endif
         std::string leftVal;
         CHECK_RET(item->getTagVal(node->tagName, &leftVal),
                 "Can not get value of tag \"%s\".", node->tagName.c_str());
@@ -95,12 +91,14 @@ int OperatorEqual::process(Node* node, MifItem* item) {
 
 int OperatorNotEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
-    if (node->leftType == node->rightType && node->leftType == Number) {
+    if (node->leftType == node->rightType && node->leftType == Number &&
+            item->isTagConvertable(node->tagName)) {
         double leftVal;
-        CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                "Can not get value of tag \"%s\".", node->tagName.c_str());
-        return ! floatEqual(leftVal, node->value.numberValue);
-    } else if (node->leftType == New) {
+        if (item->getTagVal(node->tagName, &leftVal) > -1) {
+            return ! floatEqual(leftVal, node->value.numberValue);
+        }
+    }
+    if (node->leftType == New) {
         return false;
     } else {
         std::string leftVal;
@@ -114,32 +112,56 @@ int OperatorNotEqual::process(Node* node, MifItem* item) {
 int OperatorLessEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
-    CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            "Can not get value of tag \"%s\".", node->tagName.c_str());
+    if (!item->isTagConvertable(node->tagName) ||
+            item->getTagVal(node->tagName, &leftVal) < 0) {
+        std::string leftStringVal;
+        CHECK_RET(item->getTagVal(node->tagName, &leftStringVal),
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
+        CHECK_RET(-1, "Can not get value \"%s\" of tag \"%s\" as a Number.",
+                leftStringVal.c_str(), node->tagName.c_str());
+    }
     return floatLessEqual(leftVal, node->value.numberValue);
 }
 
 int OperatorLessThan::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
-    CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            "Can not get value of tag \"%s\".", node->tagName.c_str());
+    if (!item->isTagConvertable(node->tagName) ||
+            item->getTagVal(node->tagName, &leftVal) < 0) {
+        std::string leftStringVal;
+        CHECK_RET(item->getTagVal(node->tagName, &leftStringVal),
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
+        CHECK_RET(-1, "Can not get value \"%s\" of tag \"%s\" as a Number.",
+                leftStringVal.c_str(), node->tagName.c_str());
+    }
     return (leftVal < node->value.numberValue);
 }
 
 int OperatorGreaterEqual::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
-    CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            "Can not get value of tag \"%s\".", node->tagName.c_str());
+    if (!item->isTagConvertable(node->tagName) ||
+            item->getTagVal(node->tagName, &leftVal) < 0) {
+        std::string leftStringVal;
+        CHECK_RET(item->getTagVal(node->tagName, &leftStringVal),
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
+        CHECK_RET(-1, "Can not get value \"%s\" of tag \"%s\" as a Number.",
+                leftStringVal.c_str(), node->tagName.c_str());
+    }
     return floatGreaterEqual(leftVal, node->value.numberValue);
 }
 
 int OperatorGreaterThan::process(Node* node, MifItem* item) {
     BINARYOP_CHECK();
     double leftVal;
-    CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-            "Can not get value of tag \"%s\".", node->tagName.c_str());
+    if (!item->isTagConvertable(node->tagName) ||
+            item->getTagVal(node->tagName, &leftVal) < 0) {
+        std::string leftStringVal;
+        CHECK_RET(item->getTagVal(node->tagName, &leftStringVal),
+                "Can not get value of tag \"%s\".", node->tagName.c_str());
+        CHECK_RET(-1, "Can not get value \"%s\" of tag \"%s\" as a Number.",
+                leftStringVal.c_str(), node->tagName.c_str());
+    }
     return (leftVal > node->value.numberValue);
 }
 
@@ -640,10 +662,14 @@ int OperatorSelfAdd::process(Node* node, MifItem* item) {
     leftValString = htk::trim(leftValString, "\"");
     if (node->leftType == node->rightType && node->leftType == Number) {
         double leftVal = 0.0f;
-        std::string prefix = "";
-        std::stringstream tempStream;
-        CHECK_RET(item->getTagVal(node->tagName, &leftVal),
-                "Can not get value of tag \"%s\".", node->tagName.c_str());
+        if (!item->isTagConvertable(node->tagName) ||
+                item->getTagVal(node->tagName, &leftVal) < 0) {
+            std::string leftStringVal;
+            CHECK_RET(item->getTagVal(node->tagName, &leftStringVal),
+                    "Can not get value of tag \"%s\".", node->tagName.c_str());
+            CHECK_RET(-1, "Can not get value \"%s\" of tag \"%s\" as a Number.",
+                    leftStringVal.c_str(), node->tagName.c_str());
+        }
         leftVal += node->value.numberValue;
         CHECK_RET(item->assignWithNumber(node->tagName, leftVal),
                 "Failed to assign number to tag \"%s\".",

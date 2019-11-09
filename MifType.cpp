@@ -222,7 +222,7 @@ int MifLayerNew::getTagType(const std::string& tagName,
         }
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         std::string tagStringVal = copySrcLayer_->mif_.mid[0][colID];
-        *type = syntax::getDataType(tagStringVal);
+        *type = syntax::getDataType(tagStringVal, false);
         tagTypeCache_[tagName] = *type;
         return 0;
     }
@@ -433,7 +433,7 @@ int MifLayerNormal::getTagType(const std::string& tagName,
             return 0;
         }
         std::string tagStringVal = mif_.mid[0][colID];
-        *type = syntax::getDataType(tagStringVal);
+        *type = syntax::getDataType(tagStringVal, false);
         tagTypeCache_[tagName] = *type;
         return 0;
     }
@@ -619,8 +619,10 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
         CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
                 "Failed to get value of tag \"%s\" from mif layer.",
                 tagName.c_str());
-        CHECK_ARGS(syntax::isType(tagVal, val),
-                "Trying to get tag value \"%s\" as a number.", tagVal.c_str());
+        if (!syntax::isType(htk::trim(tagVal. "\""), val)) {
+            typeBlackList_.insert(tagName);
+            return -1;
+        }
         info_->tagNumberCache_[tagName] = *val;
         return 0;
     }
@@ -635,9 +637,10 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
         CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
                 "Failed to get value of tag \"%s\" from mif layer.",
                 tagName.c_str());
-        CHECK_ARGS(syntax::isType(tagVal, val),
-                "Tag \"%s\" value \"%s\" can not be convert to a number.",
-                tagName.c_str(), tagVal.c_str())
+        if (!syntax::isType(htk::trim(tagVal, "\""), val)) {
+            typeBlackList_.insert(tagName);
+            return -1;
+        }
     }
     return 0;
 #endif
@@ -701,6 +704,10 @@ int MifItem::addGUID(int executorID) {
         assignWithTag("guid", newGUID);
     }
     return 0;
+}
+
+bool MifItem::isTagConvertable(const std::string& tagName) {
+    return typeBlackList_.find(tagName) == typeBlackList_.end();
 }
 
 } // namepsace condition_assign

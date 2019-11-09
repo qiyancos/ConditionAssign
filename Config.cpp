@@ -268,7 +268,7 @@ int parseExpr(const syntax::Operator::OperatorType opType,
                     }
                 } else {
                     node->rightType = syntax::getDataType(
-                            node->value.stringValue,
+                            node->value.stringValue, true,
                             &(node->value.stringValue),
                             &(node->value.numberValue));
                 }

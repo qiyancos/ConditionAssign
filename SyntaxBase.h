@@ -38,8 +38,8 @@ enum DataType {Empty, New, Number, String, GroupType, Expr};
 // debug使用获取数据类型对应的字符串
 std::string getTypeString(const DataType type);
 // 获取一个字符串的类型
-DataType getDataType(const std::string data, std::string* stringVal = nullptr,
-        double* numberVal = nullptr);
+DataType getDataType(const std::string data, const bool strictCheck,
+        std::string* stringVal = nullptr, double* numberVal = nullptr);
 // 判断一个数值是给定类型
 template<typename T> bool isType(const std::string& data, T* result);
 

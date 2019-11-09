@@ -47,22 +47,44 @@ std::string getTypeString(const DataType type) {
     return "Unknown Type";
 }
 
-DataType getDataType(const std::string data, std::string* stringVal,
-        double* numberVal) {
+DataType getDataType(const std::string data, const bool strictCheck,
+        std::string* stringVal, double* numberVal) {
     const int length = data.length();
-    if (length == 0 || (data[0] == '\"' && data[length - 1] == '\"')) {
-        if (stringVal != nullptr) {
-            *stringVal = data.substr(1, length - 2);
-        }
-        return String;
-    } else {
-        if (stringVal != nullptr) {
-            *stringVal = data;
-        }
-        if (!isType<double>(data, numberVal)) {
+    if (strictCheck) {
+        if (length == 0) {
+            if (stringVal != nullptr) {
+                *stringVal = "0";
+            }
+            if (numberVal != nullptr) {
+                *numberVal = 0.0;
+            }
+            return Number;
+        } else if (data[0] == '\"' && data[length - 1] == '\"') {
+            if (stringVal != nullptr) {
+                *stringVal = data.substr(1, length - 2);
+            }
             return String;
         } else {
-            return Number;
+            if (stringVal != nullptr) {
+                *stringVal = data;
+            }
+            if (!isType<double>(data, numberVal)) {
+                return String;
+            } else {
+                return Number;
+            }
+        }
+    } else {
+        // 对于不严格的情况，双引号会被忽略掉
+        if (length == 0) {
+            return String;
+        } else {
+            std::string strTemp = htk::trim(data, "\"");
+            if (!isType<double>(strTemp, numberVal)) {
+                return String;
+            } else {
+                return Number;
+            }
         }
     }
 }

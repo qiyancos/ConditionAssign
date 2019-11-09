@@ -12,7 +12,9 @@
 namespace condition_assign {
 
 // 是否使用MifItem的Cache优化
+// 目前由于Cache没有二次更新策略，因此不要打开
 // #define USE_MIFITEM_CACHE
+
 // 下面的变量用于解决地理库不支持多线程的问题
 extern double globalDouble;
 
@@ -248,6 +250,8 @@ public:
     int findInsertProcessResult(bool** resultPtr, int64_t processKey);
     // 如果没有GUID则添加一个新的GUID
     int addGUID(int executorID = -1);
+    // 判断一个Tag是否可以转换为数值类型
+    bool isTagConvertable(const std::string& tagName);
 
 public:
     // 当前MifItem所属的MifLayer
@@ -264,6 +268,9 @@ private:
     std::map<int64_t, bool> processResultCache_;
     // 当前MifItem的info
     MifLayer::ItemInfo* info_ = nullptr;
+    // 类型黑名单，如果一个tag无法转换数值类型
+    // 却发现Layer类型不准确，则该Tag会被拉黑，不再转换数值
+    std::set<std::string> typeBlackList_;
 };
 
 } // namespace condition_assign
