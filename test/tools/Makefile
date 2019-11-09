@@ -36,7 +36,7 @@ init:
 	mkdir -p ./bin
 
 bin/mifdiff: mifdiff.cpp program_helper.cpp mif_helper.cpp
-	$(GCC) -static $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
+	$(GCC) -DSTRICT_DIFF -static $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@
 
 bin/middiff: middiff.cpp program_helper.cpp mif_helper.cpp
 	$(GCC) -static $^ $(CPPFLAGS) $(INCLUDE_PATH) $(LDFLAGS) -o $@

@@ -12,8 +12,8 @@
 namespace condition_assign {
 
 // 是否使用MifItem的Cache优化
-// 目前由于Cache没有二次更新策略，因此不要打开
-// #define USE_MIFITEM_CACHE
+// 在进行精准类型匹配的时候开启可以提升速度
+#define USE_MIFITEM_CACHE
 
 // 下面的变量用于解决地理库不支持多线程的问题
 extern double globalDouble;

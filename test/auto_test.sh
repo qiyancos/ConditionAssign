@@ -120,7 +120,7 @@ do
         if [ ${oldTested}x = 1x -a ${newTested}x = 1x ]
         then
             echo "Start Result Check:"
-            $root/tools/mifdiff $root/data/${layerName}_Out_New.mif \
+            $root/tools/bin/middiff $root/data/${layerName}_Out_New.mif \
                     $root/data/${layerName}_Out_Old.mif
             echo 
         fi

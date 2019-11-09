@@ -167,6 +167,11 @@ int MifLayerNew::assignWithNumber(const std::string& tagName,
         }
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         mif_.mid[index][colID] = valString;
+#ifdef USE_MIFITEM_CACHE
+        std::lock_guard<std::mutex> mifitemCacheGuard(
+                *(itemInfoCache_[index].tagStringCacheLock_));
+        itemInfoCache_[index].tagStringCache_[tagName] = valString;
+#endif
     } else {
         std::lock_guard<std::mutex> mifGuard(mifLock_);
         if (tagName == "X" || tagName == "x") {
@@ -381,6 +386,11 @@ int MifLayerNormal::assignWithNumber(const std::string& tagName,
             valString = std::to_string(val);
         }
         mif_.mid[index][colID] = valString;
+#ifdef USE_MIFITEM_CACHE
+        std::lock_guard<std::mutex> mifitemCacheGuard(
+                *(itemInfoCache_[index].tagStringCacheLock_));
+        itemInfoCache_[index].tagStringCache_[tagName] = valString;
+#endif
     } else {
         if (tagName == "X" || tagName == "x") {
             mif_.data.geo_vec[index]->at(0).at(0).setx(val);
@@ -550,6 +560,7 @@ int MifItem::assignWithNumber(const std::string& tagName,
                 tagName.c_str());
     }
 #ifdef USE_MIFITEM_CACHE
+    // 我们会在执行assignNumber的时候更新tagStringCache.
     std::lock_guard<std::mutex> cacheGuard(*(info_->tagNumberCacheLock_));
     info_->tagNumberCache_[tagName] = val;
 #endif
@@ -619,7 +630,7 @@ int MifItem::getTagVal(const std::string& tagName, double* val) {
         CHECK_RET(srcLayer_->getTagVal(tagName, index_, &tagVal),
                 "Failed to get value of tag \"%s\" from mif layer.",
                 tagName.c_str());
-        if (!syntax::isType(htk::trim(tagVal. "\""), val)) {
+        if (!syntax::isType(htk::trim(tagVal, "\""), val)) {
             typeBlackList_.insert(tagName);
             return -1;
         }
