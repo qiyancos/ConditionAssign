@@ -1,0 +1,16 @@
+C_POI
+C_POI_1
+C_POI_2
+C_POI_3
+C_POI_4
+C_POI_5
+C_R
+C_Z
+C_AdmLM
+C_BackPolygon 北京市
+C_BackPolygon 深圳市
+C_BackPolygon 广州市
+C_BackPolygon 上海市
+C_BackPolygon 西双版纳傣族自治州
+C_SubwayLine 深圳市
+C_SubwayST 深圳市

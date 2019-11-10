@@ -21,6 +21,7 @@ $root/conf/autogen.sh
 cp ./conf/*.conf ./NewConditionAssign/conf
 cp ./RoadCatalog/conf/* ./NewConditionAssign/conf
 cp -r ./script ./NewConditionAssign/
+mv ./NewConditionAssign/script/test/skip_list.txt ./NewConditionAssign
 # rm -rf ./NewConditionAssign/script/mainrun
 tar -cvjf ./NewConditionAssign.tar.bz2 ./NewConditionAssign/*
 sz ./NewConditionAssign.tar.bz2

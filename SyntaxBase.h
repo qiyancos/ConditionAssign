@@ -57,15 +57,15 @@ inline bool canRoundToInt(const double val, int* intVal) {
 
 // 用于比较两个浮点数
 inline bool floatEqual(const double a, const double b) {
-    return abs(a - b) < MAXERROR;
+    return fabs(a - b) < MAXERROR;
 }
 // 用于比较两个浮点数
 inline bool floatLessEqual(const double a, const double b) {
-    return a < b || abs(a - b) < MAXERROR;
+    return a < b || fabs(a - b) < MAXERROR;
 }
 // 用于比较两个浮点数
 inline bool floatGreaterEqual(const double a, const double b) {
-    return a > b || abs(a - b) < MAXERROR;
+    return a > b || fabs(a - b) < MAXERROR;
 }
 
 struct Node;

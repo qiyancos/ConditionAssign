@@ -40,7 +40,7 @@ quickCopy() {
 		fi
 	done
 	for file in $4
-	do mkdir -p $target/$4
+	do mkdir -p $target/$file
 	done
 }
 

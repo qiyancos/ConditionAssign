@@ -72,6 +72,7 @@ initTest() {
 poiTest() {
     cityName=$1
     layerName=$2
+    mkdir -p $root/data/$cityName
     echo ">> Processing with layer $layerName in city $cityName..."
     # Run POIFeature
     srcLayer="$srcDataPath/$cityName/${layerName}.mif"
@@ -98,7 +99,6 @@ poiTest() {
     configFile="$configFile;$root/conf/${layerName}_4.conf"
     configFile="$configFile;$root/conf/${layerName}_5.conf"
     logPath="$root/log/$cityName"
-    mkdir -p $root/data/$cityName
     mkdir -p $logPath
     echo -n "Command: $root/bin/ConditionAssign NULL NULL $srcLayer "
     echo "$targetLayer $executorCnt $logPath $configFile NULL"

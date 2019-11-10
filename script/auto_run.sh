@@ -230,7 +230,7 @@ roadCatalog() {
     echo " $pluginDataPath $root/conf $logPath $cityName"
     if [ x$enableDebug != x1 ]
     then
-        if [ -f $srcDataPath/C_R.mif -o -f $srcDataPath/C_R.MIF]
+        if [ -f $srcDataPath/C_R.mif -o -f $srcDataPath/C_R.MIF ]
         then
             $root/bin/RoadCatalog $srcDataPath/.. $targetDataPath/.. \
                     $pluginDataPath $root/conf $logPath $cityName &
@@ -408,12 +408,12 @@ roadCatalog
 splitConfigFiles
 # 处理并行模式运行的分类
 processParallelLayers
+# 等待道路分类任务完成
+wait
 # 处理POIBaseFeature
 poiFeatureProcess
 # 处理串行模式运行的分类
 processSerialLayers
 # 进行Layer过滤操作(进程级并行)
 processLayerFilter
-# 等待道路分类任务完成
-wait
 exit 0
