@@ -128,9 +128,9 @@ poiTest() {
 checkSkip() {
     if [ x$skipList = x ]
     then echo 0
-    elif [ "x`grep $2 $skipList`" = x$2 ]
-    then echo 1
     elif [ "x`grep $1 $skipList | grep $2`" != x ]
+    then echo 1
+    elif [ "x`grep C_BackPolygon $skipList | grep $1`" != x ]
     then echo 1
     else echo 0
     fi
